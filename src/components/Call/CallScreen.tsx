@@ -224,7 +224,7 @@ export const CallScreen = ({
   }, [room])
 
   const toggleMicrophone = useCallback(async () => {
-    if (micBusy || microphoneStarting || status === 'reconnecting') return
+    if (micBusy || status === 'reconnecting') return
     setMicBusy(true)
     try {
       const enabling = !room.localParticipant.isMicrophoneEnabled
@@ -247,7 +247,7 @@ export const CallScreen = ({
     } finally {
       setMicBusy(false)
     }
-  }, [micBusy, microphoneStarting, onMicrophoneErrorChange, room, status])
+  }, [micBusy, onMicrophoneErrorChange, room, status])
 
   const toggleCamera = useCallback(async () => {
     if (cameraBusy || status === 'reconnecting') return
@@ -541,8 +541,8 @@ export const CallScreen = ({
       <footer className="call-dock">
         <div className="call-dock__group">
           <ControlButton
-            detail={micBusy || microphoneStarting ? 'Aguarde' : micEnabled ? 'Transmitindo' : 'Silenciado'}
-            disabled={micBusy || microphoneStarting || status === 'reconnecting'}
+            detail={micBusy ? 'Aguarde' : microphoneStarting && !micEnabled ? 'Iniciando' : micEnabled ? 'Transmitindo' : 'Silenciado'}
+            disabled={micBusy || status === 'reconnecting'}
             error={Boolean(microphoneError)}
             icon={micEnabled ? 'mic' : 'micOff'}
             label="Microfone"

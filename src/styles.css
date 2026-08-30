@@ -6657,7 +6657,31 @@ svg {
 .profile-avatar--frame-double { border: 2px solid var(--profile-accent) !important; box-shadow: 0 0 0 4px #0d110e,0 0 0 6px color-mix(in srgb,var(--profile-accent) 65%,transparent),0 14px 32px rgba(0,0,0,.34) !important; }
 .profile-avatar--frame-glow { border: 2px solid var(--profile-accent) !important; box-shadow: 0 0 0 3px color-mix(in srgb,var(--profile-accent) 13%,transparent),0 0 24px color-mix(in srgb,var(--profile-accent) 38%,transparent),0 14px 32px rgba(0,0,0,.34) !important; }
 .gallery-person__meta .profile-name-wrap { flex: 1; }
-.gallery-person__meta .profile-name { font-size: inherit; }
+.gallery-person__meta .profile-name { font-size: 9px !important; line-height: 1.2; }
+.gallery-person__avatar.profile-avatar {
+  border: 0 !important;
+  box-shadow: none !important;
+}
+.gallery-person__avatar.profile-avatar--frame-none > img,
+.gallery-person__avatar.profile-avatar--frame-none > span {
+  border-color: transparent !important;
+  box-shadow: none !important;
+}
+.gallery-person__avatar.profile-avatar--frame-ring > img,
+.gallery-person__avatar.profile-avatar--frame-ring > span {
+  border: 2px solid var(--profile-accent) !important;
+  box-shadow: 0 0 0 4px color-mix(in srgb,var(--profile-accent) 10%,transparent),0 15px 36px rgba(0,0,0,.34) !important;
+}
+.gallery-person__avatar.profile-avatar--frame-double > img,
+.gallery-person__avatar.profile-avatar--frame-double > span {
+  border: 2px solid var(--profile-accent) !important;
+  box-shadow: 0 0 0 3px #111512,0 0 0 5px color-mix(in srgb,var(--profile-accent) 62%,transparent),0 15px 36px rgba(0,0,0,.34) !important;
+}
+.gallery-person__avatar.profile-avatar--frame-glow > img,
+.gallery-person__avatar.profile-avatar--frame-glow > span {
+  border: 2px solid var(--profile-accent) !important;
+  box-shadow: 0 0 22px color-mix(in srgb,var(--profile-accent) 42%,transparent),0 15px 36px rgba(0,0,0,.34) !important;
+}
 .participant__identity .profile-name-wrap { width: 100%; }
 .participant__identity .profile-name { font-size: 10px; }
 .context-menu > header .profile-name-wrap { min-width: 0; }
@@ -7330,4 +7354,20 @@ svg {
   .lobby-v2__heading h2 { font-size: 38px; }
   .lobby-v2__card--direct .lobby-v2__step { padding: 22px 18px; }
   .profile-custom-color { min-width: 108px; }
+}
+
+/* Call cards keep custom identity compact and separate from card geometry. */
+
+.participant-gallery:not(.participant-gallery--compact) .gallery-person__meta {
+  width: min(190px, calc(100% - 24px));
+}
+
+.participant-gallery:not(.participant-gallery--compact) .gallery-person__meta .profile-name-wrap {
+  width: auto;
+  max-width: none;
+  flex: 1 1 auto;
+}
+
+.gallery-person__meta .profile-name--rounded {
+  font-size: 8px !important;
 }

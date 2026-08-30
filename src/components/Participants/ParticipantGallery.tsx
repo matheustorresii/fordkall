@@ -87,7 +87,7 @@ export const ParticipantGallery = ({
               />
             )}
             <div className="gallery-person__meta">
-              <ProfileName appearance={participant.appearance} name={participant.name} suffix={participant.isLocal ? ' · Você' : ''} />
+              <ProfileName appearance={participant.appearance} name={participant.name} />
               <span className={participant.microphoneMuted ? 'is-muted' : ''}>
                 <Icon name={participant.microphoneMuted ? 'micOff' : 'mic'} />
               </span>

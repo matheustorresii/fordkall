@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { ConnectionState, RoomEvent, type Room } from 'livekit-client'
+import {
+  ConnectionState,
+  RoomEvent,
+  Track,
+  type LocalTrackPublication,
+  type Room,
+} from 'livekit-client'
 import {
   createLiveKitRoom,
   fetchConnectionDetails,
@@ -20,6 +26,14 @@ const toConnectionStatus = (state: ConnectionState): ConnectionStatus => {
   }
   if (state === ConnectionState.Connected) return 'connected'
   return 'disconnected'
+}
+
+const stopRoomLocalTracks = (room: Room) => {
+  room.localParticipant.trackPublications.forEach((publication) => {
+    publication.track?.detach()
+    publication.track?.stop()
+    publication.track?.mediaStreamTrack.stop()
+  })
 }
 
 export const useLiveKitRoom = () => {
@@ -44,8 +58,10 @@ export const useLiveKitRoom = () => {
     setMicrophoneStarting(false)
 
     if (activeRoom) {
+      stopRoomLocalTracks(activeRoom)
       activeRoom.removeAllListeners()
       await activeRoom.disconnect(true)
+      stopRoomLocalTracks(activeRoom)
     }
 
     leavingRef.current = false
@@ -92,7 +108,20 @@ export const useLiveKitRoom = () => {
       // leaving the lobby locked even though LiveKit is already connected.
       const microphoneRequest = ++microphoneRequestRef.current
       setMicrophoneStarting(true)
+      const handleInitialMicrophonePublished = (publication: LocalTrackPublication) => {
+        if (publication.source !== Track.Source.Microphone) return
+        nextRoom.off(RoomEvent.LocalTrackPublished, handleInitialMicrophonePublished)
+        if (
+          microphoneRequestRef.current === microphoneRequest &&
+          roomRef.current === nextRoom
+        ) {
+          setMicrophoneStarting(false)
+          setMicrophoneError('')
+        }
+      }
+      nextRoom.on(RoomEvent.LocalTrackPublished, handleInitialMicrophonePublished)
       const microphoneTimer = window.setTimeout(() => {
+        nextRoom.off(RoomEvent.LocalTrackPublished, handleInitialMicrophonePublished)
         if (
           microphoneRequestRef.current === microphoneRequest &&
           roomRef.current === nextRoom
@@ -103,7 +132,17 @@ export const useLiveKitRoom = () => {
       }, 12_000)
       void nextRoom.localParticipant
         .setMicrophoneEnabled(true, microphoneCaptureOptions())
-        .then(() => {
+        .then((publication) => {
+          if (
+            microphoneRequestRef.current !== microphoneRequest ||
+            roomRef.current !== nextRoom
+          ) {
+            publication?.track?.detach()
+            publication?.track?.stop()
+            publication?.track?.mediaStreamTrack.stop()
+            stopRoomLocalTracks(nextRoom)
+            return
+          }
           if (
             microphoneRequestRef.current === microphoneRequest &&
             roomRef.current === nextRoom
@@ -121,6 +160,14 @@ export const useLiveKitRoom = () => {
         })
         .finally(() => {
           window.clearTimeout(microphoneTimer)
+          nextRoom.off(RoomEvent.LocalTrackPublished, handleInitialMicrophonePublished)
+          if (
+            microphoneRequestRef.current !== microphoneRequest ||
+            roomRef.current !== nextRoom
+          ) {
+            stopRoomLocalTracks(nextRoom)
+            return
+          }
           if (
             microphoneRequestRef.current === microphoneRequest &&
             roomRef.current === nextRoom
@@ -145,8 +192,10 @@ export const useLiveKitRoom = () => {
     () => () => {
       const activeRoom = roomRef.current
       if (activeRoom) {
+        microphoneRequestRef.current += 1
+        stopRoomLocalTracks(activeRoom)
         activeRoom.removeAllListeners()
-        void activeRoom.disconnect(true)
+        void activeRoom.disconnect(true).finally(() => stopRoomLocalTracks(activeRoom))
         roomRef.current = null
       }
     },
