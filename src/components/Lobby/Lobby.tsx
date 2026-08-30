@@ -10,6 +10,7 @@ import { prepareProfileAvatar } from '../../services/profile'
 import { getLocalProfile, saveLocalProfile } from '../../storage/preferences'
 import type { AccountProfile, ConnectionStatus, LocalProfile } from '../../types'
 import { BrandMark } from '../ui/BrandMark'
+import { DesktopUpdateControl } from '../ui/DesktopUpdateControl'
 import { Icon } from '../ui/Icon'
 import { ProfileAvatar } from '../ui/ProfileAvatar'
 import { ProfileEditorModal } from '../Profile/ProfileEditorModal'
@@ -149,6 +150,7 @@ export const Lobby = ({
           </div>
         </div>
         <div className="lobby-account">
+          <DesktopUpdateControl variant="lobby" />
           {(account.role === 'owner' || account.role === 'admin') && (
             <button className="lobby-account__admin" onClick={onOpenAdmin} type="button">
               <Icon name="controls" /> Painel

@@ -6877,9 +6877,52 @@ svg {
 
 .access-error svg { width: 15px; height: 15px; flex: 0 0 auto; }
 
+.desktop-update-control {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.desktop-update-control svg { width: 14px; height: 14px; }
+.desktop-update-control.is-checking svg,
+.desktop-update-control.is-downloading svg { animation: update-spin 1.2s linear infinite; }
+
+.desktop-update-control--auth {
+  width: max-content;
+  max-width: 100%;
+  justify-self: center;
+  padding: 4px 6px;
+  border: 0;
+  background: transparent;
+  color: #727c74;
+  font-size: 12px;
+}
+
+.desktop-update-control--auth small { color: #4f5751; font-size: 10px; }
+.desktop-update-control--auth:hover:not(:disabled) { color: #c8d0ca; }
+.desktop-update-control.is-ready { color: var(--accent); }
+
+.desktop-update-control--lobby {
+  min-width: 38px;
+  height: 38px;
+  padding: 0 11px;
+  border: 1px solid #303932;
+  border-radius: 10px;
+  background: rgba(12, 16, 13, .74);
+  color: #929c93;
+  font-size: 8px;
+}
+
+.desktop-update-control--lobby:hover:not(:disabled) { border-color: #536048; color: var(--accent); }
+.desktop-update-control--lobby.is-ready { border-color: #52653f; background: rgba(185, 239, 58, .07); }
+
 @media (max-width: 440px) {
   .auth-shell--minimal { align-items: start; padding: 26px 14px; }
   .access-panel { gap: 18px; }
   .access-card { padding: 23px 20px; border-radius: 14px; }
   .access-card__heading h1 { font-size: 22px; }
+  .desktop-update-control--lobby { width: 38px; padding: 0; }
+  .desktop-update-control--lobby span { display: none; }
 }
