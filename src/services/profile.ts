@@ -3,7 +3,6 @@ import type {
   LocalProfile,
   ParticipantProfile,
   ProfileAppearance,
-  ProfileBadge,
   ProfileNameFont,
   ProfileTheme,
 } from '../types'
@@ -33,13 +32,11 @@ export const DEFAULT_PROFILE_APPEARANCE: ProfileAppearance = {
   nameFont: 'mono',
   theme: 'lime',
   avatarFrame: 'ring',
-  badge: 'none',
 }
 
 const nameFonts = new Set<ProfileNameFont>(['mono', 'condensed', 'serif', 'rounded'])
 const themes = new Set<ProfileTheme>(['lime', 'ocean', 'violet', 'ember', 'rose'])
 const avatarFrames = new Set<AvatarFrame>(['none', 'ring', 'double', 'glow'])
-const badges = new Set<ProfileBadge>(['none', 'pilot', 'turbo', 'night', 'mechanic'])
 
 export const normalizeProfileAppearance = (value?: Partial<ProfileAppearance> | null): ProfileAppearance => ({
   nameColor: typeof value?.nameColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.nameColor)
@@ -54,9 +51,6 @@ export const normalizeProfileAppearance = (value?: Partial<ProfileAppearance> | 
   avatarFrame: avatarFrames.has(value?.avatarFrame as AvatarFrame)
     ? value?.avatarFrame as AvatarFrame
     : DEFAULT_PROFILE_APPEARANCE.avatarFrame,
-  badge: badges.has(value?.badge as ProfileBadge)
-    ? value?.badge as ProfileBadge
-    : DEFAULT_PROFILE_APPEARANCE.badge,
 })
 
 export const normalizeProfile = (profile: LocalProfile): LocalProfile => ({

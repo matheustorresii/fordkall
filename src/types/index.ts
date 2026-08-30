@@ -55,14 +55,12 @@ export interface LocalProfile {
 export type ProfileNameFont = 'mono' | 'condensed' | 'serif' | 'rounded'
 export type ProfileTheme = 'lime' | 'ocean' | 'violet' | 'ember' | 'rose'
 export type AvatarFrame = 'none' | 'ring' | 'double' | 'glow'
-export type ProfileBadge = 'none' | 'pilot' | 'turbo' | 'night' | 'mechanic'
 
 export interface ProfileAppearance {
   nameColor: string
   nameFont: ProfileNameFont
   theme: ProfileTheme
   avatarFrame: AvatarFrame
-  badge: ProfileBadge
 }
 
 export interface ParticipantProfile {

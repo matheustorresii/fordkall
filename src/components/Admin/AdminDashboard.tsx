@@ -19,7 +19,7 @@ type Invite = {
   id: string
   code_hint: string
   assigned_email?: string | null
-  expires_at: string
+  expires_at?: string | null
   revoked_at?: string | null
   redeemed_at?: string | null
   redeemed_by?: string | null
@@ -67,9 +67,13 @@ const timeLabel = (value?: string | null) => {
 const inviteState = (invite: Invite) => {
   if (invite.redeemed_at) return { label: 'Utilizado', className: 'is-used' }
   if (invite.revoked_at) return { label: 'Revogado', className: 'is-revoked' }
-  if (new Date(invite.expires_at).getTime() <= Date.now()) return { label: 'Expirado', className: 'is-expired' }
-  return { label: 'Disponível', className: 'is-active' }
+  if (invite.expires_at && new Date(invite.expires_at).getTime() <= Date.now()) return { label: 'Expirado', className: 'is-expired' }
+  return { label: invite.expires_at ? 'Disponível' : 'Vitalício', className: 'is-active' }
 }
+
+const inviteExpiryLabel = (invite: Invite) => invite.expires_at
+  ? `vence ${timeLabel(invite.expires_at)}`
+  : 'sem expiração'
 
 export const AdminDashboard = ({ currentRole, onClose }: AdminDashboardProps) => {
   const [data, setData] = useState<DashboardData | null>(null)
@@ -110,7 +114,8 @@ export const AdminDashboard = ({ currentRole, onClose }: AdminDashboardProps) =>
       const result = await invokeFunction<{ code: string }>('admin', {
         action: 'create_invite',
         assignedEmail: assignedEmail.trim() || undefined,
-        expiresInDays: Number(expiresInDays),
+        expiresInDays: expiresInDays === 'never' ? undefined : Number(expiresInDays),
+        neverExpires: expiresInDays === 'never',
       })
       setNewInvite(result.code)
       setAssignedEmail('')
@@ -153,7 +158,7 @@ export const AdminDashboard = ({ currentRole, onClose }: AdminDashboardProps) =>
           <button className={section === 'invites' ? 'is-active' : ''} onClick={() => setSection('invites')}><Icon name="keyboard" /> Convites</button>
           <button className={section === 'activity' ? 'is-active' : ''} onClick={() => setSection('activity')}><Icon name="audio" /> Atividade</button>
         </nav>
-        <button className="admin-sidebar__back" onClick={onClose}><Icon name="chevron" /> Voltar para a garagem</button>
+        <button className="admin-sidebar__back" onClick={onClose}><Icon name="chevron" /> Voltar</button>
       </aside>
 
       <section className="admin-main">
@@ -166,7 +171,7 @@ export const AdminDashboard = ({ currentRole, onClose }: AdminDashboardProps) =>
         </header>
 
         {error && <div className="admin-error" role="alert"><Icon name="warning" />{error}</div>}
-        {loading && !data ? <div className="admin-loading"><span className="spinner" /> Carregando a garagem…</div> : null}
+        {loading && !data ? <div className="admin-loading"><span className="spinner" /> Carregando painel…</div> : null}
 
         {data && section === 'overview' && (
           <div className="admin-overview">
@@ -179,7 +184,7 @@ export const AdminDashboard = ({ currentRole, onClose }: AdminDashboardProps) =>
               <header><div><p className="eyebrow">ACESSO NOVO</p><h2>Gerar uma chave</h2></div><span>Uso único</span></header>
               <form className="admin-invite-form" onSubmit={createInvite}>
                 <label><span>E-mail vinculado <small>opcional</small></span><input onChange={(event) => setAssignedEmail(event.target.value)} placeholder="amigo@exemplo.com" type="email" value={assignedEmail} /></label>
-                <label><span>Validade</span><select onChange={(event) => setExpiresInDays(event.target.value)} value={expiresInDays}><option value="1">1 dia</option><option value="3">3 dias</option><option value="7">7 dias</option><option value="30">30 dias</option></select></label>
+                <label><span>Validade</span><select onChange={(event) => setExpiresInDays(event.target.value)} value={expiresInDays}><option value="never">Vitalícia</option><option value="1">1 dia</option><option value="3">3 dias</option><option value="7">7 dias</option><option value="30">30 dias</option></select></label>
                 <button disabled={busyTarget === 'new-invite'} type="submit">{busyTarget === 'new-invite' ? 'Gerando…' : 'Gerar convite'} <Icon name="chevron" /></button>
               </form>
               {newInvite && <div className="admin-new-invite"><div><span>Convite criado</span><strong>{newInvite}</strong></div><button onClick={() => void copyInvite()}><Icon name="copy" /> {copied ? 'Link copiado' : 'Copiar link'}</button></div>}
@@ -219,7 +224,7 @@ export const AdminDashboard = ({ currentRole, onClose }: AdminDashboardProps) =>
               <header><div><p className="eyebrow">NOVA CHAVE</p><h2>Criar convite</h2></div></header>
               <form className="admin-invite-form" onSubmit={createInvite}>
                 <label><span>E-mail vinculado <small>opcional</small></span><input onChange={(event) => setAssignedEmail(event.target.value)} placeholder="amigo@exemplo.com" type="email" value={assignedEmail} /></label>
-                <label><span>Validade</span><select onChange={(event) => setExpiresInDays(event.target.value)} value={expiresInDays}><option value="1">1 dia</option><option value="3">3 dias</option><option value="7">7 dias</option><option value="30">30 dias</option></select></label>
+                <label><span>Validade</span><select onChange={(event) => setExpiresInDays(event.target.value)} value={expiresInDays}><option value="never">Vitalícia</option><option value="1">1 dia</option><option value="3">3 dias</option><option value="7">7 dias</option><option value="30">30 dias</option></select></label>
                 <button disabled={busyTarget === 'new-invite'} type="submit">Gerar convite <Icon name="chevron" /></button>
               </form>
               {newInvite && <div className="admin-new-invite"><div><span>Convite criado</span><strong>{newInvite}</strong></div><button onClick={() => void copyInvite()}><Icon name="copy" /> {copied ? 'Link copiado' : 'Copiar link'}</button></div>}
@@ -229,7 +234,7 @@ export const AdminDashboard = ({ currentRole, onClose }: AdminDashboardProps) =>
               <div className="admin-invite-list">
                 {data.invites.map((invite) => {
                   const state = inviteState(invite)
-                  return <article key={invite.id}><div><strong>•••• {invite.code_hint}</strong><small>{invite.assigned_email || 'Qualquer e-mail'} · vence {timeLabel(invite.expires_at)}</small></div><i className={`admin-status ${state.className}`}>{state.label}</i>{state.className === 'is-active' && <button disabled={busyTarget === invite.id} onClick={() => void perform(invite.id, { action: 'revoke_invite', inviteId: invite.id })}>Revogar</button>}</article>
+                  return <article key={invite.id}><div><strong>•••• {invite.code_hint}</strong><small>{invite.assigned_email || 'Qualquer e-mail'} · {inviteExpiryLabel(invite)}</small></div><i className={`admin-status ${state.className}`}>{state.label}</i>{state.className === 'is-active' && <button disabled={busyTarget === invite.id} onClick={() => void perform(invite.id, { action: 'revoke_invite', inviteId: invite.id })}>Revogar</button>}</article>
                 })}
               </div>
             </section>

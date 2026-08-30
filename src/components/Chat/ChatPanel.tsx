@@ -65,7 +65,7 @@ export const ChatPanel = ({
                 className="chat-message__avatar"
                 name={message.senderName}
               />
-              <span><ProfileName appearance={message.senderAppearance} name={message.senderName} showBadge={false} /><time>{messageTime(message.sentAt)}</time></span>
+              <span><ProfileName appearance={message.senderAppearance} name={message.senderName} /><time>{messageTime(message.sentAt)}</time></span>
             </header>
             {message.kind === 'text' ? (
               <p>{message.text}</p>

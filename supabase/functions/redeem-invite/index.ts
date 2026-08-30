@@ -64,7 +64,7 @@ Deno.serve(async (request) => {
       .eq('code_hash', codeHash)
       .is('revoked_at', null)
       .is('redeemed_at', null)
-      .gt('expires_at', new Date().toISOString())
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
       .maybeSingle()
 
     let isOwnerBootstrap = false
@@ -132,7 +132,6 @@ Deno.serve(async (request) => {
         name_font: appearance.nameFont,
         profile_theme: appearance.theme,
         avatar_frame: appearance.avatarFrame,
-        profile_badge: appearance.badge,
         role: 'owner',
         status: 'active',
       }, { onConflict: 'id' })
@@ -152,7 +151,6 @@ Deno.serve(async (request) => {
         p_name_font: appearance.nameFont,
         p_profile_theme: appearance.theme,
         p_avatar_frame: appearance.avatarFrame,
-        p_profile_badge: appearance.badge,
       })
 
       if (redeemError || redeemed !== true) {

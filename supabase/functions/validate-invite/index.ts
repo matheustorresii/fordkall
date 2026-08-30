@@ -20,7 +20,7 @@ Deno.serve(async (request) => {
       .eq('code_hash', await sha256(normalizedCode))
       .is('revoked_at', null)
       .is('redeemed_at', null)
-      .gt('expires_at', new Date().toISOString())
+      .or(`expires_at.is.null,expires_at.gt.${new Date().toISOString()}`)
       .maybeSingle()
     if (error) throw error
     if (!data) {

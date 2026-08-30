@@ -7,6 +7,7 @@ type AdminBody = {
   action?: string
   assignedEmail?: string
   expiresInDays?: number
+  neverExpires?: boolean
   inviteId?: string
   userId?: string
   status?: 'active' | 'suspended'
@@ -57,7 +58,8 @@ Deno.serve(async (request) => {
     }
 
     if (body.action === 'create_invite') {
-      const days = Math.min(90, Math.max(1, Math.round(Number(body.expiresInDays) || 7)))
+      const neverExpires = body.neverExpires === true
+      const days = neverExpires ? null : Math.min(90, Math.max(1, Math.round(Number(body.expiresInDays) || 7)))
       const assignedEmail = normalizeEmail(body.assignedEmail)
       if (assignedEmail) assertEmail(assignedEmail)
       const code = createInviteCode()
@@ -67,10 +69,10 @@ Deno.serve(async (request) => {
         code_hint: code.slice(-4),
         assigned_email: assignedEmail || null,
         created_by: user.id,
-        expires_at: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+        expires_at: days === null ? null : new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
       }).select('id,expires_at').single()
       if (error) throw error
-      await audit(admin, user.id, 'invite.create', { inviteId: invite.id, details: { assignedEmail: assignedEmail || null, days } })
+      await audit(admin, user.id, 'invite.create', { inviteId: invite.id, details: { assignedEmail: assignedEmail || null, days, neverExpires } })
       return json({ code, invite })
     }
 

@@ -42,7 +42,6 @@ Deno.serve(async (request) => {
           nameFont: profile.name_font,
           theme: profile.profile_theme,
           avatarFrame: profile.avatar_frame,
-          badge: profile.profile_badge,
         },
       },
       fordKallAccount: { userId: user.id, role: profile.role },

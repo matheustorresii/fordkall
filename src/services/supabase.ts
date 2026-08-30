@@ -85,7 +85,7 @@ export const bootstrapOwner = async () => {
 export const loadAccountProfile = async (): Promise<AccountProfile> => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id,email,display_name,avatar_data_url,bio,name_color,name_font,profile_theme,avatar_frame,profile_badge,role,status,invited_by,created_at,last_seen_at')
+    .select('id,email,display_name,avatar_data_url,bio,name_color,name_font,profile_theme,avatar_frame,role,status,invited_by,created_at,last_seen_at')
     .single()
   if (error || !data) throw error || new Error('PROFILE_NOT_FOUND')
   return {
@@ -99,7 +99,6 @@ export const loadAccountProfile = async (): Promise<AccountProfile> => {
       nameFont: data.name_font,
       theme: data.profile_theme,
       avatarFrame: data.avatar_frame,
-      badge: data.profile_badge,
     }),
     role: data.role,
     status: data.status,
@@ -118,7 +117,6 @@ export const updateAccountProfile = async (profile: LocalProfile) => {
     name_font: normalizeProfileAppearance(profile.appearance).nameFont,
     profile_theme: normalizeProfileAppearance(profile.appearance).theme,
     avatar_frame: normalizeProfileAppearance(profile.appearance).avatarFrame,
-    profile_badge: normalizeProfileAppearance(profile.appearance).badge,
   }).eq('id', (await supabase.auth.getUser()).data.user?.id || '')
   if (error) throw error
   return loadAccountProfile()
