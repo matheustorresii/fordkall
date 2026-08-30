@@ -1,0 +1,33 @@
+project_id = "fordkall"
+
+[auth]
+site_url = "https://fordkall.11a3.dev"
+additional_redirect_urls = ["https://fordkall.11a3.dev", "http://127.0.0.1:5173"]
+enable_signup = false
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false
+
+[auth.mfa.totp]
+enroll_enabled = true
+verify_enabled = true
+
+[functions.redeem-invite]
+verify_jwt = false
+
+[functions.validate-invite]
+verify_jwt = false
+
+[functions.bootstrap-owner]
+verify_jwt = false
+
+[functions.admin]
+verify_jwt = false
+
+[functions.livekit-token]
+verify_jwt = false
+
+[functions.livekit-webhook]
+verify_jwt = false

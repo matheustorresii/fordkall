@@ -1,10 +1,13 @@
 # Ford Kall
 
-Call privada de voz e compartilhamento de tela entre amigos, com uma experiência compacta inspirada em ferramentas de voice chat e streaming. A V1 não possui cadastro, banco de dados ou backend próprio: pessoas que informam o mesmo código entram na mesma sala do LiveKit.
+Call privada de voz e compartilhamento de tela entre amigos, com uma experiência compacta inspirada em ferramentas de voice chat e streaming. O acesso é fechado por contas ativadas com convites de uso único; Supabase protege a autenticação, administração e emissão dos tokens do LiveKit.
 
 ## O que já funciona
 
-- lobby sem cadastro, com nome persistido no navegador e código de sala normalizado;
+- login obrigatório e cadastro exclusivamente por convite;
+- owner protegido, admins delegáveis, suspensão de contas e auditoria;
+- painel para criar, vincular, expirar e revogar convites de uso único;
+- perfil sincronizado com a conta e código de sala normalizado;
 - links de convite no formato `?room=KIWI-123`, com sala preenchida automaticamente;
 - criação de sala rápida com código aleatório curto no formato `ABC-DEFG-HIJ`;
 - chamada de voz, câmera e indicador de participante falando;
@@ -38,6 +41,7 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - `livekit-client`
 - CSS próprio
 - LiveKit Cloud
+- Supabase Auth + Postgres + Edge Functions
 - GitHub Pages + GitHub Actions
 - Electron + electron-builder (Windows)
 
@@ -48,30 +52,53 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - um projeto no [LiveKit Cloud](https://cloud.livekit.io/)
 - Chrome ou Edge desktop (recomendados para screen share com áudio)
 
-## Configuração do LiveKit
+## Configuração local
 
-O projeto usa o **Development Token Server** hospedado pelo LiveKit Cloud. Ele gera credenciais temporárias sem exigir um backend neste protótipo.
-
-1. Abra o projeto no LiveKit Cloud.
-2. Vá a **Settings → Token server**.
-3. Ative o Token server e copie o ID exibido.
-4. Copie o arquivo de exemplo:
+Copie o arquivo de exemplo:
 
 ```bash
 cp .env.example .env.local
 ```
 
-5. Preencha o valor:
+Preencha somente as configurações públicas do Supabase:
 
 ```env
-VITE_LIVEKIT_TOKEN_SERVER_ID=token-server-xxxxxxxx
+VITE_SUPABASE_URL=https://your-project-ref.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_xxx
 ```
 
-Consulte a [documentação oficial do Token server](https://docs.livekit.io/frontends/build/authentication/sandbox-token-server/) para localizar e habilitar a configuração.
+Nunca adicione uma chave `sb_secret_*`, `service_role` ou credencial do LiveKit ao frontend.
 
-> O Development Token Server é adequado somente para desenvolvimento, testes e protótipos privados. Qualquer frontend pode solicitar tokens sem restrições. Antes de uso público, substitua-o por um endpoint de autenticação real.
+## Backend Supabase
 
-O ID do Token server não é segredo. Nunca adicione `LIVEKIT_API_KEY` ou `LIVEKIT_API_SECRET` ao frontend, a arquivos `VITE_*` ou ao workflow.
+O diretório `supabase/` contém as migrations e Edge Functions. Para publicar em um projeto novo:
+
+```bash
+npx supabase login
+npx supabase link --project-ref <project-ref>
+npx supabase db push
+npx supabase config push
+npx supabase functions deploy
+```
+
+Configure diretamente nos secrets do projeto:
+
+```text
+FORDKALL_OWNER_EMAIL
+FORDKALL_OWNER_INVITE_HASH
+LIVEKIT_URL
+LIVEKIT_API_KEY
+LIVEKIT_API_SECRET
+LIVEKIT_TOKEN_SERVER_ID
+```
+
+Depois, configure no LiveKit Cloud um webhook apontando para:
+
+```text
+https://<project-ref>.supabase.co/functions/v1/livekit-webhook
+```
+
+A função `livekit-token` verifica sessão, status da conta e rate limit antes de emitir uma credencial de sala. Com `LIVEKIT_URL`, `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET`, ela gera um JWT próprio de validade curta. Enquanto essas credenciais não estiverem configuradas, `LIVEKIT_TOKEN_SERVER_ID` permite usar o Development Token Server atrás da mesma barreira autenticada, sem expor seu ID no frontend.
 
 ## Rodando localmente
 
@@ -138,14 +165,14 @@ npm ci → npm run build → upload-pages-artifact → deploy-pages
 Antes do primeiro deploy:
 
 1. Em **Settings → Pages**, selecione **GitHub Actions** como Source.
-2. Em **Settings → Secrets and variables → Actions → Variables**, crie a variável de repositório `VITE_LIVEKIT_TOKEN_SERVER_ID`.
+2. Defina no build `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (ambos são públicos).
 3. Confirme o domínio customizado `fordkall.11a3.dev` em **Settings → Pages**.
 
 O arquivo `public/CNAME` preserva o domínio customizado no artefato. A aplicação é uma SPA sem rotas reais e usa assets relativos para funcionar tanto no domínio quanto dentro do protocolo local seguro do Electron.
 
 ## Limitações conhecidas da V1
 
-- o código da sala não é autenticação e qualquer string válida cria/seleciona uma room;
+- o código da sala identifica uma room, enquanto a autorização é determinada pela conta e pela Edge Function;
 - chat e imagens são entregues somente aos participantes conectados naquele momento e não possuem histórico persistente;
 - captura de áudio do desktop/tela depende do sistema operacional e do navegador;
 - `restrictOwnAudio` é uma proteção de melhor esforço disponível principalmente em navegadores Chromium;

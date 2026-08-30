@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Room } from 'livekit-client'
 import type { ChatMessage } from '../types'
-import { participantAvatarFromMetadata } from '../services/profile'
+import { participantProfileFromMetadata } from '../services/profile'
 
 const TEXT_TOPIC = 'ford-kall.chat.text.v1'
 const IMAGE_TOPIC = 'ford-kall.chat.image.v1'
@@ -56,12 +56,14 @@ export const useRoomChat = (room: Room) => {
           const cleanText = text.trim().slice(0, 2_000)
           if (!cleanText) return
           const participant = room.remoteParticipants.get(participantInfo.identity)
+          const publicProfile = participantProfileFromMetadata(participant?.metadata)
           addMessage({
             id: reader.info.id,
             kind: 'text',
             senderIdentity: participantInfo.identity,
             senderName: participant?.name || participantInfo.identity,
-            senderAvatarUrl: participantAvatarFromMetadata(participant?.metadata),
+            senderAvatarUrl: publicProfile.avatarDataUrl,
+            senderAppearance: publicProfile.appearance,
             isLocal: false,
             sentAt: reader.info.timestamp || Date.now(),
             text: cleanText,
@@ -103,12 +105,14 @@ export const useRoomChat = (room: Room) => {
           )
           objectUrls.current.add(url)
           const participant = room.remoteParticipants.get(participantInfo.identity)
+          const publicProfile = participantProfileFromMetadata(participant?.metadata)
           addMessage({
             id: reader.info.id,
             kind: 'image',
             senderIdentity: participantInfo.identity,
             senderName: participant?.name || participantInfo.identity,
-            senderAvatarUrl: participantAvatarFromMetadata(participant?.metadata),
+            senderAvatarUrl: publicProfile.avatarDataUrl,
+            senderAppearance: publicProfile.appearance,
             isLocal: false,
             sentAt: reader.info.timestamp || Date.now(),
             imageUrl: url,
@@ -143,12 +147,14 @@ export const useRoomChat = (room: Room) => {
       setError('')
       try {
         const info = await room.localParticipant.sendText(text, { topic: TEXT_TOPIC })
+        const publicProfile = participantProfileFromMetadata(room.localParticipant.metadata)
         addMessage({
           id: info.id,
           kind: 'text',
           senderIdentity: room.localParticipant.identity,
           senderName: room.localParticipant.name || room.localParticipant.identity,
-          senderAvatarUrl: participantAvatarFromMetadata(room.localParticipant.metadata),
+          senderAvatarUrl: publicProfile.avatarDataUrl,
+          senderAppearance: publicProfile.appearance,
           isLocal: true,
           sentAt: info.timestamp || Date.now(),
           text,
@@ -177,13 +183,15 @@ export const useRoomChat = (room: Room) => {
       setError('')
       const localId = crypto.randomUUID()
       const imageUrl = URL.createObjectURL(file)
+      const publicProfile = participantProfileFromMetadata(room.localParticipant.metadata)
       objectUrls.current.add(imageUrl)
       addMessage({
         id: localId,
         kind: 'image',
         senderIdentity: room.localParticipant.identity,
         senderName: room.localParticipant.name || room.localParticipant.identity,
-        senderAvatarUrl: participantAvatarFromMetadata(room.localParticipant.metadata),
+        senderAvatarUrl: publicProfile.avatarDataUrl,
+        senderAppearance: publicProfile.appearance,
         isLocal: true,
         sentAt: Date.now(),
         imageUrl,

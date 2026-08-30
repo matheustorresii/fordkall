@@ -48,6 +48,40 @@ export interface AppUpdateState {
 export interface LocalProfile {
   displayName: string
   avatarDataUrl?: string
+  bio?: string
+  appearance?: ProfileAppearance
+}
+
+export type ProfileNameFont = 'mono' | 'condensed' | 'serif' | 'rounded'
+export type ProfileTheme = 'lime' | 'ocean' | 'violet' | 'ember' | 'rose'
+export type AvatarFrame = 'none' | 'ring' | 'double' | 'glow'
+export type ProfileBadge = 'none' | 'pilot' | 'turbo' | 'night' | 'mechanic'
+
+export interface ProfileAppearance {
+  nameColor: string
+  nameFont: ProfileNameFont
+  theme: ProfileTheme
+  avatarFrame: AvatarFrame
+  badge: ProfileBadge
+}
+
+export interface ParticipantProfile {
+  avatarDataUrl?: string
+  bio?: string
+  appearance: ProfileAppearance
+}
+
+export type AppRole = 'owner' | 'admin' | 'member'
+export type AccountStatus = 'active' | 'suspended'
+
+export interface AccountProfile extends LocalProfile {
+  id: string
+  email: string
+  role: AppRole
+  status: AccountStatus
+  invitedBy?: string
+  createdAt: string
+  lastSeenAt?: string
 }
 
 export interface RemoteVoice {
@@ -75,6 +109,8 @@ export interface ParticipantMedia {
   id: string
   name: string
   avatarDataUrl?: string
+  bio?: string
+  appearance: ProfileAppearance
   isLocal: boolean
   cameraTrack?: LocalVideoTrack | RemoteVideoTrack
   cameraEnabled: boolean
@@ -94,6 +130,7 @@ export interface ChatMessage {
   senderIdentity: string
   senderName: string
   senderAvatarUrl?: string
+  senderAppearance?: ProfileAppearance
   isLocal: boolean
   sentAt: number
   text?: string

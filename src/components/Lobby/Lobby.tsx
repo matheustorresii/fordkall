@@ -8,26 +8,42 @@ import {
 import { primeCallSounds } from '../../services/callSounds'
 import { prepareProfileAvatar } from '../../services/profile'
 import { getLocalProfile, saveLocalProfile } from '../../storage/preferences'
-import type { ConnectionStatus, LocalProfile } from '../../types'
+import type { AccountProfile, ConnectionStatus, LocalProfile } from '../../types'
 import { BrandMark } from '../ui/BrandMark'
 import { Icon } from '../ui/Icon'
 import { ProfileAvatar } from '../ui/ProfileAvatar'
+import { ProfileEditorModal } from '../Profile/ProfileEditorModal'
+import { ProfileName } from '../Profile/ProfileName'
 
 interface LobbyProps {
+  account: AccountProfile
   status: ConnectionStatus
   connectionError: string
   initialRoomCode: string
   onJoin: (profile: LocalProfile, roomCode: string) => Promise<boolean>
+  onOpenAdmin: () => void
+  onProfileChange: (profile: LocalProfile) => Promise<AccountProfile>
+  onSignOut: () => Promise<void>
 }
 
-export const Lobby = ({ status, connectionError, initialRoomCode, onJoin }: LobbyProps) => {
-  const [initialProfile] = useState(getLocalProfile)
+export const Lobby = ({
+  account,
+  status,
+  connectionError,
+  initialRoomCode,
+  onJoin,
+  onOpenAdmin,
+  onProfileChange,
+  onSignOut,
+}: LobbyProps) => {
+  const [initialProfile] = useState(() => account.displayName ? account : getLocalProfile())
   const [displayName, setDisplayName] = useState(initialProfile.displayName)
   const [avatarDataUrl, setAvatarDataUrl] = useState(initialProfile.avatarDataUrl)
   const [roomCode, setRoomCode] = useState(() => initialRoomCode || getRoomCodeFromUrl())
   const [validationError, setValidationError] = useState('')
   const [profileError, setProfileError] = useState('')
   const [preparingAvatar, setPreparingAvatar] = useState(false)
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false)
   const avatarInputRef = useRef<HTMLInputElement>(null)
   const nameInputRef = useRef<HTMLInputElement>(null)
   const connecting = status === 'connecting' || status === 'reconnecting'
@@ -50,7 +66,12 @@ export const Lobby = ({ status, connectionError, initialRoomCode, onJoin }: Lobb
     setValidationError('')
     setDisplayName(normalizedName)
     setRoomCode(normalizedRoom)
-    const profile = { displayName: normalizedName, avatarDataUrl }
+    const profile = {
+      displayName: normalizedName,
+      avatarDataUrl,
+      bio: account.bio,
+      appearance: account.appearance,
+    }
     saveLocalProfile(profile)
     if (document.activeElement instanceof HTMLElement) {
       document.activeElement.blur()
@@ -82,7 +103,18 @@ export const Lobby = ({ status, connectionError, initialRoomCode, onJoin }: Lobb
     try {
       const nextAvatar = await prepareProfileAvatar(file)
       setAvatarDataUrl(nextAvatar)
-      saveLocalProfile({ displayName, avatarDataUrl: nextAvatar })
+      saveLocalProfile({
+        displayName,
+        avatarDataUrl: nextAvatar,
+        bio: account.bio,
+        appearance: account.appearance,
+      })
+      await onProfileChange({
+        displayName: normalizeDisplayName(displayName) || account.displayName,
+        avatarDataUrl: nextAvatar,
+        bio: account.bio,
+        appearance: account.appearance,
+      })
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : 'Não foi possível usar essa imagem.')
     } finally {
@@ -93,7 +125,16 @@ export const Lobby = ({ status, connectionError, initialRoomCode, onJoin }: Lobb
   const removeAvatar = () => {
     setAvatarDataUrl(undefined)
     setProfileError('')
-    saveLocalProfile({ displayName })
+    saveLocalProfile({
+      displayName,
+      bio: account.bio,
+      appearance: account.appearance,
+    })
+    void onProfileChange({
+      displayName: normalizeDisplayName(displayName) || account.displayName,
+      bio: account.bio,
+      appearance: account.appearance,
+    })
   }
 
   return (
@@ -107,9 +148,22 @@ export const Lobby = ({ status, connectionError, initialRoomCode, onJoin }: Lobb
             <h1 id="lobby-title">FORD KALL</h1>
           </div>
         </div>
-        <div className="lobby-topbar__status">
-          <span className="status-dot" />
-          <span>Online</span>
+        <div className="lobby-account">
+          {(account.role === 'owner' || account.role === 'admin') && (
+            <button className="lobby-account__admin" onClick={onOpenAdmin} type="button">
+              <Icon name="controls" /> Painel
+            </button>
+          )}
+          <div className="lobby-account__identity">
+            <ProfileAvatar appearance={account.appearance} avatarDataUrl={avatarDataUrl} name={displayName || account.email} />
+            <div>
+              <ProfileName appearance={account.appearance} name={displayName || account.displayName} />
+              <small>{account.role === 'owner' ? 'Owner' : account.role === 'admin' ? 'Admin' : account.email}</small>
+            </div>
+          </div>
+          <button aria-label="Sair da conta" className="lobby-account__logout" onClick={() => void onSignOut()} title="Sair da conta" type="button">
+            <Icon name="leave" />
+          </button>
         </div>
       </header>
 
@@ -150,7 +204,7 @@ export const Lobby = ({ status, connectionError, initialRoomCode, onJoin }: Lobb
                 onClick={() => avatarInputRef.current?.click()}
                 type="button"
               >
-                <ProfileAvatar avatarDataUrl={avatarDataUrl} name={displayName || 'Você'} />
+                <ProfileAvatar appearance={account.appearance} avatarDataUrl={avatarDataUrl} name={displayName || 'Você'} />
                 <span><Icon name="image" /></span>
               </button>
 
@@ -172,6 +226,7 @@ export const Lobby = ({ status, connectionError, initialRoomCode, onJoin }: Lobb
                     {preparingAvatar ? 'Preparando…' : avatarDataUrl ? 'Trocar foto' : 'Adicionar foto'}
                   </button>
                   {avatarDataUrl && <button onClick={removeAvatar} type="button">Remover</button>}
+                  <button className="lobby-v2__customize" onClick={() => setProfileEditorOpen(true)} type="button">Personalizar perfil</button>
                 </div>
               </div>
             </div>
@@ -229,8 +284,19 @@ export const Lobby = ({ status, connectionError, initialRoomCode, onJoin }: Lobb
           </section>
         </form>
 
-        <p className="lobby-v2__local-note">Perfil salvo só neste dispositivo · sem conta</p>
+        <p className="lobby-v2__local-note"><span className="status-dot" /> Perfil sincronizado · acesso individual</p>
       </section>
+      {profileEditorOpen && (
+        <ProfileEditorModal
+          onClose={() => setProfileEditorOpen(false)}
+          onSave={async (nextProfile) => {
+            await onProfileChange(nextProfile)
+            setDisplayName(nextProfile.displayName)
+            setAvatarDataUrl(nextProfile.avatarDataUrl)
+          }}
+          profile={account}
+        />
+      )}
     </main>
   )
 }

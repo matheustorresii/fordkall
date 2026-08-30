@@ -3,6 +3,7 @@ import type { ChatMessage } from '../../types'
 import { MAX_CHAT_IMAGE_SIZE } from '../../hooks/useRoomChat'
 import { Icon } from '../ui/Icon'
 import { ProfileAvatar } from '../ui/ProfileAvatar'
+import { ProfileName } from '../Profile/ProfileName'
 
 interface ChatPanelProps {
   open: boolean
@@ -59,11 +60,12 @@ export const ChatPanel = ({
           <article className={`chat-message ${message.isLocal ? 'chat-message--local' : ''}`} key={message.id}>
             <header>
               <ProfileAvatar
+                appearance={message.senderAppearance}
                 avatarDataUrl={message.senderAvatarUrl}
                 className="chat-message__avatar"
                 name={message.senderName}
               />
-              <span><strong>{message.senderName}</strong><time>{messageTime(message.sentAt)}</time></span>
+              <span><ProfileName appearance={message.senderAppearance} name={message.senderName} showBadge={false} /><time>{messageTime(message.sentAt)}</time></span>
             </header>
             {message.kind === 'text' ? (
               <p>{message.text}</p>

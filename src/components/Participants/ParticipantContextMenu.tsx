@@ -4,6 +4,7 @@ import type { ContextMenuPoint, ParticipantMedia, RemoteVoice } from '../../type
 import { VolumeControl } from '../AudioControls/VolumeControl'
 import { Icon } from '../ui/Icon'
 import { ProfileAvatar } from '../ui/ProfileAvatar'
+import { ProfileName } from '../Profile/ProfileName'
 
 export const ParticipantContextMenu = ({
   participant,
@@ -57,11 +58,12 @@ export const ParticipantContextMenu = ({
       >
         <header>
           <ProfileAvatar
+            appearance={participant.appearance}
             avatarDataUrl={participant.avatarDataUrl}
             className="context-menu__avatar"
             name={participant.name}
           />
-          <span><strong>{participant.name}</strong><small>{participant.isLocal ? 'Você' : voice?.track ? 'Na call' : 'Sem microfone ativo'}</small></span>
+          <span><ProfileName appearance={participant.appearance} name={participant.name} /><small>{participant.bio || (participant.isLocal ? 'Você' : voice?.track ? 'Na call' : 'Sem microfone ativo')}</small></span>
           <Icon name={participant.microphoneMuted ? 'micOff' : 'mic'} />
         </header>
         {participant.isLocal ? (

@@ -9,7 +9,7 @@ import {
   type Room,
 } from 'livekit-client'
 import type { ParticipantMedia, RemoteVoice, ScreenShareLive } from '../types'
-import { participantAvatarFromMetadata } from '../services/profile'
+import { participantProfileFromMetadata } from '../services/profile'
 
 export const useRoomSnapshot = (room: Room) => {
   const [revision, setRevision] = useState(0)
@@ -82,11 +82,14 @@ export const useRoomSnapshot = (room: Room) => {
       const cameraPublication = participant.getTrackPublication(Track.Source.Camera)
       const microphonePublication = participant.getTrackPublication(Track.Source.Microphone)
       const cameraTrack = cameraPublication?.videoTrack
+      const publicProfile = participantProfileFromMetadata(participant.metadata)
 
       return {
         id: participant.identity,
         name: participant.name || participant.identity,
-        avatarDataUrl: participantAvatarFromMetadata(participant.metadata),
+        avatarDataUrl: publicProfile.avatarDataUrl,
+        bio: publicProfile.bio,
+        appearance: publicProfile.appearance,
         isLocal: participant === room.localParticipant,
         cameraTrack:
           cameraTrack instanceof LocalVideoTrack || cameraTrack instanceof RemoteVideoTrack

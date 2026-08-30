@@ -6,6 +6,7 @@ import type {
   ShortcutBindings,
   StreamQualityId,
 } from '../types'
+import { normalizeProfileAppearance } from '../services/profile'
 
 const DISPLAY_NAME_KEY = 'ford-kall:display-name'
 const LOCAL_PROFILE_KEY = 'ford-kall:local-profile'
@@ -52,13 +53,15 @@ export const getLocalProfile = (): LocalProfile => {
           avatarDataUrl: typeof profile.avatarDataUrl === 'string'
             ? profile.avatarDataUrl
             : undefined,
+          bio: typeof profile.bio === 'string' ? profile.bio : undefined,
+          appearance: normalizeProfileAppearance(profile.appearance),
         }
       }
     } catch {
       // Fall through to the legacy display-name preference.
     }
   }
-  return { displayName: safeRead(DISPLAY_NAME_KEY) ?? '' }
+  return { displayName: safeRead(DISPLAY_NAME_KEY) ?? '', appearance: normalizeProfileAppearance() }
 }
 
 export const saveLocalProfile = (profile: LocalProfile) => {

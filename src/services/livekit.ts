@@ -1,12 +1,11 @@
 import {
   Room,
-  TokenSource,
   VideoPreset,
   type TokenSourceResponseObject,
 } from 'livekit-client'
 import type { StreamQualityId } from '../types'
 import type { LocalProfile } from '../types'
-import { serializeParticipantProfile } from './profile'
+import { invokeFunction } from './supabase'
 
 export const normalizeDisplayName = (value: string) => value.trim().replace(/\s+/g, ' ')
 
@@ -81,17 +80,6 @@ export const generateRoomCode = () => {
   return `${characters.slice(0, 3).join('')}-${characters.slice(3, 7).join('')}-${characters.slice(7).join('')}`
 }
 
-const createParticipantIdentity = (displayName: string) => {
-  const prefix = displayName
-    .normalize('NFD')
-    .replace(/[\u0300-\u036f]/g, '')
-    .toLocaleLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-|-$/g, '')
-    .slice(0, 28) || 'driver'
-  return `${prefix}-${crypto.randomUUID().slice(0, 8)}`
-}
-
 export const createLiveKitRoom = () =>
   new Room({
     adaptiveStream: true,
@@ -102,20 +90,9 @@ export const createLiveKitRoom = () =>
 
 export const fetchConnectionDetails = async (
   roomCode: string,
-  profile: LocalProfile,
+  _profile: LocalProfile,
 ): Promise<TokenSourceResponseObject> => {
-  const tokenServerId = import.meta.env.VITE_LIVEKIT_TOKEN_SERVER_ID?.trim()
-  if (!tokenServerId) {
-    throw new Error('TOKEN_SERVER_NOT_CONFIGURED')
-  }
-
-  const tokenSource = TokenSource.developmentTokenServer(tokenServerId)
-  return tokenSource.fetch({
-    roomName: roomCode,
-    participantName: profile.displayName,
-    participantIdentity: createParticipantIdentity(profile.displayName),
-    participantMetadata: serializeParticipantProfile(profile),
-  })
+  return invokeFunction<TokenSourceResponseObject>('livekit-token', { roomCode })
 }
 
 export const streamQualityPresets: Record<
@@ -143,14 +120,14 @@ export const streamQualityPresets: Record<
 }
 
 export const friendlyConnectionError = (error: unknown) => {
-  if (error instanceof Error && error.message === 'TOKEN_SERVER_NOT_CONFIGURED') {
-    return 'O LiveKit ainda não foi configurado. Defina VITE_LIVEKIT_TOKEN_SERVER_ID.'
-  }
+  if (error instanceof Error && error.message === 'ACCOUNT_SUSPENDED') return 'Sua conta foi suspensa e não pode entrar em calls.'
+  if (error instanceof Error && error.message === 'TOKEN_RATE_LIMIT') return 'Muitas tentativas seguidas. Aguarde um minuto e tente novamente.'
+  if (error instanceof Error && error.message === 'LIVEKIT_NOT_CONFIGURED') return 'O servidor de chamadas ainda não recebeu as credenciais do LiveKit.'
   if (error instanceof DOMException && error.name === 'NotAllowedError') {
     return 'O navegador bloqueou a permissão necessária. Revise as permissões do site.'
   }
   if (error instanceof Error && /token|credential|unauthorized|401|403/i.test(error.message)) {
-    return 'Não foi possível obter acesso à sala. Confira o ID do Development Token Server.'
+    return 'Sua sessão não conseguiu autorização para entrar nessa sala. Faça login novamente.'
   }
   return 'Não foi possível entrar na call. Verifique sua conexão e tente novamente.'
 }

@@ -36,8 +36,8 @@ jobs:
       - name: Build
         run: npm run build
         env:
-          # Keep the production web build pinned to the active Ford Kall project.
-          VITE_LIVEKIT_TOKEN_SERVER_ID: fordkall2-u7op7p
+          VITE_SUPABASE_URL: https://meowhnfcagoebolimqhl.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_UEUoALzMExdSiWwFOOi2pw_WvIjcrfZ
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4

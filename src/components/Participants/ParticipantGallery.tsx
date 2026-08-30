@@ -7,6 +7,7 @@ import type {
 } from '../../types'
 import { Icon } from '../ui/Icon'
 import { ProfileAvatar } from '../ui/ProfileAvatar'
+import { ProfileName } from '../Profile/ProfileName'
 
 const CameraRenderer = ({
   isLocal,
@@ -79,13 +80,14 @@ export const ParticipantGallery = ({
               <CameraRenderer isLocal={participant.isLocal} track={participant.cameraTrack} />
             ) : (
               <ProfileAvatar
+                appearance={participant.appearance}
                 avatarDataUrl={participant.avatarDataUrl}
                 className="gallery-person__avatar"
                 name={participant.name}
               />
             )}
             <div className="gallery-person__meta">
-              <strong>{participant.name}{participant.isLocal ? ' · Você' : ''}</strong>
+              <ProfileName appearance={participant.appearance} name={participant.name} showBadge={!compact} suffix={participant.isLocal ? ' · Você' : ''} />
               <span className={participant.microphoneMuted ? 'is-muted' : ''}>
                 <Icon name={participant.microphoneMuted ? 'micOff' : 'mic'} />
               </span>

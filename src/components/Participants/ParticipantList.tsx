@@ -1,8 +1,10 @@
 import { Track, type Participant, type Room } from 'livekit-client'
 import type { ContextMenuPoint, RemoteVoice } from '../../types'
-import { participantAvatarFromMetadata } from '../../services/profile'
+import { participantProfileFromMetadata } from '../../services/profile'
+import type { ProfileAppearance } from '../../types'
 import { Icon } from '../ui/Icon'
 import { ProfileAvatar } from '../ui/ProfileAvatar'
+import { ProfileName } from '../Profile/ProfileName'
 
 interface ParticipantListProps {
   room: Room
@@ -26,6 +28,7 @@ const ParticipantRow = ({
   detail,
   muted,
   speaking,
+  appearance,
   onParticipantMenu,
 }: {
   id: string
@@ -34,6 +37,7 @@ const ParticipantRow = ({
   detail: string
   muted: boolean
   speaking: boolean
+  appearance: ProfileAppearance
   onParticipantMenu: (participantId: string, point: ContextMenuPoint) => void
 }) => (
   <li className={`participant ${speaking ? 'participant--speaking' : ''}`}>
@@ -47,8 +51,8 @@ const ParticipantRow = ({
       title="Abrir controles · clique ou botão direito"
       type="button"
     >
-      <ProfileAvatar avatarDataUrl={avatarDataUrl} className="participant__avatar" name={name} />
-      <span className="participant__identity"><strong>{name}</strong><small>{speaking ? 'Falando agora' : detail}</small></span>
+      <ProfileAvatar appearance={appearance} avatarDataUrl={avatarDataUrl} className="participant__avatar" name={name} />
+      <span className="participant__identity"><ProfileName appearance={appearance} name={name} /><small>{speaking ? 'Falando agora' : detail}</small></span>
       <span className={`participant__mic ${muted ? 'participant__mic--muted' : ''}`}><Icon name={muted ? 'micOff' : 'mic'} /></span>
     </button>
   </li>
@@ -67,6 +71,7 @@ export const ParticipantList = ({
   const localName = local.name || local.identity
   const localPublication = local.getTrackPublication(Track.Source.Microphone)
   const localMuted = !local.isMicrophoneEnabled || localPublication?.isMuted === true
+  const localProfile = participantProfileFromMetadata(local.metadata)
 
   return (
     <aside aria-hidden={!open} aria-label="Participantes da call" className={`participants-panel ${open ? 'is-open' : ''}`}>
@@ -80,7 +85,8 @@ export const ParticipantList = ({
       <ul className="participants-list">
         <ParticipantRow
           detail="Você"
-          avatarDataUrl={participantAvatarFromMetadata(local.metadata)}
+          appearance={localProfile.appearance}
+          avatarDataUrl={localProfile.avatarDataUrl}
           id={local.identity}
           muted={localMuted}
           name={localName}
@@ -89,10 +95,12 @@ export const ParticipantList = ({
         />
         {remoteVoices.map((voice) => {
           const name = voice.participant.name || voice.participant.identity
+          const publicProfile = participantProfileFromMetadata(voice.participant.metadata)
           return (
             <ParticipantRow
+              appearance={publicProfile.appearance}
               detail={voice.track ? 'Na call' : 'Sem microfone'}
-              avatarDataUrl={participantAvatarFromMetadata(voice.participant.metadata)}
+              avatarDataUrl={publicProfile.avatarDataUrl}
               id={voice.participant.identity}
               key={voice.id}
               muted={voice.muted}

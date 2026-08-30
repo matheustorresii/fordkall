@@ -37,7 +37,8 @@ jobs:
             exit $desktopExitCode
           }
         env:
-          VITE_LIVEKIT_TOKEN_SERVER_ID: fordkall2-u7op7p
+          VITE_SUPABASE_URL: https://meowhnfcagoebolimqhl.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_UEUoALzMExdSiWwFOOi2pw_WvIjcrfZ
 
       - name: Upload Windows executables
         uses: actions/upload-artifact@v4

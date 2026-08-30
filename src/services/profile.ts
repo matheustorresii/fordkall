@@ -1,6 +1,14 @@
-import type { LocalProfile } from '../types'
+import type {
+  AvatarFrame,
+  LocalProfile,
+  ParticipantProfile,
+  ProfileAppearance,
+  ProfileBadge,
+  ProfileNameFont,
+  ProfileTheme,
+} from '../types'
 
-export const PROFILE_METADATA_VERSION = 1
+export const PROFILE_METADATA_VERSION = 2
 export const MAX_PROFILE_GIF_BYTES = 300 * 1024
 export const MAX_PROFILE_SOURCE_BYTES = 8 * 1024 * 1024
 export const MAX_PROFILE_AVATAR_DATA_URL_LENGTH = 430_000
@@ -11,6 +19,52 @@ const supportedAvatarTypes = new Set([
   'image/png',
   'image/webp',
 ])
+
+export const PROFILE_THEME_COLORS: Record<ProfileTheme, string> = {
+  lime: '#b9ef3a',
+  ocean: '#57d6ff',
+  violet: '#a98bff',
+  ember: '#ff9857',
+  rose: '#ff6fae',
+}
+
+export const DEFAULT_PROFILE_APPEARANCE: ProfileAppearance = {
+  nameColor: '#eef1ed',
+  nameFont: 'mono',
+  theme: 'lime',
+  avatarFrame: 'ring',
+  badge: 'none',
+}
+
+const nameFonts = new Set<ProfileNameFont>(['mono', 'condensed', 'serif', 'rounded'])
+const themes = new Set<ProfileTheme>(['lime', 'ocean', 'violet', 'ember', 'rose'])
+const avatarFrames = new Set<AvatarFrame>(['none', 'ring', 'double', 'glow'])
+const badges = new Set<ProfileBadge>(['none', 'pilot', 'turbo', 'night', 'mechanic'])
+
+export const normalizeProfileAppearance = (value?: Partial<ProfileAppearance> | null): ProfileAppearance => ({
+  nameColor: typeof value?.nameColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.nameColor)
+    ? value.nameColor.toLowerCase()
+    : DEFAULT_PROFILE_APPEARANCE.nameColor,
+  nameFont: nameFonts.has(value?.nameFont as ProfileNameFont)
+    ? value?.nameFont as ProfileNameFont
+    : DEFAULT_PROFILE_APPEARANCE.nameFont,
+  theme: themes.has(value?.theme as ProfileTheme)
+    ? value?.theme as ProfileTheme
+    : DEFAULT_PROFILE_APPEARANCE.theme,
+  avatarFrame: avatarFrames.has(value?.avatarFrame as AvatarFrame)
+    ? value?.avatarFrame as AvatarFrame
+    : DEFAULT_PROFILE_APPEARANCE.avatarFrame,
+  badge: badges.has(value?.badge as ProfileBadge)
+    ? value?.badge as ProfileBadge
+    : DEFAULT_PROFILE_APPEARANCE.badge,
+})
+
+export const normalizeProfile = (profile: LocalProfile): LocalProfile => ({
+  displayName: profile.displayName.trim().replace(/\s+/g, ' ').slice(0, 48),
+  avatarDataUrl: isSafeAvatarDataUrl(profile.avatarDataUrl) ? profile.avatarDataUrl : undefined,
+  bio: typeof profile.bio === 'string' ? profile.bio.trim().replace(/\s+/g, ' ').slice(0, 96) : undefined,
+  appearance: normalizeProfileAppearance(profile.appearance),
+})
 
 const isSafeAvatarDataUrl = (value: unknown): value is string =>
   typeof value === 'string' &&
@@ -110,21 +164,38 @@ export const serializeParticipantProfile = (profile: LocalProfile) =>
       avatarDataUrl: isSafeAvatarDataUrl(profile.avatarDataUrl)
         ? profile.avatarDataUrl
         : undefined,
+      bio: typeof profile.bio === 'string' ? profile.bio.slice(0, 96) : undefined,
+      appearance: normalizeProfileAppearance(profile.appearance),
     },
   })
 
-export const participantAvatarFromMetadata = (metadata?: string) => {
-  if (!metadata) return undefined
+export const participantProfileFromMetadata = (metadata?: string): ParticipantProfile => {
+  const fallback = { appearance: DEFAULT_PROFILE_APPEARANCE }
+  if (!metadata) return fallback
   try {
     const parsed: unknown = JSON.parse(metadata)
-    if (!parsed || typeof parsed !== 'object') return undefined
+    if (!parsed || typeof parsed !== 'object') return fallback
     const profile = (parsed as {
-      fordKallProfile?: { version?: unknown; avatarDataUrl?: unknown }
+      fordKallProfile?: {
+        version?: unknown
+        avatarDataUrl?: unknown
+        bio?: unknown
+        appearance?: Partial<ProfileAppearance>
+      }
     }).fordKallProfile
-    if (profile?.version !== PROFILE_METADATA_VERSION) return undefined
-    return isSafeAvatarDataUrl(profile.avatarDataUrl) ? profile.avatarDataUrl : undefined
+    if (!profile || (profile.version !== 1 && profile.version !== PROFILE_METADATA_VERSION)) return fallback
+    return {
+      avatarDataUrl: isSafeAvatarDataUrl(profile.avatarDataUrl) ? profile.avatarDataUrl : undefined,
+      bio: typeof profile.bio === 'string' ? profile.bio.slice(0, 96) : undefined,
+      appearance: normalizeProfileAppearance(profile.appearance),
+    }
   } catch {
-    return undefined
+    return fallback
   }
 }
 
+export const participantAvatarFromMetadata = (metadata?: string) =>
+  participantProfileFromMetadata(metadata).avatarDataUrl
+
+export const profileAccent = (appearance?: Partial<ProfileAppearance>) =>
+  PROFILE_THEME_COLORS[normalizeProfileAppearance(appearance).theme]
