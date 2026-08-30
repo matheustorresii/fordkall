@@ -20,6 +20,21 @@ type RedeemBody = {
   appearance?: Record<string, unknown>
 }
 
+const findUserByEmail = async (admin: ReturnType<typeof createAdminClient>, email: string) => {
+  const perPage = 200
+
+  for (let page = 1; page <= 50; page += 1) {
+    const { data, error } = await admin.auth.admin.listUsers({ page, perPage })
+    if (error) throw error
+
+    const user = data.users.find((candidate) => candidate.email?.toLowerCase() === email)
+    if (user) return user
+    if (data.users.length < perPage) return null
+  }
+
+  return null
+}
+
 Deno.serve(async (request) => {
   const preflight = handleCors(request)
   if (preflight) return preflight
@@ -75,15 +90,40 @@ Deno.serve(async (request) => {
       email_confirm: true,
       user_metadata: { display_name: displayName },
     })
-    if (createError || !created.user) {
-      if (/already|registered|exists/i.test(createError?.message || '')) {
-        throw new HttpError(409, 'EMAIL_ALREADY_REGISTERED')
+
+    let account = created.user
+    let createdAccount = Boolean(created.user && !createError)
+
+    if (createError || !account) {
+      const emailAlreadyExists = /already|registered|exists/i.test(createError?.message || '')
+      if (!emailAlreadyExists || !isOwnerBootstrap) {
+        if (emailAlreadyExists) throw new HttpError(409, 'EMAIL_ALREADY_REGISTERED')
+        throw createError || new Error('USER_CREATION_FAILED')
       }
-      throw createError || new Error('USER_CREATION_FAILED')
+
+      // The owner may have an auth record left by an interrupted bootstrap.
+      // Possession of the one-time owner invite safely completes that account.
+      const existingUser = await findUserByEmail(admin, email)
+      if (!existingUser) throw new HttpError(409, 'EMAIL_ALREADY_REGISTERED')
+
+      const { data: recovered, error: recoveryError } = await admin.auth.admin.updateUserById(
+        existingUser.id,
+        {
+          password,
+          email_confirm: true,
+          user_metadata: { ...existingUser.user_metadata, display_name: displayName },
+        },
+      )
+      if (recoveryError || !recovered.user) {
+        throw recoveryError || new Error('USER_RECOVERY_FAILED')
+      }
+      account = recovered.user
+      createdAccount = false
     }
 
     if (isOwnerBootstrap) {
-      const { error: ownerProfileError } = await admin.from('profiles').update({
+      const { error: ownerProfileError } = await admin.from('profiles').upsert({
+        id: account.id,
         email,
         display_name: displayName,
         avatar_data_url: avatarDataUrl,
@@ -95,15 +135,15 @@ Deno.serve(async (request) => {
         profile_badge: appearance.badge,
         role: 'owner',
         status: 'active',
-      }).eq('id', created.user.id)
+      }, { onConflict: 'id' })
       if (ownerProfileError) {
-        await admin.auth.admin.deleteUser(created.user.id)
+        if (createdAccount) await admin.auth.admin.deleteUser(account.id)
         throw ownerProfileError
       }
     } else {
       const { data: redeemed, error: redeemError } = await admin.rpc('redeem_invite', {
         p_code_hash: codeHash,
-        p_user_id: created.user.id,
+        p_user_id: account.id,
         p_email: email,
         p_display_name: displayName,
         p_avatar_data_url: avatarDataUrl,
@@ -116,7 +156,7 @@ Deno.serve(async (request) => {
       })
 
       if (redeemError || redeemed !== true) {
-        await admin.auth.admin.deleteUser(created.user.id)
+        if (createdAccount) await admin.auth.admin.deleteUser(account.id)
         if (redeemError) throw redeemError
         throw new HttpError(409, 'INVITE_ALREADY_USED')
       }
