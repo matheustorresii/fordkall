@@ -65,7 +65,10 @@ export const useCallShortcuts = (handlers: ShortcutHandlers, webEnabled: boolean
       ) return
 
       const binding = shortcutFromKeyboardEvent(event)
-      const action = shortcutActions.find((candidate) => bindings[candidate] === binding)
+      if (!binding) return
+      const action = shortcutActions.find((candidate) => (
+        Boolean(bindings[candidate]) && bindings[candidate] === binding
+      ))
       if (!action) return
       event.preventDefault()
       handlersRef.current[action]()

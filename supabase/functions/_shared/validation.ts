@@ -16,6 +16,7 @@ export const normalizeDisplayName = (value: unknown) =>
 export const normalizeProfileAppearance = (value: unknown) => {
   const appearance = value && typeof value === 'object' ? value as Record<string, unknown> : {}
   const color = String(appearance.nameColor || '').toLowerCase()
+  const accentColor = String(appearance.accentColor || '').toLowerCase()
   const nameFont = String(appearance.nameFont || '')
   const theme = String(appearance.theme || '')
   const avatarFrame = String(appearance.avatarFrame || '')
@@ -23,6 +24,7 @@ export const normalizeProfileAppearance = (value: unknown) => {
     nameColor: /^#[0-9a-f]{6}$/.test(color) ? color : '#eef1ed',
     nameFont: ['mono', 'condensed', 'serif', 'rounded'].includes(nameFont) ? nameFont : 'mono',
     theme: ['lime', 'ocean', 'violet', 'ember', 'rose'].includes(theme) ? theme : 'lime',
+    accentColor: /^#[0-9a-f]{6}$/.test(accentColor) ? accentColor : '#b9ef3a',
     avatarFrame: ['none', 'ring', 'double', 'glow'].includes(avatarFrame) ? avatarFrame : 'ring',
   }
 }

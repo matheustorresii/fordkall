@@ -7,7 +7,7 @@ import type {
   ProfileTheme,
 } from '../types'
 
-export const PROFILE_METADATA_VERSION = 2
+export const PROFILE_METADATA_VERSION = 3
 export const MAX_PROFILE_GIF_BYTES = 300 * 1024
 export const MAX_PROFILE_SOURCE_BYTES = 8 * 1024 * 1024
 export const MAX_PROFILE_AVATAR_DATA_URL_LENGTH = 430_000
@@ -31,6 +31,7 @@ export const DEFAULT_PROFILE_APPEARANCE: ProfileAppearance = {
   nameColor: '#eef1ed',
   nameFont: 'mono',
   theme: 'lime',
+  accentColor: PROFILE_THEME_COLORS.lime,
   avatarFrame: 'ring',
 }
 
@@ -48,6 +49,11 @@ export const normalizeProfileAppearance = (value?: Partial<ProfileAppearance> | 
   theme: themes.has(value?.theme as ProfileTheme)
     ? value?.theme as ProfileTheme
     : DEFAULT_PROFILE_APPEARANCE.theme,
+  accentColor: typeof value?.accentColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.accentColor)
+    ? value.accentColor.toLowerCase()
+    : PROFILE_THEME_COLORS[themes.has(value?.theme as ProfileTheme)
+      ? value?.theme as ProfileTheme
+      : DEFAULT_PROFILE_APPEARANCE.theme],
   avatarFrame: avatarFrames.has(value?.avatarFrame as AvatarFrame)
     ? value?.avatarFrame as AvatarFrame
     : DEFAULT_PROFILE_APPEARANCE.avatarFrame,
@@ -177,7 +183,7 @@ export const participantProfileFromMetadata = (metadata?: string): ParticipantPr
         appearance?: Partial<ProfileAppearance>
       }
     }).fordKallProfile
-    if (!profile || (profile.version !== 1 && profile.version !== PROFILE_METADATA_VERSION)) return fallback
+    if (!profile || ![1, 2, PROFILE_METADATA_VERSION].includes(Number(profile.version))) return fallback
     return {
       avatarDataUrl: isSafeAvatarDataUrl(profile.avatarDataUrl) ? profile.avatarDataUrl : undefined,
       bio: typeof profile.bio === 'string' ? profile.bio.slice(0, 96) : undefined,
@@ -192,4 +198,4 @@ export const participantAvatarFromMetadata = (metadata?: string) =>
   participantProfileFromMetadata(metadata).avatarDataUrl
 
 export const profileAccent = (appearance?: Partial<ProfileAppearance>) =>
-  PROFILE_THEME_COLORS[normalizeProfileAppearance(appearance).theme]
+  normalizeProfileAppearance(appearance).accentColor

@@ -34,13 +34,14 @@ Deno.serve(async (request) => {
 
     const metadata = JSON.stringify({
       fordKallProfile: {
-        version: 2,
+        version: 3,
         avatarDataUrl: profile.avatar_data_url || undefined,
         bio: profile.bio || undefined,
         appearance: {
           nameColor: profile.name_color,
           nameFont: profile.name_font,
           theme: profile.profile_theme,
+          accentColor: profile.profile_accent_color,
           avatarFrame: profile.avatar_frame,
         },
       },

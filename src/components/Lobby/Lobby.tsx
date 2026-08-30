@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
 import {
   generateRoomCode,
   getRoomCodeFromUrl,
@@ -6,7 +6,6 @@ import {
   roomCodeFromInput,
 } from '../../services/livekit'
 import { primeCallSounds } from '../../services/callSounds'
-import { prepareProfileAvatar } from '../../services/profile'
 import { getLocalProfile, saveLocalProfile } from '../../storage/preferences'
 import type { AccountProfile, ConnectionStatus, LocalProfile } from '../../types'
 import { BrandMark } from '../ui/BrandMark'
@@ -42,11 +41,7 @@ export const Lobby = ({
   const [avatarDataUrl, setAvatarDataUrl] = useState(initialProfile.avatarDataUrl)
   const [roomCode, setRoomCode] = useState(() => initialRoomCode || getRoomCodeFromUrl())
   const [validationError, setValidationError] = useState('')
-  const [profileError, setProfileError] = useState('')
-  const [preparingAvatar, setPreparingAvatar] = useState(false)
   const [profileEditorOpen, setProfileEditorOpen] = useState(false)
-  const avatarInputRef = useRef<HTMLInputElement>(null)
-  const nameInputRef = useRef<HTMLInputElement>(null)
   const connecting = status === 'connecting' || status === 'reconnecting'
 
   useEffect(() => {
@@ -59,8 +54,8 @@ export const Lobby = ({
 
     if (!normalizedName) {
       setRoomCode(normalizedRoom)
-      setValidationError('Diga como seus amigos devem chamar você.')
-      nameInputRef.current?.focus()
+      setValidationError('Seu perfil precisa de um nome antes de entrar.')
+      setProfileEditorOpen(true)
       return
     }
 
@@ -98,46 +93,6 @@ export const Lobby = ({
   const roomFromInvite = getRoomCodeFromUrl()
   const normalizedRoomInput = roomCodeFromInput(roomCode)
 
-  const selectAvatar = async (file: File) => {
-    setPreparingAvatar(true)
-    setProfileError('')
-    try {
-      const nextAvatar = await prepareProfileAvatar(file)
-      setAvatarDataUrl(nextAvatar)
-      saveLocalProfile({
-        displayName,
-        avatarDataUrl: nextAvatar,
-        bio: account.bio,
-        appearance: account.appearance,
-      })
-      await onProfileChange({
-        displayName: normalizeDisplayName(displayName) || account.displayName,
-        avatarDataUrl: nextAvatar,
-        bio: account.bio,
-        appearance: account.appearance,
-      })
-    } catch (error) {
-      setProfileError(error instanceof Error ? error.message : 'Não foi possível usar essa imagem.')
-    } finally {
-      setPreparingAvatar(false)
-    }
-  }
-
-  const removeAvatar = () => {
-    setAvatarDataUrl(undefined)
-    setProfileError('')
-    saveLocalProfile({
-      displayName,
-      bio: account.bio,
-      appearance: account.appearance,
-    })
-    void onProfileChange({
-      displayName: normalizeDisplayName(displayName) || account.displayName,
-      bio: account.bio,
-      appearance: account.appearance,
-    })
-  }
-
   return (
     <main className="lobby-shell lobby-shell--welcome lobby-shell--v2">
       <div className="lobby-grid" aria-hidden="true" />
@@ -156,13 +111,19 @@ export const Lobby = ({
               <Icon name="controls" /> Painel
             </button>
           )}
-          <div className="lobby-account__identity">
+          <button
+            aria-label="Editar perfil"
+            className="lobby-account__identity"
+            onClick={() => setProfileEditorOpen(true)}
+            title="Editar perfil"
+            type="button"
+          >
             <ProfileAvatar appearance={account.appearance} avatarDataUrl={avatarDataUrl} name={displayName || account.email} />
             <div>
               <ProfileName appearance={account.appearance} name={displayName || account.displayName} />
-              <small>{account.role === 'owner' ? 'Owner' : account.role === 'admin' ? 'Admin' : account.email}</small>
+              <small>Editar perfil</small>
             </div>
-          </div>
+          </button>
           <button aria-label="Sair da conta" className="lobby-account__logout" onClick={() => void onSignOut()} title="Sair da conta" type="button">
             <Icon name="leave" />
           </button>
@@ -171,80 +132,16 @@ export const Lobby = ({
 
       <section className="lobby-v2" aria-labelledby="lobby-title">
         <header className="lobby-v2__heading">
-          <p className="eyebrow">ENTRAR NA CALL</p>
-          <h2>Você e sua sala.<br /><em>Só isso.</em></h2>
+          <h2>Entrar na call</h2>
+          <p>Use um código ou crie uma sala nova.</p>
         </header>
 
-        <form className="lobby-v2__card" onSubmit={submit} noValidate>
-          <section className="lobby-v2__step lobby-v2__profile" aria-labelledby="profile-step-title">
-            <header className="lobby-v2__step-heading">
-              <span>1</span>
-              <div>
-                <h3 id="profile-step-title">Seu perfil</h3>
-                <p>É assim que você aparece na call.</p>
-              </div>
-            </header>
-
-            <input
-              accept="image/jpeg,image/png,image/webp,image/gif"
-              aria-label="Escolher foto de perfil"
-              hidden
-              onChange={(event) => {
-                const file = event.target.files?.[0]
-                if (file) void selectAvatar(file)
-                event.target.value = ''
-              }}
-              ref={avatarInputRef}
-              type="file"
-            />
-
-            <div className="lobby-v2__identity">
-              <button
-                aria-label={avatarDataUrl ? 'Trocar foto de perfil' : 'Adicionar foto de perfil'}
-                className="lobby-v2__avatar"
-                disabled={connecting || preparingAvatar}
-                onClick={() => avatarInputRef.current?.click()}
-                type="button"
-              >
-                <ProfileAvatar appearance={account.appearance} avatarDataUrl={avatarDataUrl} name={displayName || 'Você'} />
-                <span><Icon name="image" /></span>
-              </button>
-
-              <div className="lobby-v2__profile-fields">
-                <label className="lobby-v2__name-field">
-                  <span>Nome exibido</span>
-                  <input
-                    autoComplete="nickname"
-                    autoFocus={!displayName}
-                    maxLength={48}
-                    onChange={(event) => setDisplayName(event.target.value)}
-                    placeholder="Como podemos te chamar?"
-                    ref={nameInputRef}
-                    value={displayName}
-                  />
-                </label>
-                <div className="lobby-v2__photo-actions">
-                  <button disabled={connecting || preparingAvatar} onClick={() => avatarInputRef.current?.click()} type="button">
-                    {preparingAvatar ? 'Preparando…' : avatarDataUrl ? 'Trocar foto' : 'Adicionar foto'}
-                  </button>
-                  {avatarDataUrl && <button onClick={removeAvatar} type="button">Remover</button>}
-                  <button className="lobby-v2__customize" onClick={() => setProfileEditorOpen(true)} type="button">Personalizar perfil</button>
-                </div>
-              </div>
-            </div>
-
-            {profileError && (
-              <div className="inline-error" role="alert"><Icon name="warning" /><span>{profileError}</span></div>
-            )}
-          </section>
-
-          <div className="lobby-v2__divider" aria-hidden="true"><Icon name="chevron" /></div>
-
+        <form className="lobby-v2__card lobby-v2__card--direct" onSubmit={submit} noValidate>
           <section className="lobby-v2__step lobby-v2__room" aria-labelledby="room-step-title">
             <header className="lobby-v2__step-heading">
-              <span>2</span>
+              <span><Icon name="users" /></span>
               <div>
-                <h3 id="room-step-title">Sala</h3>
+                <h3 id="room-step-title">Código da sala</h3>
                 <p>Cole um convite ou digite o código.</p>
               </div>
             </header>
@@ -255,7 +152,7 @@ export const Lobby = ({
                 aria-label="Código ou link da sala"
                 autoCapitalize="characters"
                 autoComplete="off"
-                autoFocus={Boolean(displayName)}
+                autoFocus
                 maxLength={240}
                 onChange={(event) => setRoomCode(event.target.value)}
                 placeholder="KIWI-7294"
@@ -285,8 +182,6 @@ export const Lobby = ({
             </button>
           </section>
         </form>
-
-        <p className="lobby-v2__local-note"><span className="status-dot" /> Perfil sincronizado · acesso individual</p>
       </section>
       {profileEditorOpen && (
         <ProfileEditorModal

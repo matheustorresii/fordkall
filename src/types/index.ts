@@ -60,6 +60,7 @@ export interface ProfileAppearance {
   nameColor: string
   nameFont: ProfileNameFont
   theme: ProfileTheme
+  accentColor: string
   avatarFrame: AvatarFrame
 }
 

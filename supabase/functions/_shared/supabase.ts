@@ -10,6 +10,7 @@ type Profile = {
   name_color: string
   name_font: string
   profile_theme: string
+  profile_accent_color: string
   avatar_frame: string
   role: 'owner' | 'admin' | 'member'
   status: 'active' | 'suspended'
@@ -59,7 +60,7 @@ export const requireActiveProfile = async (
   const { admin, user } = await requireUser(request)
   const { data: profile, error } = await admin
     .from('profiles')
-    .select('id,email,display_name,avatar_data_url,bio,name_color,name_font,profile_theme,avatar_frame,role,status')
+    .select('id,email,display_name,avatar_data_url,bio,name_color,name_font,profile_theme,profile_accent_color,avatar_frame,role,status')
     .eq('id', user.id)
     .single()
 

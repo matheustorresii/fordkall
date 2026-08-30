@@ -131,6 +131,7 @@ Deno.serve(async (request) => {
         name_color: appearance.nameColor,
         name_font: appearance.nameFont,
         profile_theme: appearance.theme,
+        profile_accent_color: appearance.accentColor,
         avatar_frame: appearance.avatarFrame,
         role: 'owner',
         status: 'active',

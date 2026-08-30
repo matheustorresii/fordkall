@@ -17,10 +17,10 @@ import { ProfileAvatar } from '../ui/ProfileAvatar'
 import { ProfileName } from './ProfileName'
 
 const fontOptions: Array<{ id: ProfileNameFont; label: string }> = [
-  { id: 'mono', label: 'Mono' },
-  { id: 'condensed', label: 'Condensada' },
-  { id: 'serif', label: 'Serifada' },
-  { id: 'rounded', label: 'Arredondada' },
+  { id: 'mono', label: 'Terminal' },
+  { id: 'condensed', label: 'Racing' },
+  { id: 'serif', label: 'Editorial' },
+  { id: 'rounded', label: 'Arcade' },
 ]
 
 const frameOptions: Array<{ id: AvatarFrame; label: string }> = [
@@ -40,6 +40,7 @@ export const ProfileStudio = ({
   onChange: (profile: LocalProfile) => void
 }) => {
   const appearance = normalizeProfileAppearance(value.appearance)
+  const presetThemeColors = Object.values(PROFILE_THEME_COLORS)
   const [avatarError, setAvatarError] = useState('')
   const [preparingAvatar, setPreparingAvatar] = useState(false)
   const avatarInput = useRef<HTMLInputElement>(null)
@@ -145,13 +146,21 @@ export const ProfileStudio = ({
               {(Object.keys(PROFILE_THEME_COLORS) as ProfileTheme[]).map((theme) => (
                 <button
                   aria-label={`Tema ${theme}`}
-                  className={appearance.theme === theme ? 'is-active' : ''}
+                  className={appearance.accentColor === PROFILE_THEME_COLORS[theme] ? 'is-active' : ''}
                   key={theme}
-                  onClick={() => updateAppearance({ theme })}
+                  onClick={() => updateAppearance({ theme, accentColor: PROFILE_THEME_COLORS[theme] })}
                   style={{ '--swatch': PROFILE_THEME_COLORS[theme] } as CSSProperties}
                   type="button"
                 ><i /></button>
               ))}
+              <label
+                className={`profile-custom-color ${presetThemeColors.includes(appearance.accentColor) ? '' : 'is-active'}`.trim()}
+                style={{ '--swatch': appearance.accentColor } as CSSProperties}
+                title="Escolher qualquer cor para o tema"
+              >
+                <input aria-label="Cor personalizada do tema" onChange={(event) => updateAppearance({ accentColor: event.target.value })} type="color" value={appearance.accentColor} />
+                <i /><span>Personalizada</span>
+              </label>
             </div>
           </div>
 
@@ -168,9 +177,13 @@ export const ProfileStudio = ({
                   type="button"
                 />
               ))}
-              <label title="Escolher outra cor">
+              <label
+                className={`profile-custom-color ${colorOptions.includes(appearance.nameColor) ? '' : 'is-active'}`.trim()}
+                style={{ '--swatch': appearance.nameColor } as CSSProperties}
+                title="Escolher qualquer cor para o nome"
+              >
                 <input aria-label="Cor personalizada do nome" onChange={(event) => updateAppearance({ nameColor: event.target.value })} type="color" value={appearance.nameColor} />
-                <span>+</span>
+                <i /><span>Personalizada</span>
               </label>
             </div>
           </div>

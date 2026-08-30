@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:ital,wght@0,500;0,600;0,700;1,700&family=Bungee&family=IBM+Plex+Mono:wght@400;500;600&family=Playfair+Display:ital,wght@0,700;1,700&display=swap');
 
 :root {
   color-scheme: dark;
@@ -6648,14 +6648,14 @@ svg {
 
 .profile-name-wrap { display: inline-flex; min-width: 0; align-items: center; gap: 6px; }
 .profile-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.profile-name--mono { font-family: "IBM Plex Mono",monospace !important; }
-.profile-name--condensed { font-family: "Barlow Condensed",Impact,sans-serif !important; font-weight: 700 !important; letter-spacing: .035em; }
-.profile-name--serif { font-family: Georgia,"Times New Roman",serif !important; font-weight: 600 !important; }
-.profile-name--rounded { font-family: ui-rounded,"Arial Rounded MT Bold",system-ui,sans-serif !important; font-weight: 700 !important; }
-.profile-avatar--frame-none { border-color: transparent !important; box-shadow: none !important; }
-.profile-avatar--frame-ring { border-color: var(--profile-accent) !important; }
-.profile-avatar--frame-double { border-color: var(--profile-accent) !important; box-shadow: 0 0 0 4px #0d110e,0 0 0 6px color-mix(in srgb,var(--profile-accent) 65%,transparent),0 14px 32px rgba(0,0,0,.34) !important; }
-.profile-avatar--frame-glow { border-color: var(--profile-accent) !important; box-shadow: 0 0 0 3px color-mix(in srgb,var(--profile-accent) 13%,transparent),0 0 24px color-mix(in srgb,var(--profile-accent) 38%,transparent),0 14px 32px rgba(0,0,0,.34) !important; }
+.profile-name--mono { font-family: "IBM Plex Mono",monospace !important; font-style: normal !important; font-weight: 500 !important; letter-spacing: 0 !important; text-transform: none; }
+.profile-name--condensed { font-family: "Barlow Condensed",Impact,sans-serif !important; font-style: italic !important; font-weight: 700 !important; letter-spacing: .075em; text-transform: uppercase; }
+.profile-name--serif { font-family: "Playfair Display",Georgia,"Times New Roman",serif !important; font-style: italic !important; font-weight: 700 !important; letter-spacing: -.015em; text-transform: none; }
+.profile-name--rounded { font-family: "Bungee",Impact,sans-serif !important; font-style: normal !important; font-weight: 400 !important; letter-spacing: .01em; text-transform: none; }
+.profile-avatar--frame-none { border: 2px solid transparent !important; box-shadow: none !important; }
+.profile-avatar--frame-ring { border: 2px solid var(--profile-accent) !important; box-shadow: 0 0 0 3px color-mix(in srgb,var(--profile-accent) 12%,transparent) !important; }
+.profile-avatar--frame-double { border: 2px solid var(--profile-accent) !important; box-shadow: 0 0 0 4px #0d110e,0 0 0 6px color-mix(in srgb,var(--profile-accent) 65%,transparent),0 14px 32px rgba(0,0,0,.34) !important; }
+.profile-avatar--frame-glow { border: 2px solid var(--profile-accent) !important; box-shadow: 0 0 0 3px color-mix(in srgb,var(--profile-accent) 13%,transparent),0 0 24px color-mix(in srgb,var(--profile-accent) 38%,transparent),0 14px 32px rgba(0,0,0,.34) !important; }
 .gallery-person__meta .profile-name-wrap { flex: 1; }
 .gallery-person__meta .profile-name { font-size: inherit; }
 .participant__identity .profile-name-wrap { width: 100%; }
@@ -7190,4 +7190,144 @@ svg {
   .admin-header h1 { font-size: 30px; }
   .admin-card > header { min-height: 72px; }
   .admin-invite-list article { gap: 10px; }
+}
+
+/* Direct signed-in home and explicit profile customization. */
+
+.lobby-v2 {
+  width: min(calc(100% - 40px), 560px);
+}
+
+.lobby-v2__heading {
+  margin-bottom: 22px;
+}
+
+.lobby-v2__heading h2 {
+  margin: 0;
+  font-size: clamp(38px, 6vw, 52px);
+  line-height: 1;
+}
+
+.lobby-v2__heading > p {
+  margin: 9px 0 0;
+  color: #788279;
+  font-size: 12px;
+}
+
+.lobby-v2__card--direct {
+  display: block;
+  width: 100%;
+  border-radius: 20px;
+}
+
+.lobby-v2__card--direct .lobby-v2__step {
+  min-height: 0;
+  padding: 28px;
+}
+
+.lobby-v2__card--direct .lobby-v2__step-heading > span svg {
+  width: 15px;
+  height: 15px;
+}
+
+.lobby-v2__card--direct .lobby-v2__room-field {
+  margin-top: 24px;
+}
+
+.lobby-account__identity {
+  min-height: 44px;
+  padding: 4px 12px 4px 5px;
+  color: inherit;
+  text-align: left;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+.lobby-account__identity:hover {
+  border-color: #536048;
+  background: #121713;
+}
+
+.lobby-account__identity > .profile-avatar {
+  width: 34px;
+  height: 34px;
+  font-size: 12px;
+}
+
+.lobby-account__identity strong {
+  max-width: 170px;
+  color: #edf1ed;
+  font-size: 12px;
+}
+
+.lobby-account__identity small {
+  color: #8a958b;
+  font-size: 9px;
+  letter-spacing: .04em;
+  text-transform: none;
+}
+
+.profile-custom-color {
+  position: relative;
+  display: flex !important;
+  width: auto !important;
+  min-width: 118px;
+  height: 34px !important;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 7px;
+  padding: 0 10px !important;
+  border: 1px solid #343c35 !important;
+  border-radius: 9px !important;
+  outline: 0 !important;
+  background: #0a0d0b !important;
+  color: #929c93 !important;
+  cursor: pointer;
+  font-size: 10px !important;
+}
+
+.profile-custom-color:hover,
+.profile-custom-color.is-active {
+  border-color: var(--swatch) !important;
+  color: #e1e6e1 !important;
+}
+
+.profile-custom-color input {
+  position: absolute !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+}
+
+.profile-custom-color i {
+  display: block;
+  width: 15px;
+  height: 15px;
+  flex: 0 0 auto;
+  border-radius: 4px;
+  background: var(--swatch);
+  box-shadow: 0 0 12px color-mix(in srgb, var(--swatch) 38%, transparent);
+}
+
+.profile-custom-color span {
+  line-height: 1;
+}
+
+@media (max-width: 680px) {
+  .lobby-account__identity {
+    display: flex;
+    width: 44px;
+    min-height: 44px;
+    padding: 4px;
+    justify-content: center;
+  }
+
+  .lobby-account__identity > div { display: none; }
+  .lobby-account__identity > .profile-avatar { width: 34px; height: 34px; }
+}
+
+@media (max-width: 440px) {
+  .lobby-v2 { width: min(calc(100% - 20px), 560px); }
+  .lobby-v2__heading h2 { font-size: 38px; }
+  .lobby-v2__card--direct .lobby-v2__step { padding: 22px 18px; }
+  .profile-custom-color { min-width: 108px; }
 }
