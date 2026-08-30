@@ -7,7 +7,9 @@ enable_signup = false
 minimum_password_length = 8
 
 [auth.email]
-enable_signup = false
+# Keep the email/password provider available for existing users. Public account
+# creation remains blocked globally by auth.enable_signup above.
+enable_signup = true
 enable_confirmations = false
 
 [auth.mfa.totp]
