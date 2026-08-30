@@ -1,7 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
-import { normalizeProfile } from '../../services/profile'
 import type { LocalProfile } from '../../types'
-import { ProfileStudio } from '../Profile/ProfileStudio'
 import { BrandMark } from '../ui/BrandMark'
 import { Icon } from '../ui/Icon'
 
@@ -30,12 +28,9 @@ const inviteFromUrl = () => {
   return new URL(window.location.href).searchParams.get('invite') || ''
 }
 
-const initialAuthMode = (): AuthMode => {
-  if (typeof window !== 'undefined' && import.meta.env.DEV) {
-    const preview = new URL(window.location.href).searchParams.get('preview')
-    if (preview === 'profile') return 'create'
-  }
-  return 'invite'
+const nameFromEmail = (email: string) => {
+  const localPart = email.trim().split('@')[0] || 'Usuário'
+  return localPart.replace(/[._-]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 48)
 }
 
 export const AuthScreen = ({
@@ -48,12 +43,11 @@ export const AuthScreen = ({
   onValidateInvite,
 }: AuthScreenProps) => {
   const initialInvite = useMemo(inviteFromUrl, [])
-  const [mode, setMode] = useState<AuthMode>(initialAuthMode)
+  const [mode, setMode] = useState<AuthMode>('invite')
   const [inviteCode, setInviteCode] = useState(initialInvite)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [confirmPassword, setConfirmPassword] = useState('')
-  const [profile, setProfile] = useState<LocalProfile>({ displayName: '', appearance: undefined })
   const [localError, setLocalError] = useState('')
   const [checkingInvite, setCheckingInvite] = useState(false)
 
@@ -61,6 +55,7 @@ export const AuthScreen = ({
     setMode(nextMode)
     setLocalError('')
     onClearError()
+    window.scrollTo({ top: 0, behavior: 'instant' })
   }
 
   const checkInvite = async (event: FormEvent) => {
@@ -68,7 +63,7 @@ export const AuthScreen = ({
     setLocalError('')
     onClearError()
     if (!inviteCode.trim()) {
-      setLocalError('Digite a chave que você recebeu.')
+      setLocalError('Digite o código do convite.')
       return
     }
     setCheckingInvite(true)
@@ -88,23 +83,15 @@ export const AuthScreen = ({
     event.preventDefault()
     setLocalError('')
     onClearError()
-    const normalizedProfile = normalizeProfile(profile)
-    if (!normalizedProfile.displayName) {
-      setLocalError('Escolha o nome que vai aparecer na call.')
-      return
-    }
     if (password !== confirmPassword) {
-      setLocalError('As duas senhas precisam ser iguais.')
+      setLocalError('As senhas não são iguais.')
       return
     }
     const activated = await onActivate({
       code: inviteCode,
       email: email.trim(),
       password,
-      displayName: normalizedProfile.displayName,
-      avatarDataUrl: normalizedProfile.avatarDataUrl,
-      bio: normalizedProfile.bio,
-      appearance: normalizedProfile.appearance,
+      displayName: nameFromEmail(email),
     })
     if (activated) {
       const url = new URL(window.location.href)
@@ -113,82 +100,79 @@ export const AuthScreen = ({
     }
   }
 
+  const message = localError || error
+
   return (
-    <main className={`auth-shell auth-shell--${mode}`}>
+    <main className="auth-shell auth-shell--minimal">
       <div className="lobby-grid" aria-hidden="true" />
-      <header className="auth-topbar">
-        <div className="brand brand--welcome">
+      <section className="access-panel">
+        <header className="access-panel__brand">
           <BrandMark />
-          <div><p className="brand__eyebrow">PRIVATE COMMS</p><h1>FORD KALL</h1></div>
+          <span>Ford Kall</span>
+        </header>
+
+        <div className="access-card">
+          {mode === 'invite' && (
+            <form onSubmit={checkInvite}>
+              <header className="access-card__heading">
+                <h1>Entrar no Ford Kall</h1>
+                <p>Digite o código do convite para continuar.</p>
+              </header>
+              <label className="access-field">
+                <span>Convite</span>
+                <input
+                  autoCapitalize="characters"
+                  autoComplete="off"
+                  autoFocus
+                  onChange={(event) => setInviteCode(event.target.value)}
+                  placeholder="FK-XXXX-XXXX-XXXX-XXXX"
+                  spellCheck={false}
+                  value={inviteCode}
+                />
+              </label>
+              {message && <div className="access-error" role="alert"><Icon name="warning" /><span>{message}</span></div>}
+              {!configured && <div className="access-error"><Icon name="warning" /><span>O acesso ainda não foi configurado.</span></div>}
+              <button className="access-primary" disabled={!configured || checkingInvite} type="submit">
+                {checkingInvite ? <><span className="spinner" /> Verificando</> : <>Continuar <Icon name="chevron" /></>}
+              </button>
+              <button className="access-link" onClick={() => switchMode('login')} type="button">Já tenho uma conta</button>
+            </form>
+          )}
+
+          {mode === 'create' && (
+            <form onSubmit={createAccount}>
+              <header className="access-card__heading">
+                <h1>Criar conta</h1>
+                <p>Seu convite foi validado. Defina seus dados de acesso.</p>
+              </header>
+              <label className="access-field"><span>E-mail</span><input autoComplete="email" inputMode="email" onChange={(event) => setEmail(event.target.value)} placeholder="voce@exemplo.com" required type="email" value={email} /></label>
+              <label className="access-field"><span>Senha</span><input autoComplete="new-password" minLength={8} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo de 8 caracteres" required type="password" value={password} /></label>
+              <label className="access-field"><span>Confirmar senha</span><input autoComplete="new-password" minLength={8} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repita a senha" required type="password" value={confirmPassword} /></label>
+              {message && <div className="access-error" role="alert"><Icon name="warning" /><span>{message}</span></div>}
+              <button className="access-primary" disabled={busy || !configured} type="submit">
+                {busy ? <><span className="spinner" /> Criando conta</> : <>Criar conta <Icon name="chevron" /></>}
+              </button>
+              <button className="access-link" onClick={() => switchMode('invite')} type="button">Usar outro convite</button>
+            </form>
+          )}
+
+          {mode === 'login' && (
+            <form onSubmit={submitLogin}>
+              <header className="access-card__heading">
+                <h1>Entrar</h1>
+                <p>Use o e-mail e a senha da sua conta.</p>
+              </header>
+              <label className="access-field"><span>E-mail</span><input autoComplete="email" inputMode="email" onChange={(event) => setEmail(event.target.value)} placeholder="voce@exemplo.com" required type="email" value={email} /></label>
+              <label className="access-field"><span>Senha</span><input autoComplete="current-password" minLength={8} onChange={(event) => setPassword(event.target.value)} placeholder="Sua senha" required type="password" value={password} /></label>
+              {message && <div className="access-error" role="alert"><Icon name="warning" /><span>{message}</span></div>}
+              <button className="access-primary" disabled={busy || !configured} type="submit">
+                {busy ? <><span className="spinner" /> Entrando</> : <>Entrar <Icon name="chevron" /></>}
+              </button>
+              <button className="access-link" onClick={() => switchMode('invite')} type="button">Voltar para o convite</button>
+            </form>
+          )}
         </div>
-        <div className="auth-topbar__right">
-          {mode !== 'login' && <button onClick={() => switchMode('login')} type="button">Já tenho uma conta</button>}
-          {mode === 'login' && <button onClick={() => switchMode('invite')} type="button"><Icon name="chevron" /> Voltar ao convite</button>}
-          <span className="auth-topbar__badge"><span className="status-dot" /> Acesso fechado</span>
-        </div>
-      </header>
-
-      {mode === 'invite' && (
-        <section className="invite-home">
-          <div className="invite-home__copy">
-            <p className="eyebrow">UMA CALL. SUA GALERA.</p>
-            <h2>A garagem é<br /><em>fechada.</em></h2>
-            <p>Ford Kall agora é só por convite. Se alguém te passou uma chave, você já está quase dentro.</p>
-          </div>
-          <form className="invite-gate" onSubmit={checkInvite}>
-            <header><span className="invite-gate__number">01</span><div><p>CHAVE DE ACESSO</p><h3>Qual é a senha da garagem?</h3></div></header>
-            <label>
-              <Icon name="keyboard" />
-              <input autoCapitalize="characters" autoComplete="off" autoFocus onChange={(event) => setInviteCode(event.target.value)} placeholder="FK-XXXX-XXXX-XXXX-XXXX" spellCheck={false} value={inviteCode} />
-            </label>
-            {(localError || error) && <div className="inline-error" role="alert"><Icon name="warning" /><span>{localError || error}</span></div>}
-            {!configured && <div className="inline-error"><Icon name="warning" />Este build ainda não recebeu a configuração do Supabase.</div>}
-            <button disabled={!configured || checkingInvite} type="submit">
-              {checkingInvite ? <><span className="spinner" /> Conferindo</> : <>Usar esta chave <Icon name="chevron" /></>}
-            </button>
-            <small>Convites são individuais, expiram e funcionam uma única vez.</small>
-          </form>
-          <div className="invite-home__road" aria-hidden="true"><i /><i /><i /></div>
-        </section>
-      )}
-
-      {mode === 'login' && (
-        <section className="auth-layout auth-layout--login">
-          <div className="auth-copy">
-            <p className="eyebrow">DE VOLTA À PISTA</p>
-            <h2>Sua conta.<br /><em>Seu perfil.</em></h2>
-            <p>Entre com a conta já ativada e continue exatamente de onde parou.</p>
-          </div>
-          <form className="auth-card" onSubmit={submitLogin}>
-            <header className="auth-card__heading"><span>ACESSO EXISTENTE</span><h3>Ligue o motor.</h3><p>Use o e-mail e a senha da sua conta.</p></header>
-            <label className="auth-field"><span>E-mail</span><input autoComplete="email" inputMode="email" onChange={(event) => setEmail(event.target.value)} placeholder="voce@exemplo.com" type="email" value={email} /></label>
-            <label className="auth-field"><span>Senha</span><input autoComplete="current-password" minLength={8} onChange={(event) => setPassword(event.target.value)} placeholder="Sua senha" type="password" value={password} /></label>
-            {(localError || error) && <div className="inline-error" role="alert"><Icon name="warning" /><span>{localError || error}</span></div>}
-            <button className="auth-submit" disabled={busy || !configured} type="submit">{busy ? <><span className="spinner" /> Aguarde</> : <>Entrar no Ford Kall <Icon name="chevron" /></>}</button>
-          </form>
-        </section>
-      )}
-
-      {mode === 'create' && (
-        <form className="profile-onboarding" onSubmit={createAccount}>
-          <header className="profile-onboarding__heading">
-            <div><p className="eyebrow">CHAVE ACEITA · PASSO 02</p><h2>Monte seu piloto.</h2><p>Você pode mudar tudo depois. A aparência acompanha sua conta em qualquer dispositivo.</p></div>
-            <button onClick={() => switchMode('invite')} type="button"><Icon name="chevron" /> Trocar chave</button>
-          </header>
-          <div className="profile-onboarding__body">
-            <ProfileStudio onChange={setProfile} value={profile} />
-            <section className="profile-onboarding__account">
-              <header><span>03</span><div><p>ÚLTIMO PASSO</p><h3>Proteja sua conta</h3></div></header>
-              <label className="auth-field"><span>E-mail</span><input autoComplete="email" inputMode="email" onChange={(event) => setEmail(event.target.value)} placeholder="voce@exemplo.com" type="email" value={email} /></label>
-              <label className="auth-field"><span>Senha</span><input autoComplete="new-password" minLength={8} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo de 8 caracteres" type="password" value={password} /></label>
-              <label className="auth-field"><span>Confirmar senha</span><input autoComplete="new-password" minLength={8} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Repita sua senha" type="password" value={confirmPassword} /></label>
-              {(localError || error) && <div className="inline-error" role="alert"><Icon name="warning" /><span>{localError || error}</span></div>}
-              <button className="auth-submit" disabled={busy || !configured} type="submit">{busy ? <><span className="spinner" /> Criando perfil</> : <>Criar minha conta <Icon name="chevron" /></>}</button>
-              <small>A chave será invalidada depois que a conta for criada.</small>
-            </section>
-          </div>
-        </form>
-      )}
+      </section>
     </main>
   )
 }
