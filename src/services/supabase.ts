@@ -63,7 +63,11 @@ export const redeemInvite = async (values: {
   appearance?: LocalProfile['appearance']
 }) => {
   await invokeFunction<{ ok: true }>('redeem-invite', values)
-  return signIn(values.email, values.password)
+  try {
+    return await signIn(values.email, values.password)
+  } catch {
+    throw new Error('ACCOUNT_CREATED_LOGIN_REQUIRED')
+  }
 }
 
 export const validateInvite = async (code: string) =>
@@ -137,6 +141,7 @@ export const friendlyAuthError = (error: unknown) => {
     INVALID_INVITE: 'Esse convite não existe, expirou ou já foi utilizado.',
     INVITE_ALREADY_USED: 'Esse convite acabou de ser utilizado em outro cadastro.',
     EMAIL_ALREADY_REGISTERED: 'Esse e-mail já possui uma conta. Entre com sua senha.',
+    ACCOUNT_CREATED_LOGIN_REQUIRED: 'Sua conta foi criada. Entre com o e-mail e a senha que você acabou de escolher.',
     INVALID_EMAIL: 'Digite um e-mail válido.',
     WEAK_PASSWORD: 'A senha precisa ter pelo menos 8 caracteres.',
     DISPLAY_NAME_REQUIRED: 'Digite o nome que aparecerá nas calls.',

@@ -2,7 +2,7 @@
   "name": "ford-kall",
   "productName": "Ford Kall",
   "private": true,
-  "version": "0.6.2",
+  "version": "0.6.3",
   "description": "Call privada de voz, camera e compartilhamento de tela entre amigos.",
   "author": "Matheus Torres",
   "homepage": "https://fordkall.11a3.dev/",

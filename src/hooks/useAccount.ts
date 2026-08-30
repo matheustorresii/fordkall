@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { Session } from '@supabase/supabase-js'
 import {
-  bootstrapOwner,
   friendlyAuthError,
   getInitialSession,
   isSupabaseConfigured,
@@ -35,7 +34,6 @@ export const useAccount = () => {
     setLoading(true)
     setError('')
     try {
-      await bootstrapOwner()
       const nextProfile = await loadAccountProfile()
       if (nextProfile.status !== 'active') throw new Error('ACCOUNT_SUSPENDED')
       if (request !== requestRef.current) return
