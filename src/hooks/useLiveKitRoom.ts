@@ -11,6 +11,7 @@ import {
   fetchConnectionDetails,
   friendlyConnectionError,
   friendlyMicrophoneError,
+  reportLiveKitConnection,
 } from '../services/livekit'
 import { saveLocalProfile } from '../storage/preferences'
 import type { ConnectionStatus, LocalProfile } from '../types'
@@ -73,119 +74,146 @@ export const useLiveKitRoom = () => {
     setStatus('connecting')
     leavingRef.current = false
 
-    const nextRoom = createLiveKitRoom()
-    roomRef.current = nextRoom
-
-    const handleConnectionState = (state: ConnectionState) => {
-      setStatus(toConnectionStatus(state))
-    }
-    const handleDisconnected = () => {
-      if (!leavingRef.current) {
-        setError('A conexão com a call foi encerrada. Entre novamente para continuar.')
+    let lastConnectionFailure: unknown = null
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const nextRoom = createLiveKitRoom()
+      roomRef.current = nextRoom
+      let connectionAccepted = false
+      const handleConnectionState = (state: ConnectionState) => {
+        setStatus(toConnectionStatus(state))
       }
-      if (roomRef.current === nextRoom) {
-        roomRef.current = null
-        setRoom(null)
-      }
-      setStatus('disconnected')
-    }
-
-    nextRoom.on(RoomEvent.ConnectionStateChanged, handleConnectionState)
-    nextRoom.on(RoomEvent.Disconnected, handleDisconnected)
-
-    try {
-      const { serverUrl, participantToken } = await fetchConnectionDetails(
-        roomCode,
-        profile,
-      )
-      await nextRoom.connect(serverUrl, participantToken)
-      saveLocalProfile(profile)
-      setRoom(nextRoom)
-      setStatus('connected')
-
-      // Microphone permission belongs to the call controls, not to the room
-      // connection. Keeping it detached prevents a native browser prompt from
-      // leaving the lobby locked even though LiveKit is already connected.
-      const microphoneRequest = ++microphoneRequestRef.current
-      setMicrophoneStarting(true)
-      const handleInitialMicrophonePublished = (publication: LocalTrackPublication) => {
-        if (publication.source !== Track.Source.Microphone) return
-        nextRoom.off(RoomEvent.LocalTrackPublished, handleInitialMicrophonePublished)
-        if (
-          microphoneRequestRef.current === microphoneRequest &&
-          roomRef.current === nextRoom
-        ) {
-          setMicrophoneStarting(false)
-          setMicrophoneError('')
+      const handleDisconnected = () => {
+        if (!connectionAccepted) return
+        if (!leavingRef.current) {
+          setError('A conexão com a call foi encerrada. Entre novamente para continuar.')
         }
-      }
-      nextRoom.on(RoomEvent.LocalTrackPublished, handleInitialMicrophonePublished)
-      const microphoneTimer = window.setTimeout(() => {
-        nextRoom.off(RoomEvent.LocalTrackPublished, handleInitialMicrophonePublished)
-        if (
-          microphoneRequestRef.current === microphoneRequest &&
-          roomRef.current === nextRoom
-        ) {
-          setMicrophoneStarting(false)
-          setMicrophoneError('A permissão do microfone continua aberta no navegador. Feche o aviso e tente novamente pelo botão da call.')
+        if (roomRef.current === nextRoom) {
+          roomRef.current = null
+          setRoom(null)
         }
-      }, 12_000)
-      void nextRoom.localParticipant
-        .setMicrophoneEnabled(true, microphoneCaptureOptions())
-        .then((publication) => {
-          if (
-            microphoneRequestRef.current !== microphoneRequest ||
-            roomRef.current !== nextRoom
-          ) {
-            publication?.track?.detach()
-            publication?.track?.stop()
-            publication?.track?.mediaStreamTrack.stop()
-            stopRoomLocalTracks(nextRoom)
-            return
-          }
-          if (
-            microphoneRequestRef.current === microphoneRequest &&
-            roomRef.current === nextRoom
-          ) {
-            setMicrophoneError('')
-          }
-        })
-        .catch((microphoneFailure) => {
-          if (
-            microphoneRequestRef.current === microphoneRequest &&
-            roomRef.current === nextRoom
-          ) {
-            setMicrophoneError(friendlyMicrophoneError(microphoneFailure))
-          }
-        })
-        .finally(() => {
-          window.clearTimeout(microphoneTimer)
+        setStatus('disconnected')
+      }
+
+      nextRoom.on(RoomEvent.ConnectionStateChanged, handleConnectionState)
+      nextRoom.on(RoomEvent.Disconnected, handleDisconnected)
+
+      let connectionDetails: Awaited<ReturnType<typeof fetchConnectionDetails>> | null = null
+      try {
+        connectionDetails = await fetchConnectionDetails(roomCode, profile)
+        await nextRoom.connect(
+          connectionDetails.serverUrl,
+          connectionDetails.participantToken,
+        )
+        connectionAccepted = true
+        void reportLiveKitConnection(roomCode, connectionDetails, true).catch(() => undefined)
+        saveLocalProfile(profile)
+        setRoom(nextRoom)
+        setStatus('connected')
+
+        // Microphone permission belongs to the call controls, not to the room
+        // connection. Keeping it detached prevents a native browser prompt from
+        // leaving the lobby locked even though LiveKit is already connected.
+        const microphoneRequest = ++microphoneRequestRef.current
+        setMicrophoneStarting(true)
+        const handleInitialMicrophonePublished = (publication: LocalTrackPublication) => {
+          if (publication.source !== Track.Source.Microphone) return
           nextRoom.off(RoomEvent.LocalTrackPublished, handleInitialMicrophonePublished)
-          if (
-            microphoneRequestRef.current !== microphoneRequest ||
-            roomRef.current !== nextRoom
-          ) {
-            stopRoomLocalTracks(nextRoom)
-            return
-          }
           if (
             microphoneRequestRef.current === microphoneRequest &&
             roomRef.current === nextRoom
           ) {
             setMicrophoneStarting(false)
+            setMicrophoneError('')
           }
-        })
+        }
+        nextRoom.on(RoomEvent.LocalTrackPublished, handleInitialMicrophonePublished)
+        const microphoneTimer = window.setTimeout(() => {
+          nextRoom.off(RoomEvent.LocalTrackPublished, handleInitialMicrophonePublished)
+          if (
+            microphoneRequestRef.current === microphoneRequest &&
+            roomRef.current === nextRoom
+          ) {
+            setMicrophoneStarting(false)
+            setMicrophoneError('A permissão do microfone continua aberta no navegador. Feche o aviso e tente novamente pelo botão da call.')
+          }
+        }, 12_000)
+        void nextRoom.localParticipant
+          .setMicrophoneEnabled(true, microphoneCaptureOptions())
+          .then((publication) => {
+            if (
+              microphoneRequestRef.current !== microphoneRequest ||
+              roomRef.current !== nextRoom
+            ) {
+              publication?.track?.detach()
+              publication?.track?.stop()
+              publication?.track?.mediaStreamTrack.stop()
+              stopRoomLocalTracks(nextRoom)
+              return
+            }
+            if (
+              microphoneRequestRef.current === microphoneRequest &&
+              roomRef.current === nextRoom
+            ) {
+              setMicrophoneError('')
+            }
+          })
+          .catch((microphoneFailure) => {
+            if (
+              microphoneRequestRef.current === microphoneRequest &&
+              roomRef.current === nextRoom
+            ) {
+              setMicrophoneError(friendlyMicrophoneError(microphoneFailure))
+            }
+          })
+          .finally(() => {
+            window.clearTimeout(microphoneTimer)
+            nextRoom.off(RoomEvent.LocalTrackPublished, handleInitialMicrophonePublished)
+            if (
+              microphoneRequestRef.current !== microphoneRequest ||
+              roomRef.current !== nextRoom
+            ) {
+              stopRoomLocalTracks(nextRoom)
+              return
+            }
+            if (
+              microphoneRequestRef.current === microphoneRequest &&
+              roomRef.current === nextRoom
+            ) {
+              setMicrophoneStarting(false)
+            }
+          })
 
-      return true
-    } catch (connectionFailure) {
-      nextRoom.removeAllListeners()
-      await nextRoom.disconnect(true)
-      if (roomRef.current === nextRoom) roomRef.current = null
-      setRoom(null)
-      setStatus('error')
-      setError(friendlyConnectionError(connectionFailure))
-      return false
+        return true
+      } catch (connectionFailure) {
+        lastConnectionFailure = connectionFailure
+        nextRoom.removeAllListeners()
+        await nextRoom.disconnect(true)
+        if (roomRef.current === nextRoom) roomRef.current = null
+        setRoom(null)
+
+        if (connectionDetails) {
+          try {
+            const report = await reportLiveKitConnection(
+              roomCode,
+              connectionDetails,
+              false,
+              connectionFailure,
+            )
+            if (report.retry && attempt < 2) {
+              setStatus('connecting')
+              continue
+            }
+          } catch {
+            // Keep the original connection error as the user-facing failure.
+          }
+        }
+        break
+      }
     }
+
+    setStatus('error')
+    setError(friendlyConnectionError(lastConnectionFailure))
+    return false
   }, [])
 
   useEffect(

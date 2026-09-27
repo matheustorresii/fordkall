@@ -7,6 +7,11 @@ import type { StreamQualityId } from '../types'
 import type { LocalProfile } from '../types'
 import { invokeFunction } from './supabase'
 
+export type LiveKitConnectionDetails = TokenSourceResponseObject & {
+  backendId?: string | null
+  connectionAttemptId?: number
+}
+
 export const normalizeDisplayName = (value: string) => value.trim().replace(/\s+/g, ' ')
 
 export const normalizeRoomCode = (value: string) =>
@@ -91,8 +96,26 @@ export const createLiveKitRoom = () =>
 export const fetchConnectionDetails = async (
   roomCode: string,
   _profile: LocalProfile,
-): Promise<TokenSourceResponseObject> => {
-  return invokeFunction<TokenSourceResponseObject>('livekit-token', { roomCode })
+): Promise<LiveKitConnectionDetails> => {
+  return invokeFunction<LiveKitConnectionDetails>('livekit-token', { roomCode })
+}
+
+export const reportLiveKitConnection = async (
+  roomCode: string,
+  details: LiveKitConnectionDetails,
+  succeeded: boolean,
+  error?: unknown,
+) => {
+  if (!details.backendId || !details.connectionAttemptId) return { retry: false }
+  const message = error instanceof Error ? error.message : String(error || '')
+  return invokeFunction<{ ok: true; retry: boolean }>('livekit-token', {
+    action: 'report',
+    roomCode,
+    backendId: details.backendId,
+    connectionAttemptId: details.connectionAttemptId,
+    succeeded,
+    error: message.slice(0, 240),
+  })
 }
 
 export const streamQualityPresets: Record<
