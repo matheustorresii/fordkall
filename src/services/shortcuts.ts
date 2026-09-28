@@ -10,23 +10,49 @@ export const shortcutActions: ShortcutAction[] = [
 
 const modifierKeys = new Set(['Alt', 'Control', 'Meta', 'Shift'])
 
+const shortcutKeysByCode: Record<string, string> = {
+  Space: 'Space',
+  ArrowUp: 'Up',
+  ArrowDown: 'Down',
+  ArrowLeft: 'Left',
+  ArrowRight: 'Right',
+  PageUp: 'PageUp',
+  PageDown: 'PageDown',
+  Home: 'Home',
+  End: 'End',
+  Insert: 'Insert',
+  Enter: 'Enter',
+  NumpadEnter: 'Enter',
+  Tab: 'Tab',
+  CapsLock: 'Capslock',
+  NumLock: 'Numlock',
+  ScrollLock: 'Scrolllock',
+  Backspace: 'Backspace',
+  Delete: 'Delete',
+  Escape: 'Escape',
+  Semicolon: ';',
+  Equal: '=',
+  Comma: ',',
+  Minus: '-',
+  Period: '.',
+  Slash: '/',
+  Backquote: '`',
+  BracketLeft: '[',
+  Backslash: '\\',
+  BracketRight: ']',
+  NumpadDecimal: 'numdec',
+  NumpadAdd: 'numadd',
+  NumpadSubtract: 'numsub',
+  NumpadMultiply: 'nummult',
+  NumpadDivide: 'numdiv',
+}
+
 const shortcutKey = (event: KeyboardEvent) => {
   if (modifierKeys.has(event.key)) return ''
   if (/^F(?:[1-9]|1\d|2[0-4])$/.test(event.key)) return event.key
+  if (/^Numpad[0-9]$/.test(event.code)) return `num${event.code.slice(-1)}`
   if (/^[a-z0-9]$/i.test(event.key)) return event.key.toUpperCase()
-
-  return {
-    ' ': 'Space',
-    ArrowUp: 'Up',
-    ArrowDown: 'Down',
-    ArrowLeft: 'Left',
-    ArrowRight: 'Right',
-    PageUp: 'PageUp',
-    PageDown: 'PageDown',
-    Home: 'Home',
-    End: 'End',
-    Insert: 'Insert',
-  }[event.key] ?? ''
+  return shortcutKeysByCode[event.code] ?? shortcutKeysByCode[event.key] ?? ''
 }
 
 export const shortcutFromKeyboardEvent = (event: KeyboardEvent) => {
@@ -40,7 +66,6 @@ export const shortcutFromKeyboardEvent = (event: KeyboardEvent) => {
     event.metaKey ? 'Super' : '',
   ].filter(Boolean)
 
-  if (modifiers.length === 0 && !key.startsWith('F')) return ''
   return [...modifiers, key].join('+')
 }
 

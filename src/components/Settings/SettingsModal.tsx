@@ -97,11 +97,12 @@ export const SettingsModal = ({
       event.preventDefault()
       event.stopPropagation()
 
-      if (event.key === 'Escape') {
+      const hasModifier = event.ctrlKey || event.altKey || event.shiftKey || event.metaKey
+      if (event.key === 'Escape' && !hasModifier) {
         setCapturing(null)
         return
       }
-      if (event.key === 'Backspace' || event.key === 'Delete') {
+      if ((event.key === 'Backspace' || event.key === 'Delete') && !hasModifier) {
         shortcuts.setBinding(capturing, '')
         setCapturing(null)
         return
@@ -332,7 +333,7 @@ export const SettingsModal = ({
                 >
                   <div className="shortcut-intro">
                     <Icon name="keyboard" />
-                    <p>Nenhum atalho vem definido. Use F1–F24 ou uma combinação com Ctrl, Alt, Shift ou Win.</p>
+                    <p>Nenhum atalho vem definido. Use qualquer tecla ou uma combinação com Ctrl, Alt, Shift ou Win.</p>
                   </div>
                   <div className="shortcut-list">
                     {shortcutRows.map((row) => {

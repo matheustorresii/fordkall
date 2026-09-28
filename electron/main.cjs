@@ -653,7 +653,7 @@ const syncGameOverlayRuntime = () => {
 }
 
 const shortcutActions = ['microphone', 'deafen', 'camera', 'screenShare', 'leave']
-const shortcutPattern = /^(?:(?:Control|Alt|Shift|Super)\+)*(?:F(?:[1-9]|1\d|2[0-4])|[A-Z0-9]|Space|Up|Down|Left|Right|PageUp|PageDown|Home|End|Insert)$/
+const shortcutPattern = /^(?:(?:Control|Alt|Shift|Super)\+)*(?:F(?:[1-9]|1\d|2[0-4])|[A-Z0-9]|Space|Up|Down|Left|Right|PageUp|PageDown|Home|End|Insert|Enter|Tab|Capslock|Numlock|Scrolllock|Backspace|Delete|Escape|num[0-9]|numdec|numadd|numsub|nummult|numdiv|[;=,./`\[\]\\-])$/
 
 const sanitizeShortcutBindings = (value) => Object.fromEntries(
   shortcutActions.map((action) => {
