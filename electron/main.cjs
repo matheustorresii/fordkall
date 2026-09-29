@@ -336,6 +336,24 @@ const installCapturePicker = () => {
 
 const installSessionSecurity = () => {
   const appSession = session.defaultSession
+  appSession.webRequest.onBeforeSendHeaders(
+    {
+      urls: [
+        'https://youtube.com/*',
+        'https://*.youtube.com/*',
+        'https://youtube-nocookie.com/*',
+        'https://*.youtube-nocookie.com/*',
+      ],
+    },
+    (details, callback) => {
+      callback({
+        requestHeaders: {
+          ...details.requestHeaders,
+          Referer: PUBLIC_APP_URL,
+        },
+      })
+    },
+  )
   const allowedPermissions = new Set([
     'clipboard-sanitized-write',
     'display-capture',

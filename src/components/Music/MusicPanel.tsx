@@ -106,6 +106,7 @@ export const MusicPanel = ({
             playsinline: 1,
             rel: 0,
             modestbranding: 1,
+            widget_referrer: 'https://fordkall.11a3.dev/',
           },
           events: {
             onReady: ({ target }) => {
