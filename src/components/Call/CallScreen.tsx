@@ -9,6 +9,7 @@ import { useMicrophoneMonitor } from '../../hooks/useMicrophoneMonitor'
 import { useRoomSnapshot } from '../../hooks/useRoomSnapshot'
 import { microphoneCaptureOptions, useMicrophoneProcessing } from '../../hooks/useMicrophoneProcessing'
 import { useRoomChat } from '../../hooks/useRoomChat'
+import { useRoomMusic } from '../../hooks/useRoomMusic'
 import { useScreenShare } from '../../hooks/useScreenShare'
 import { playCallSound, primeCallSounds } from '../../services/callSounds'
 import { createRoomInviteUrl, streamQualityPresets } from '../../services/livekit'
@@ -29,6 +30,7 @@ import type {
   StreamQualityId,
 } from '../../types'
 import { ChatPanel } from '../Chat/ChatPanel'
+import { MusicPanel } from '../Music/MusicPanel'
 import { ParticipantAudioLayer } from '../Participants/ParticipantAudioLayer'
 import { ParticipantContextMenu } from '../Participants/ParticipantContextMenu'
 import { GalleryLayoutMenu } from '../Participants/GalleryLayoutMenu'
@@ -139,6 +141,7 @@ export const CallScreen = ({
     `${devices.selectedInput}:${microphoneProcessing.noiseSuppression}`,
   )
   const chat = useRoomChat(room)
+  const music = useRoomMusic(room)
   const [deafened, setDeafened] = useState(false)
   const [callSoundsEnabled, setCallSoundsEnabled] = useState(getCallSoundsEnabled)
   const [gameOverlayEnabled, setGameOverlayEnabled] = useState(getGameOverlayEnabled)
@@ -153,6 +156,7 @@ export const CallScreen = ({
   const [audioBlocked, setAudioBlocked] = useState(!room.canPlaybackAudio)
   const [participantsOpen, setParticipantsOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
+  const [musicOpen, setMusicOpen] = useState(false)
   const [unreadMessages, setUnreadMessages] = useState(0)
   const lastSeenMessageId = useRef('')
   const [participantMenu, setParticipantMenu] = useState<{
@@ -352,7 +356,7 @@ export const CallScreen = ({
     : undefined
 
   return (
-    <main className={`call-shell ${chatOpen ? 'call-shell--chat-open' : ''}`}>
+    <main className={`call-shell ${chatOpen || musicOpen ? 'call-shell--chat-open' : ''} ${musicOpen ? 'call-shell--music-open' : ''}`}>
       <header className="call-header">
         <div className="brand brand--compact">
           <BrandMark />
@@ -385,6 +389,7 @@ export const CallScreen = ({
               const rect = event.currentTarget.getBoundingClientRect()
               setParticipantMenu(null)
               setChatOpen(false)
+              setMusicOpen(false)
               setParticipantsOpen(false)
               setLayoutMenuPoint((current) => current ? null : { x: rect.right - 310, y: rect.bottom + 8 })
             }}
@@ -399,6 +404,7 @@ export const CallScreen = ({
             onClick={() => {
               setLayoutMenuPoint(null)
               setChatOpen(false)
+              setMusicOpen(false)
               setParticipantsOpen(true)
             }}
             type="button"
@@ -407,11 +413,27 @@ export const CallScreen = ({
             <span>{snapshot.participants.length}</span>
           </button>
           <button
+            aria-label={`Abrir player da sala${music.state.queue.length ? `, ${music.state.queue.length} na fila` : ''}`}
+            className={`participants-toggle music-toggle ${musicOpen ? 'is-active' : ''} ${music.state.playing ? 'is-playing' : ''}`}
+            onClick={() => {
+              setLayoutMenuPoint(null)
+              setParticipantsOpen(false)
+              setChatOpen(false)
+              setMusicOpen((current) => !current)
+            }}
+            title="Player da sala"
+            type="button"
+          >
+            <Icon name="music" />
+            {music.state.queue.length > 0 && <span>{Math.min(music.state.queue.length, 99)}</span>}
+          </button>
+          <button
             aria-label={`Abrir chat${unreadMessages ? `, ${unreadMessages} novas mensagens` : ''}`}
             className={`participants-toggle chat-toggle ${chatOpen ? 'is-active' : ''}`}
             onClick={() => {
               setLayoutMenuPoint(null)
               setParticipantsOpen(false)
+              setMusicOpen(false)
               setChatOpen((current) => !current)
               setUnreadMessages(0)
             }}
@@ -502,6 +524,22 @@ export const CallScreen = ({
         onSendImage={chat.sendImage}
         onSendText={chat.sendText}
         open={chatOpen}
+      />
+
+      <MusicPanel
+        currentItem={music.currentItem}
+        error={music.error}
+        onAdd={music.addSource}
+        onAdvance={music.advance}
+        onAdvancePlaylist={music.advancePlaylist}
+        onClear={music.clear}
+        onClose={() => setMusicOpen(false)}
+        onErrorClose={music.clearError}
+        onPlayItem={music.playItem}
+        onRemove={music.remove}
+        onToggle={music.togglePlayback}
+        open={musicOpen}
+        state={music.state}
       />
 
       <div className="call-notices" aria-live="polite">

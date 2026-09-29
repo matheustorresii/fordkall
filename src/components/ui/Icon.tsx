@@ -20,12 +20,17 @@ export type IconName =
   | 'leave'
   | 'mic'
   | 'micOff'
+  | 'music'
+  | 'pause'
   | 'pip'
+  | 'play'
   | 'popout'
   | 'refresh'
   | 'screen'
   | 'send'
   | 'settings'
+  | 'skip'
+  | 'trash'
   | 'users'
   | 'warning'
   | 'volumeOff'
@@ -181,12 +186,26 @@ const paths: Record<IconName, React.ReactNode> = {
       <path d="m3 3 18 18" />
     </>
   ),
+  music: (
+    <>
+      <path d="M9 18V5l11-2v13" />
+      <circle cx="6" cy="18" r="3" />
+      <circle cx="17" cy="16" r="3" />
+    </>
+  ),
+  pause: (
+    <>
+      <rect width="4" height="16" x="6" y="4" rx="1" />
+      <rect width="4" height="16" x="14" y="4" rx="1" />
+    </>
+  ),
   pip: (
     <>
       <rect width="20" height="16" x="2" y="4" rx="2" />
       <rect width="8" height="6" x="11" y="11" rx="1" />
     </>
   ),
+  play: <path d="m8 5 11 7-11 7V5Z" />,
   popout: (
     <>
       <rect width="18" height="15" x="3" y="5" rx="2" />
@@ -219,6 +238,20 @@ const paths: Record<IconName, React.ReactNode> = {
     <>
       <circle cx="12" cy="12" r="3" />
       <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-2.8 2.8-.1-.1a1.7 1.7 0 0 0-1.9-.3 1.7 1.7 0 0 0-1 1.6v.2h-4V21a1.7 1.7 0 0 0-1-1.6 1.7 1.7 0 0 0-1.9.3l-.1.1L4.2 17l.1-.1a1.7 1.7 0 0 0 .3-1.9A1.7 1.7 0 0 0 3 14H2.8v-4H3a1.7 1.7 0 0 0 1.6-1 1.7 1.7 0 0 0-.3-1.9L4.2 7 7 4.2l.1.1A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-1.6v-.2h4V3a1.7 1.7 0 0 0 1 1.6 1.7 1.7 0 0 0 1.9-.3l.1-.1L19.8 7l-.1.1a1.7 1.7 0 0 0-.3 1.9 1.7 1.7 0 0 0 1.6 1h.2v4H21a1.7 1.7 0 0 0-1.6 1Z" />
+    </>
+  ),
+  skip: (
+    <>
+      <path d="m5 5 10 7-10 7V5Z" />
+      <path d="M19 5v14" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M3 6h18" />
+      <path d="M8 6V4h8v2" />
+      <path d="m19 6-1 15H6L5 6" />
+      <path d="M10 11v5M14 11v5" />
     </>
   ),
   users: (
