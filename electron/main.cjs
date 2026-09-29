@@ -494,8 +494,8 @@ const ensureGameOverlay = () => {
   if (overlayWindow && !overlayWindow.isDestroyed()) return overlayWindow
 
   const window = new BrowserWindow({
-    width: 320,
-    height: 420,
+    width: 216,
+    height: 300,
     show: false,
     frame: false,
     transparent: true,
@@ -555,10 +555,10 @@ const hideGameOverlay = () => {
 const showGameOverlay = (display) => {
   const rowCount = Math.max(1, Math.min(8, overlayState.participants.length))
   overlayTargetBounds = {
-    x: display.bounds.x + 12,
-    y: display.bounds.y + 12,
-    width: 320,
-    height: Math.min(430, 20 + rowCount * 49),
+    x: display.bounds.x + 10,
+    y: display.bounds.y + 10,
+    width: 216,
+    height: Math.min(300, 12 + rowCount * 34),
   }
   const window = ensureGameOverlay()
   window.setBounds(overlayTargetBounds)
