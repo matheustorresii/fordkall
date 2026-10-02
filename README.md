@@ -152,7 +152,7 @@ O aplicativo carrega o frontend empacotado localmente e continua usando o LiveKi
 
 Todos os atalhos começam vazios e são configurados em **Configurações → Atalhos**. No app instalado eles são globais; no navegador funcionam apenas com a página em foco. O botão **Checar update** fica em **Configurações → Aplicativo** e está disponível somente na versão Setup. A versão portátil continua sendo atualizada substituindo o executável manualmente.
 
-O workflow [`.github/workflows/windows.yml`](.github/workflows/windows.yml) gera os executáveis e os metadados do updater manualmente ou ao enviar uma tag `v*`. Builds sem certificado funcionam normalmente, mas o Windows SmartScreen pode mostrar o aviso de editor desconhecido; assinatura de código elimina esse aviso em releases futuras.
+O workflow [`.github/workflows/windows.yml`](.github/workflows/windows.yml) gera os executáveis e os metadados do updater ao enviar uma tag `v*`. Em seguida, [`.github/workflows/macos.yml`](.github/workflows/macos.yml) publica um DMG e um ZIP universal, compatíveis com Macs Intel e Apple Silicon. O app macOS ainda não tem assinatura Developer ID nem notarização Apple, então o Gatekeeper pode exigir autorização manual na primeira abertura. A atualização automática continua disponível somente no instalador Windows.
 
 ## Deploy no GitHub Pages
 

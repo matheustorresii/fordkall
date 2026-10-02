@@ -21,6 +21,7 @@
     "build": "tsc -b && vite build",
     "desktop:pack": "npm run build && electron-builder --dir",
     "desktop:dist:windows": "npm run build && electron-builder --win nsis portable --x64 --publish never",
+    "desktop:dist:mac": "npm run build && electron-builder --mac --universal --publish never",
     "preview": "vite preview",
     "typecheck": "tsc -b --pretty false"
   },
@@ -86,6 +87,11 @@
     ],
     "artifactName": "Ford-Kall-Portable-${version}-${arch}.${ext}",
     "mac": {
+      "artifactName": "Ford-Kall-${version}-${arch}.${ext}",
+      "target": [
+        "dmg",
+        "zip"
+      ],
       "extendInfo": {
         "NSMicrophoneUsageDescription": "O Ford Kall usa o microfone para transmitir sua voz durante a call.",
         "NSCameraUsageDescription": "O Ford Kall usa a câmera quando você decide ligá-la durante a call.",

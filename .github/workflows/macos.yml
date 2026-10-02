@@ -1,0 +1,87 @@
+name: Build macOS desktop app
+
+on:
+  workflow_run:
+    workflows:
+      - Build Windows desktop app
+    types:
+      - completed
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to attach the macOS build to
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-macos:
+    if: >-
+      ${{
+        github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' && startsWith(github.event.workflow_run.head_branch, 'v'))
+      }}
+    runs-on: macos-latest
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Resolve release tag
+        id: release
+        shell: bash
+        env:
+          MANUAL_RELEASE_TAG: ${{ inputs.release_tag }}
+          UPSTREAM_RELEASE_TAG: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          release_tag="${MANUAL_RELEASE_TAG:-$UPSTREAM_RELEASE_TAG}"
+          if [[ ! "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Expected a release tag like v1.2.3, got: $release_tag" >&2
+            exit 1
+          fi
+
+          package_version="$(node -p "require('./package.json').version")"
+          if [[ "$release_tag" != "v$package_version" ]]; then
+            echo "Tag $release_tag does not match package version $package_version" >&2
+            exit 1
+          fi
+
+          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
+
+      - name: Build universal DMG and ZIP
+        run: npm run desktop:dist:mac
+        env:
+          VITE_SUPABASE_URL: https://meowhnfcagoebolimqhl.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_UEUoALzMExdSiWwFOOi2pw_WvIjcrfZ
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ford-Kall-macOS-${{ steps.release.outputs.tag }}
+          path: |
+            release/*.dmg
+            release/*.zip
+          if-no-files-found: error
+          compression-level: 0
+
+      - name: Attach macOS files to the existing release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release view "$RELEASE_TAG" --json url >/dev/null
+          gh release upload "$RELEASE_TAG" release/*.dmg release/*.zip --clobber
+          gh release view "$RELEASE_TAG" --json assets --jq '.assets[].name'
