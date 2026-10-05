@@ -44,8 +44,10 @@ let shortcutCaptureActive = false
 let updateState = {
   status: 'idle',
   currentVersion: app.getVersion(),
-  message: 'Busque uma versão nova quando quiser.',
+  message: 'As atualizações são verificadas automaticamente ao abrir o app.',
 }
+let updateInstallStarted = false
+let updateInstallTimer = null
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -705,8 +707,84 @@ const syncGlobalShortcuts = () => {
   sendShortcutStatus(failedActions)
 }
 
+const isPortableWindowsApp = () =>
+  Boolean(process.env.PORTABLE_EXECUTABLE_FILE || process.env.PORTABLE_EXECUTABLE_DIR)
+
 const autoUpdateSupported = () =>
-  process.platform === 'win32' && app.isPackaged && !process.env.PORTABLE_EXECUTABLE_FILE
+  process.platform === 'win32' && app.isPackaged && !isPortableWindowsApp()
+
+const unsupportedUpdateMessage = () => {
+  if (isPortableWindowsApp()) {
+    return 'A versão portátil não se atualiza sozinha. Instale a versão Setup para ativar updates.'
+  }
+  if (process.platform === 'darwin') {
+    return 'No macOS, a atualização automática exige assinatura Apple. Instale manualmente a versão mais recente.'
+  }
+  return 'A atualização automática fica disponível no aplicativo Windows instalado.'
+}
+
+const startUpdateInstall = ({ allowDuringCall = false } = {}) => {
+  if (!autoUpdateSupported() || updateState.status !== 'ready' || updateInstallStarted) return
+  if (isInCall && !allowDuringCall) {
+    setUpdateState({
+      status: 'ready',
+      availableVersion: updateState.availableVersion,
+      percent: 100,
+      message: 'Atualização baixada. Ela será instalada automaticamente quando você sair da call.',
+    })
+    return
+  }
+
+  updateInstallStarted = true
+  setUpdateState({
+    status: 'installing',
+    availableVersion: updateState.availableVersion,
+    percent: 100,
+    message: 'Reiniciando o Ford Kall para concluir a atualização…',
+  })
+
+  // Give the renderer time to show the restart status before the installer closes the app.
+  updateInstallTimer = setTimeout(() => {
+    updateInstallTimer = null
+    isQuitting = true
+    globalShortcut.unregisterAll()
+    autoUpdater.quitAndInstall(true, true)
+  }, 700)
+  updateInstallTimer.unref?.()
+}
+
+const scheduleUpdateInstall = () => {
+  if (!autoUpdateSupported() || updateState.status !== 'ready' || updateInstallStarted) return
+  if (updateInstallTimer) clearTimeout(updateInstallTimer)
+
+  updateInstallTimer = setTimeout(() => {
+    updateInstallTimer = null
+    startUpdateInstall()
+  }, 1500)
+  updateInstallTimer.unref?.()
+}
+
+const checkForUpdates = async () => {
+  if (!autoUpdateSupported()) return updateState
+  if (['checking', 'downloading', 'ready', 'installing'].includes(updateState.status)) return updateState
+
+  setUpdateState({ status: 'checking', message: 'Consultando as releases do Ford Kall…' })
+  try {
+    await autoUpdater.checkForUpdates()
+  } catch {
+    setUpdateState({
+      status: 'error',
+      message: 'Não foi possível buscar a atualização. Confira sua conexão e tente novamente.',
+    })
+  }
+  return updateState
+}
+
+const scheduleStartupUpdateCheck = () => {
+  if (!autoUpdateSupported()) return
+  const timer = setTimeout(() => void checkForUpdates(), 2500)
+  timer.unref?.()
+}
 
 const setUpdateState = (nextState) => {
   updateState = {
@@ -722,15 +800,14 @@ const configureAutoUpdater = () => {
   if (!autoUpdateSupported()) {
     setUpdateState({
       status: 'unsupported',
-      message: process.env.PORTABLE_EXECUTABLE_FILE
-        ? 'A versão portátil não se atualiza sozinha. Instale a versão Setup para ativar updates.'
-        : 'A atualização automática fica disponível no aplicativo Windows instalado.',
+      message: unsupportedUpdateMessage(),
     })
     return
   }
 
   autoUpdater.autoDownload = true
   autoUpdater.autoInstallOnAppQuit = false
+  autoUpdater.autoRunAppAfterInstall = true
   autoUpdater.allowPrerelease = false
   autoUpdater.allowDowngrade = false
   autoUpdater.disableWebInstaller = true
@@ -762,10 +839,16 @@ const configureAutoUpdater = () => {
       status: 'ready',
       availableVersion: info.version,
       percent: 100,
-      message: 'Atualização pronta. Instale para reiniciar com a versão nova.',
+      message: isInCall
+        ? 'Atualização baixada. Ela será instalada automaticamente quando você sair da call.'
+        : 'Atualização baixada. O app vai reiniciar automaticamente para aplicá-la.',
     })
+    if (!isInCall) scheduleUpdateInstall()
   })
   autoUpdater.on('error', () => {
+    updateInstallStarted = false
+    if (updateInstallTimer) clearTimeout(updateInstallTimer)
+    updateInstallTimer = null
     setUpdateState({
       status: 'error',
       message: 'Não foi possível buscar ou baixar a atualização. Tente novamente em instantes.',
@@ -776,10 +859,12 @@ const configureAutoUpdater = () => {
 const installRendererIpc = () => {
   ipcMain.on('desktop:set-in-call', (event, value) => {
     if (!mainWindow || event.sender !== mainWindow.webContents) return
+    const wasInCall = isInCall
     isInCall = value === true
     rebuildTrayMenu()
     syncGameOverlayRuntime()
     syncGlobalShortcuts()
+    if (wasInCall && !isInCall && updateState.status === 'ready') scheduleUpdateInstall()
   })
 
   ipcMain.on('desktop:set-game-overlay-state', (event, value) => {
@@ -845,26 +930,13 @@ const installRendererIpc = () => {
 
   ipcMain.handle('desktop:check-for-updates', async (event) => {
     if (!mainWindow || event.sender !== mainWindow.webContents) return updateState
-    if (!autoUpdateSupported()) return updateState
-    if (updateState.status === 'checking' || updateState.status === 'downloading') return updateState
-    setUpdateState({ status: 'checking', message: 'Consultando as releases do Ford Kall…' })
-    try {
-      await autoUpdater.checkForUpdates()
-    } catch {
-      setUpdateState({
-        status: 'error',
-        message: 'Não foi possível buscar a atualização. Confira sua conexão e tente novamente.',
-      })
-    }
-    return updateState
+    return checkForUpdates()
   })
 
   ipcMain.on('desktop:install-update', (event) => {
     if (!mainWindow || event.sender !== mainWindow.webContents) return
     if (!autoUpdateSupported() || updateState.status !== 'ready') return
-    isQuitting = true
-    globalShortcut.unregisterAll()
-    autoUpdater.quitAndInstall(true, true)
+    startUpdateInstall({ allowDuringCall: true })
   })
 }
 
@@ -1012,6 +1084,7 @@ app.whenReady().then(async () => {
 
   pendingRoomCode = findRoomCodeInArguments(process.argv)
   await createMainWindow()
+  scheduleStartupUpdateCheck()
 
   app.on('activate', () => {
     if (mainWindow) showMainWindow()

@@ -4,7 +4,8 @@ import { Icon } from './Icon'
 const labelFor = (status: ReturnType<typeof useAppUpdater>['state']) => {
   if (status.status === 'checking') return 'Verificando…'
   if (status.status === 'downloading') return `Baixando ${Math.round(status.percent || 0)}%`
-  if (status.status === 'ready') return `Instalar ${status.availableVersion || 'update'}`
+  if (status.status === 'ready') return `Atualizar agora ${status.availableVersion || ''}`.trim()
+  if (status.status === 'installing') return 'Reiniciando…'
   if (status.status === 'upToDate') return 'Aplicativo atualizado'
   if (status.status === 'error') return 'Tentar novamente'
   if (status.status === 'unsupported') return 'Atualização indisponível'
@@ -15,7 +16,7 @@ export const DesktopUpdateControl = ({ variant }: { variant: 'auth' | 'lobby' })
   const updater = useAppUpdater()
   if (!window.fordKallDesktop) return null
 
-  const busy = updater.state.status === 'checking' || updater.state.status === 'downloading'
+  const busy = ['checking', 'downloading', 'installing'].includes(updater.state.status)
   const unsupported = updater.state.status === 'unsupported'
   const ready = updater.state.status === 'ready'
 

@@ -404,14 +404,21 @@ export const SettingsModal = ({
                 </SettingsCard>
 
                 {window.fordKallDesktop && (
-                  <SettingsCard description="O app consulta as releases oficiais do GitHub." title="Atualizações">
+                  <SettingsCard
+                    description={window.fordKallDesktop?.platform === 'darwin'
+                      ? 'No macOS, instale manualmente a versão mais recente pelas releases.'
+                      : 'No Windows instalado, o app verifica ao abrir e baixa atualizações em segundo plano.'}
+                    title="Atualizações"
+                  >
                     <div className={`settings-update-card is-${updater.state.status}`}>
                       <span className="settings-update-card__icon"><Icon name="refresh" /></span>
                       <div>
                         <strong>
-                          {updater.state.status === 'ready'
-                            ? `Versão ${updater.state.availableVersion} pronta`
-                            : `Ford Kall ${updater.state.currentVersion}`}
+                          {updater.state.status === 'installing'
+                            ? `Atualizando para ${updater.state.availableVersion}`
+                            : updater.state.status === 'ready'
+                              ? `Versão ${updater.state.availableVersion} pronta`
+                              : `Ford Kall ${updater.state.currentVersion}`}
                         </strong>
                         <p>{updater.state.message}</p>
                         {updater.state.status === 'downloading' && (
@@ -421,7 +428,9 @@ export const SettingsModal = ({
                         )}
                       </div>
                       {updater.state.status === 'ready' ? (
-                        <button className="settings-primary-button" onClick={updater.install} type="button">Instalar e reiniciar</button>
+                        <button className="settings-primary-button" onClick={updater.install} type="button">Atualizar agora</button>
+                      ) : updater.state.status === 'installing' ? (
+                        <span className="settings-update-card__progress-label">Reiniciando…</span>
                       ) : updater.state.status !== 'unsupported' ? (
                         <button
                           className="settings-secondary-button"
@@ -429,12 +438,12 @@ export const SettingsModal = ({
                           onClick={updater.check}
                           type="button"
                         >
-                          {updater.state.status === 'checking' ? 'Procurando…' : updater.state.status === 'downloading' ? 'Baixando…' : 'Checar update'}
+                          {updater.state.status === 'checking' ? 'Procurando…' : updater.state.status === 'downloading' ? 'Baixando…' : 'Verificar agora'}
                         </button>
                       ) : null}
                     </div>
                     {updater.state.status === 'ready' && (
-                      <div className="settings-note"><Icon name="warning" />O app será fechado, atualizado e aberto novamente.</div>
+                      <div className="settings-note"><Icon name="warning" />O app reinicia para aplicar a atualização. Durante uma call, espera você sair; também pode reiniciar agora.</div>
                     )}
                   </SettingsCard>
                 )}

@@ -4595,13 +4595,20 @@ svg {
 }
 
 .settings-update-card.is-checking .settings-update-card__icon svg,
-.settings-update-card.is-downloading .settings-update-card__icon svg {
+.settings-update-card.is-downloading .settings-update-card__icon svg,
+.settings-update-card.is-installing .settings-update-card__icon svg {
   animation: update-spin 1.2s linear infinite;
 }
 
 .settings-update-card.is-ready .settings-update-card__icon {
   background: rgba(185, 239, 58, 0.1);
   color: var(--accent);
+}
+
+.settings-update-card__progress-label {
+  color: #899189;
+  font-size: 9px;
+  white-space: nowrap;
 }
 
 .settings-update-card strong {
@@ -7434,7 +7441,8 @@ svg {
 
 .desktop-update-control svg { width: 14px; height: 14px; }
 .desktop-update-control.is-checking svg,
-.desktop-update-control.is-downloading svg { animation: update-spin 1.2s linear infinite; }
+.desktop-update-control.is-downloading svg,
+.desktop-update-control.is-installing svg { animation: update-spin 1.2s linear infinite; }
 
 .desktop-update-control--auth {
   width: max-content;

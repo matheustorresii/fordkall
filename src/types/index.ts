@@ -33,6 +33,7 @@ export type AppUpdateStatus =
   | 'checking'
   | 'downloading'
   | 'ready'
+  | 'installing'
   | 'upToDate'
   | 'error'
   | 'unsupported'
