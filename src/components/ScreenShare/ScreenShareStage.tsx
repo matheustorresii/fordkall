@@ -214,14 +214,6 @@ export const ScreenShareStage = ({
     selectedLive && (selectedLive.isLocal || selectedLive.subscribed),
   )
 
-  useEffect(() => {
-    for (const live of lives) {
-      if (!live.isLocal && !live.subscribed && live.audioPublication?.isDesired) {
-        live.audioPublication.setSubscribed(false)
-      }
-    }
-  }, [lives])
-
   const closePopout = useCallback((shouldCloseWindow = true) => {
     const popup = popoutWindowRef.current
     const video = popoutVideoRef.current

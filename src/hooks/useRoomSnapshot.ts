@@ -139,7 +139,12 @@ export const useRoomSnapshot = (room: Room) => {
             : undefined,
         videoPublication,
         audioPublication,
-        subscribed: videoPublication.isDesired,
+        // The desktop background mode can temporarily unsubscribe video while
+        // keeping the screen-share audio active. Treat the stream as watched
+        // while either publication remains desired so the UI doesn't unmount
+        // the audio renderer or mistake the temporary video pause for a user
+        // disconnect.
+        subscribed: videoPublication.isDesired || audioPublication?.isDesired === true,
         hasAudio: Boolean(audioPublication && !audioPublication.isMuted),
         muted: audioPublication?.isMuted ?? false,
       })

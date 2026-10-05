@@ -23,7 +23,18 @@ export const RemoteAudioRenderer = ({
     if (!track || !element) return
 
     track.attach(element)
+
+    const resumePlayback = () => {
+      if (document.visibilityState === 'visible') {
+        void element.play().catch(() => undefined)
+      }
+    }
+
+    document.addEventListener('visibilitychange', resumePlayback)
+    window.addEventListener('focus', resumePlayback)
     return () => {
+      document.removeEventListener('visibilitychange', resumePlayback)
+      window.removeEventListener('focus', resumePlayback)
       track.detach(element)
       element.pause()
       element.srcObject = null
