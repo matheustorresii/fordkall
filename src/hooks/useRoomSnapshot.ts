@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   LocalVideoTrack,
+  RemoteTrackPublication,
   RemoteAudioTrack,
   RemoteVideoTrack,
   RoomEvent,
@@ -16,6 +17,27 @@ export const useRoomSnapshot = (room: Room) => {
 
   useEffect(() => {
     const refresh = () => setRevision((current) => current + 1)
+    const disableScreenShareSubscription = (
+      publication: RemoteTrackPublication,
+      participant: Participant,
+    ) => {
+      if (
+        participant === room.localParticipant ||
+        (publication.source !== Track.Source.ScreenShare &&
+          publication.source !== Track.Source.ScreenShareAudio)
+      ) return
+
+      // Screen shares are opt-in: don't download remote video or audio until
+      // the viewer explicitly chooses “Assistir transmissão”.
+      publication.setSubscribed(false)
+    }
+    const disablePublishedScreenShare = (
+      publication: RemoteTrackPublication,
+      participant: Participant,
+    ) => {
+      disableScreenShareSubscription(publication, participant)
+      refresh()
+    }
     const refreshActiveSpeakers = () => {
       if (!document.hidden) refresh()
     }
@@ -25,7 +47,7 @@ export const useRoomSnapshot = (room: Room) => {
 
     room.on(RoomEvent.ParticipantConnected, refresh)
     room.on(RoomEvent.ParticipantDisconnected, refresh)
-    room.on(RoomEvent.TrackPublished, refresh)
+    room.on(RoomEvent.TrackPublished, disablePublishedScreenShare)
     room.on(RoomEvent.TrackUnpublished, refresh)
     room.on(RoomEvent.TrackSubscribed, refresh)
     room.on(RoomEvent.TrackUnsubscribed, refresh)
@@ -37,12 +59,22 @@ export const useRoomSnapshot = (room: Room) => {
     room.on(RoomEvent.ActiveSpeakersChanged, refreshActiveSpeakers)
     room.on(RoomEvent.ParticipantNameChanged, refresh)
     room.on(RoomEvent.ParticipantMetadataChanged, refresh)
+
+    // This also covers participants and publications already present when
+    // the call screen mounts (for example after a reconnect or route change).
+    for (const participant of room.remoteParticipants.values()) {
+      for (const publication of participant.trackPublications.values()) {
+        if (publication instanceof RemoteTrackPublication) {
+          disableScreenShareSubscription(publication, participant)
+        }
+      }
+    }
     document.addEventListener('visibilitychange', refreshWhenVisible)
 
     return () => {
       room.off(RoomEvent.ParticipantConnected, refresh)
       room.off(RoomEvent.ParticipantDisconnected, refresh)
-      room.off(RoomEvent.TrackPublished, refresh)
+      room.off(RoomEvent.TrackPublished, disablePublishedScreenShare)
       room.off(RoomEvent.TrackUnpublished, refresh)
       room.off(RoomEvent.TrackSubscribed, refresh)
       room.off(RoomEvent.TrackUnsubscribed, refresh)

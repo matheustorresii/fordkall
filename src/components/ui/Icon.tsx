@@ -13,20 +13,26 @@ export type IconName =
   | 'expand'
   | 'eye'
   | 'eyeOff'
+  | 'gamepad'
   | 'headphones'
+  | 'hash'
+  | 'home'
   | 'image'
   | 'keyboard'
   | 'layout'
   | 'leave'
   | 'mic'
   | 'micOff'
+  | 'menu'
   | 'music'
   | 'pause'
   | 'pip'
   | 'play'
+  | 'plus'
   | 'popout'
   | 'refresh'
   | 'screen'
+  | 'search'
   | 'send'
   | 'settings'
   | 'skip'
@@ -134,6 +140,12 @@ const paths: Record<IconName, React.ReactNode> = {
       <path d="M9.8 9.8A3 3 0 0 0 14.2 14.2" />
     </>
   ),
+  gamepad: (
+    <>
+      <path d="M6.5 8h11a4.5 4.5 0 0 1 4.4 5.4l-.7 3.2a2.4 2.4 0 0 1-4 1.2l-2.1-2.1H8.9l-2.1 2.1a2.4 2.4 0 0 1-4-1.2l-.7-3.2A4.5 4.5 0 0 1 6.5 8Z" />
+      <path d="M7 11v4M5 13h4M16 12h.01M19 14h.01" />
+    </>
+  ),
   headphones: (
     <>
       <path d="M4 14v-2a8 8 0 0 1 16 0v2" />
@@ -141,6 +153,8 @@ const paths: Record<IconName, React.ReactNode> = {
       <path d="M6 14h3v7H8a2 2 0 0 1-2-2v-5Z" />
     </>
   ),
+  hash: <path d="M5 9h14M4 15h14M10 3 8 21M16 3l-2 18" />,
+  home: <path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-6v-7h-4v7H4a1 1 0 0 1-1-1V10Z" />,
   image: (
     <>
       <rect width="18" height="16" x="3" y="4" rx="2" />
@@ -186,6 +200,7 @@ const paths: Record<IconName, React.ReactNode> = {
       <path d="m3 3 18 18" />
     </>
   ),
+  menu: <path d="M4 6h16M4 12h16M4 18h16" />,
   music: (
     <>
       <path d="M9 18V5l11-2v13" />
@@ -206,6 +221,7 @@ const paths: Record<IconName, React.ReactNode> = {
     </>
   ),
   play: <path d="m8 5 11 7-11 7V5Z" />,
+  plus: <path d="M12 5v14M5 12h14" />,
   popout: (
     <>
       <rect width="18" height="15" x="3" y="5" rx="2" />
@@ -226,6 +242,12 @@ const paths: Record<IconName, React.ReactNode> = {
       <path d="M12 17v4" />
       <path d="m9 10 3-3 3 3" />
       <path d="M12 7v6" />
+    </>
+  ),
+  search: (
+    <>
+      <circle cx="10.8" cy="10.8" r="6.8" />
+      <path d="m16 16 5 5" />
     </>
   ),
   send: (

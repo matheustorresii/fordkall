@@ -2,15 +2,21 @@ import { useEffect, useState } from 'react'
 import { AdminDashboard } from './components/Admin/AdminDashboard'
 import { AuthScreen } from './components/Auth/AuthScreen'
 import { CallScreen } from './components/Call/CallScreen'
-import { Lobby } from './components/Lobby/Lobby'
+import { SocialHome } from './components/Social/SocialHome'
 import { useAccount } from './hooks/useAccount'
 import { useLiveKitRoom } from './hooks/useLiveKitRoom'
+import { useSocialPresence } from './hooks/useSocialPresence'
 import { getRoomCodeFromUrl, replaceRoomCodeInCurrentUrl } from './services/livekit'
 import type { LocalProfile } from './types'
 
 function App() {
   const account = useAccount()
   const liveKit = useLiveKitRoom()
+  const socialPresence = useSocialPresence(
+    account.profile?.id,
+    account.profile?.displayName || '',
+    liveKit.activeRoomCode,
+  )
   const [roomCode, setRoomCode] = useState(getRoomCodeFromUrl)
   const [adminOpen, setAdminOpen] = useState(false)
 
@@ -78,10 +84,11 @@ function App() {
   }
 
   return (
-    <Lobby
+    <SocialHome
       account={account.profile}
       connectionError={liveKit.error}
       initialRoomCode={roomCode}
+      onlineUsers={socialPresence.onlineUsers}
       onJoin={join}
       onOpenAdmin={() => setAdminOpen(true)}
       onProfileChange={account.updateProfile}

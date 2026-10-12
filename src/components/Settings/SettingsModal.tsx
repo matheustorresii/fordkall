@@ -7,6 +7,10 @@ import type { useMicrophoneProcessing } from '../../hooks/useMicrophoneProcessin
 import { formatShortcutBinding, shortcutFromKeyboardEvent } from '../../services/shortcuts'
 import { streamQualityPresets } from '../../services/livekit'
 import type { ShortcutAction, StreamQualityId } from '../../types'
+import {
+  MICROPHONE_SENSITIVITY_MAX_DB,
+  MICROPHONE_SENSITIVITY_MIN_DB,
+} from '../../storage/preferences'
 import { Icon, type IconName } from '../ui/Icon'
 
 type AppUpdaterState = ReturnType<typeof useAppUpdater>
@@ -212,6 +216,66 @@ export const SettingsModal = ({
                   </label>
                   {!microphoneProcessing.supported && (
                     <div className="settings-note"><Icon name="warning" />Seu navegador não expõe esse filtro.</div>
+                  )}
+
+                  <label className={`setting-switch ${!microphoneProcessing.sensitivitySupported ? 'is-disabled' : ''}`}>
+                    <span>
+                      <strong>Sensibilidade de entrada</strong>
+                      <small>Filtra sons abaixo do limiar escolhido. Processamento local e opcional.</small>
+                    </span>
+                    <input
+                      checked={microphoneProcessing.sensitivityEnabled}
+                      disabled={!microphoneProcessing.sensitivitySupported || microphoneProcessing.sensitivityBusy}
+                      onChange={(event) => microphoneProcessing.setSensitivityEnabled(event.target.checked)}
+                      type="checkbox"
+                    />
+                    <i aria-hidden="true" />
+                  </label>
+                  {!microphoneProcessing.sensitivitySupported && (
+                    <div className="settings-note"><Icon name="warning" />Seu navegador não oferece processamento de áudio local.</div>
+                  )}
+
+                  {microphoneProcessing.sensitivityEnabled && (
+                    <div className="sensitivity-control">
+                      <div className="sensitivity-control__heading">
+                        <span>Nível mínimo de voz</span>
+                        <output htmlFor="microphone-sensitivity-threshold">
+                          {microphoneProcessing.sensitivityThresholdDb} dBFS
+                        </output>
+                      </div>
+                      <div
+                        aria-label={`Nível atual do microfone: ${Math.round(microphoneProcessing.inputLevelDb)} dBFS`}
+                        aria-valuemax={0}
+                        aria-valuemin={-100}
+                        aria-valuenow={Math.round(microphoneProcessing.inputLevelDb)}
+                        className="sensitivity-meter"
+                        role="meter"
+                      >
+                        <span
+                          className="sensitivity-meter__fill"
+                          style={{ width: `${Math.max(0, Math.min(100, (microphoneProcessing.inputLevelDb + 80) / 80 * 100))}%` }}
+                        />
+                        <i
+                          aria-hidden="true"
+                          style={{ left: `${(microphoneProcessing.sensitivityThresholdDb + 80) / 80 * 100}%` }}
+                        />
+                      </div>
+                      <input
+                        aria-label="Nível mínimo de voz em dBFS"
+                        id="microphone-sensitivity-threshold"
+                        max={MICROPHONE_SENSITIVITY_MAX_DB}
+                        min={MICROPHONE_SENSITIVITY_MIN_DB}
+                        onChange={(event) => microphoneProcessing.setSensitivityThreshold(Number(event.target.value))}
+                        step="1"
+                        type="range"
+                        value={microphoneProcessing.sensitivityThresholdDb}
+                      />
+                      <div className="sensitivity-control__range-labels">
+                        <span>Mais sensível</span>
+                        <span>Menos sensível</span>
+                      </div>
+                      <small>Fale para ajustar. Verde = nível do microfone; a marca = limiar em dBFS.</small>
+                    </div>
                   )}
 
                   <label className={`setting-switch ${!microphoneMonitor.supported ? 'is-disabled' : ''}`}>

@@ -16,15 +16,18 @@ export const ProfileAvatar = ({
   className = '',
   name,
   appearance,
+  title,
 }: {
   avatarDataUrl?: string
   className?: string
   name: string
   appearance?: Partial<ProfileAppearance>
+  title?: string
 }) => (
   <span
     className={`profile-avatar profile-avatar--frame-${normalizeProfileAppearance(appearance).avatarFrame} ${className}`.trim()}
     style={{ '--profile-accent': profileAccent(appearance) } as CSSProperties}
+    title={title}
   >
     {avatarDataUrl ? (
       <img alt={`Avatar de ${name}`} draggable={false} src={avatarDataUrl} />

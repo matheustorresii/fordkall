@@ -16,10 +16,12 @@ export interface YouTubePlayer {
   cueVideoById: (options: YouTubeVideoOptions) => void
   getCurrentTime: () => number
   getDuration: () => number
+  getIframe: () => HTMLIFrameElement
   getPlayerState: () => number
   getPlaylist: () => string[] | null
   getPlaylistIndex: () => number
   getVideoData: () => { title?: string; video_id?: string }
+  nextVideo: () => void
   loadPlaylist: (options: YouTubePlaylistOptions) => void
   loadVideoById: (options: YouTubeVideoOptions) => void
   pauseVideo: () => void
@@ -61,6 +63,7 @@ export interface YouTubeApi {
     ENDED: number
     PLAYING: number
     PAUSED: number
+    BUFFERING: number
     CUED: number
   }
 }
@@ -133,26 +136,47 @@ export const loadYouTubeApi = () => {
   if (apiPromise) return apiPromise
 
   apiPromise = new Promise<YouTubeApi>((resolve, reject) => {
+    let settled = false
     const previousReady = window.onYouTubeIframeAPIReady
-    window.onYouTubeIframeAPIReady = () => {
-      previousReady?.()
-      if (window.YT?.Player) resolve(window.YT)
+    const existing = document.querySelector<HTMLScriptElement>('script[data-ford-kall-youtube-api]')
+    const script = existing ?? document.createElement('script')
+    const timeout = window.setTimeout(() => {
+      script.remove()
+      finish(new Error('O YouTube demorou para carregar a API.'))
+    }, 15_000)
+    const finish = (error?: Error) => {
+      if (settled) return
+      settled = true
+      window.clearTimeout(timeout)
+      script.removeEventListener('error', onScriptError)
+      if (error) reject(error)
+      else if (window.YT?.Player) resolve(window.YT)
       else reject(new Error('A API do YouTube não respondeu.'))
     }
-
-    const existing = document.querySelector<HTMLScriptElement>('script[data-ford-kall-youtube-api]')
-    if (existing) return
-
-    const script = document.createElement('script')
-    script.dataset.fordKallYoutubeApi = 'true'
-    script.src = 'https://www.youtube.com/iframe_api'
-    script.async = true
-    script.onerror = () => {
-      apiPromise = null
+    const onScriptError = () => {
       script.remove()
-      reject(new Error('Não foi possível carregar o player do YouTube.'))
+      finish(new Error('Não foi possível carregar o player do YouTube.'))
     }
-    document.head.append(script)
+
+    window.onYouTubeIframeAPIReady = () => {
+      try {
+        previousReady?.()
+      } catch {
+        // The YouTube API readiness callback must still resolve for this app.
+      }
+      finish()
+    }
+    script.addEventListener('error', onScriptError, { once: true })
+
+    if (!existing) {
+      script.dataset.fordKallYoutubeApi = 'true'
+      script.src = 'https://www.youtube.com/iframe_api'
+      script.async = true
+      document.head.append(script)
+    }
+  }).catch((error: unknown) => {
+    apiPromise = null
+    throw error
   })
 
   return apiPromise

@@ -20,7 +20,7 @@ const supportedAvatarTypes = new Set([
 ])
 
 export const PROFILE_THEME_COLORS: Record<ProfileTheme, string> = {
-  lime: '#b9ef3a',
+  lime: '#b7ed39',
   ocean: '#57d6ff',
   violet: '#a98bff',
   ember: '#ff9857',

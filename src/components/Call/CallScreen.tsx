@@ -9,6 +9,8 @@ import { useMicrophoneMonitor } from '../../hooks/useMicrophoneMonitor'
 import { useRoomSnapshot } from '../../hooks/useRoomSnapshot'
 import { microphoneCaptureOptions, useMicrophoneProcessing } from '../../hooks/useMicrophoneProcessing'
 import { useRoomChat } from '../../hooks/useRoomChat'
+import { useRoomIto } from '../../hooks/useRoomIto'
+import { useRoomExplodingKiwi } from '../../hooks/useRoomExplodingKiwi'
 import { useRoomMusic } from '../../hooks/useRoomMusic'
 import { useScreenShare } from '../../hooks/useScreenShare'
 import { playCallSound, primeCallSounds } from '../../services/callSounds'
@@ -30,6 +32,8 @@ import type {
   StreamQualityId,
 } from '../../types'
 import { ChatPanel } from '../Chat/ChatPanel'
+import { ItoGameStage } from '../Games/ItoGameStage'
+import { ExplodingKiwiStage } from '../Games/ExplodingKiwiStage'
 import { MusicPanel } from '../Music/MusicPanel'
 import { ParticipantAudioLayer } from '../Participants/ParticipantAudioLayer'
 import { ParticipantContextMenu } from '../Participants/ParticipantContextMenu'
@@ -138,9 +142,11 @@ export const CallScreen = ({
   const microphoneMonitor = useMicrophoneMonitor(
     room,
     devices.preferences.voiceOutputId,
-    `${devices.selectedInput}:${microphoneProcessing.noiseSuppression}`,
+    `${devices.selectedInput}:${microphoneProcessing.noiseSuppression}:${microphoneProcessing.processorRevision}`,
   )
   const chat = useRoomChat(room)
+  const itoGame = useRoomIto(room)
+  const explodingKiwi = useRoomExplodingKiwi(room)
   const music = useRoomMusic(room)
   const [deafened, setDeafened] = useState(false)
   const [callSoundsEnabled, setCallSoundsEnabled] = useState(getCallSoundsEnabled)
@@ -157,6 +163,8 @@ export const CallScreen = ({
   const [participantsOpen, setParticipantsOpen] = useState(false)
   const [chatOpen, setChatOpen] = useState(false)
   const [musicOpen, setMusicOpen] = useState(false)
+  const [gamesOpen, setGamesOpen] = useState(false)
+  const [gameMode, setGameMode] = useState<'ito' | 'kiwi'>('ito')
   const [unreadMessages, setUnreadMessages] = useState(0)
   const lastSeenMessageId = useRef('')
   const [participantMenu, setParticipantMenu] = useState<{
@@ -168,6 +176,35 @@ export const CallScreen = ({
   const micEnabled = room.localParticipant.isMicrophoneEnabled
   const cameraEnabled = room.localParticipant.isCameraEnabled
   useDesktopGameOverlay(room, gameOverlayEnabled)
+
+  useEffect(() => {
+    if (!gamesOpen) return
+    for (const live of snapshot.lives) {
+      if (live.isLocal) continue
+      if (live.videoPublication?.isDesired) live.videoPublication.setSubscribed(false)
+      if (live.audioPublication?.isDesired) live.audioPublication.setSubscribed(false)
+    }
+  }, [gamesOpen, snapshot.lives])
+
+  useEffect(() => {
+    if (!itoGame.state.gameId) return
+    setLayoutMenuPoint(null)
+    setParticipantsOpen(false)
+    setChatOpen(false)
+    setMusicOpen(false)
+    setGameMode('ito')
+    setGamesOpen(true)
+  }, [itoGame.state.gameId])
+
+  useEffect(() => {
+    if (!explodingKiwi.state.gameId) return
+    setLayoutMenuPoint(null)
+    setParticipantsOpen(false)
+    setChatOpen(false)
+    setMusicOpen(false)
+    setGameMode('kiwi')
+    setGamesOpen(true)
+  }, [explodingKiwi.state.gameId])
 
   useEffect(() => {
     const handleParticipantConnected = () => playCallSound('join')
@@ -390,6 +427,7 @@ export const CallScreen = ({
               setParticipantMenu(null)
               setChatOpen(false)
               setMusicOpen(false)
+              setGamesOpen(false)
               setParticipantsOpen(false)
               setLayoutMenuPoint((current) => current ? null : { x: rect.right - 310, y: rect.bottom + 8 })
             }}
@@ -405,6 +443,7 @@ export const CallScreen = ({
               setLayoutMenuPoint(null)
               setChatOpen(false)
               setMusicOpen(false)
+              setGamesOpen(false)
               setParticipantsOpen(true)
             }}
             type="button"
@@ -419,6 +458,7 @@ export const CallScreen = ({
               setLayoutMenuPoint(null)
               setParticipantsOpen(false)
               setChatOpen(false)
+              setGamesOpen(false)
               setMusicOpen((current) => !current)
             }}
             title="Player da sala"
@@ -428,12 +468,28 @@ export const CallScreen = ({
             {music.state.queue.length > 0 && <span>{Math.min(music.state.queue.length, 99)}</span>}
           </button>
           <button
+            aria-label={`${gamesOpen ? 'Fechar' : 'Abrir'} jogos`}
+            className={`participants-toggle games-toggle ${gamesOpen ? 'is-active' : ''} ${itoGame.state.gameId || explodingKiwi.state.gameId ? 'has-game' : ''}`}
+            onClick={() => {
+              setLayoutMenuPoint(null)
+              setParticipantsOpen(false)
+              setChatOpen(false)
+              setMusicOpen(false)
+              setGamesOpen((current) => !current)
+            }}
+            title="Jogos da sala"
+            type="button"
+          >
+            <Icon name="gamepad" />
+          </button>
+          <button
             aria-label={`Abrir chat${unreadMessages ? `, ${unreadMessages} novas mensagens` : ''}`}
             className={`participants-toggle chat-toggle ${chatOpen ? 'is-active' : ''}`}
             onClick={() => {
               setLayoutMenuPoint(null)
               setParticipantsOpen(false)
               setMusicOpen(false)
+              setGamesOpen(false)
               setChatOpen((current) => !current)
               setUnreadMessages(0)
             }}
@@ -463,15 +519,33 @@ export const CallScreen = ({
       )}
 
       <div className="call-workspace">
-        <ScreenShareStage
-          activeSpeakerIds={snapshot.activeSpeakerIds}
-          deafened={deafened}
-          galleryLayout={galleryLayout}
-          lives={snapshot.lives}
-          onParticipantMenu={openParticipantMenu}
-          participants={snapshot.participantMedia}
-          screenOutputId={devices.preferences.screenOutputId}
-        />
+        {gamesOpen ? (
+          gameMode === 'kiwi' ? (
+            <ExplodingKiwiStage
+              game={explodingKiwi}
+              onExit={() => setGamesOpen(false)}
+              onSelectIto={() => setGameMode('ito')}
+              participants={snapshot.participantMedia}
+            />
+          ) : (
+            <ItoGameStage
+              game={itoGame}
+              onExit={() => setGamesOpen(false)}
+              onSelectKiwi={() => setGameMode('kiwi')}
+              participants={snapshot.participantMedia}
+            />
+          )
+        ) : (
+          <ScreenShareStage
+            activeSpeakerIds={snapshot.activeSpeakerIds}
+            deafened={deafened}
+            galleryLayout={galleryLayout}
+            lives={snapshot.lives}
+            onParticipantMenu={openParticipantMenu}
+            participants={snapshot.participantMedia}
+            screenOutputId={devices.preferences.screenOutputId}
+          />
+        )}
       </div>
 
       {participantsOpen && (
@@ -529,13 +603,16 @@ export const CallScreen = ({
       <MusicPanel
         currentItem={music.currentItem}
         error={music.error}
+        isController={music.isController}
         onAdd={music.addSource}
         onAdvance={music.advance}
         onAdvancePlaylist={music.advancePlaylist}
         onClear={music.clear}
         onClose={() => setMusicOpen(false)}
+        onOpen={() => setMusicOpen(true)}
         onErrorClose={music.clearError}
         onPlayItem={music.playItem}
+        onProgress={music.reportProgress}
         onRemove={music.remove}
         onToggle={music.togglePlayback}
         open={musicOpen}

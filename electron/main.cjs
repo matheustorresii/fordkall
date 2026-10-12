@@ -217,7 +217,7 @@ const installAppProtocol = () => {
           )
           headers.set(
             'Permissions-Policy',
-            'camera=(self), microphone=(self), display-capture=(self), fullscreen=(self), picture-in-picture=(self)',
+            'camera=(self), microphone=(self), display-capture=(self), fullscreen=(self), picture-in-picture=(self), autoplay=(self "https://www.youtube.com" "https://www.youtube-nocookie.com")',
           )
         } else {
           headers.set(

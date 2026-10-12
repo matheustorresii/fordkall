@@ -150,8 +150,9 @@ export interface RoomMusicQueueItem {
 }
 
 export interface RoomMusicState {
-  version: 1
+  version: 2
   revision: number
+  syncSequence: number
   controllerIdentity: string
   queue: RoomMusicQueueItem[]
   currentIndex: number
