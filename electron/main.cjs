@@ -27,6 +27,7 @@ const DEV_SERVER_URL = 'http://127.0.0.1:5173'
 const isDevelopment = process.argv.includes('--dev') || !app.isPackaged
 
 let mainWindow = null
+let updateSplashWindow = null
 let tray = null
 let isQuitting = false
 let isInCall = false
@@ -48,6 +49,10 @@ let updateState = {
 }
 let updateInstallStarted = false
 let updateInstallTimer = null
+let startupUpdateGateActive = false
+let startupUpdateGateStartedAt = 0
+let startupUpdateGateTimer = null
+let startupUpdateCheckTimeout = null
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -98,7 +103,13 @@ const findRoomCodeInArguments = (argumentsList) => {
 }
 
 const showMainWindow = () => {
-  if (!mainWindow || mainWindow.isDestroyed()) return
+  if (!mainWindow || mainWindow.isDestroyed()) {
+    if (!updateSplashWindow || updateSplashWindow.isDestroyed()) return
+    if (updateSplashWindow.isMinimized()) updateSplashWindow.restore()
+    updateSplashWindow.show()
+    updateSplashWindow.focus()
+    return
+  }
   if (mainWindow.isMinimized()) mainWindow.restore()
   mainWindow.show()
   mainWindow.focus()
@@ -723,6 +734,191 @@ const unsupportedUpdateMessage = () => {
   return 'A atualização automática fica disponível no aplicativo Windows instalado.'
 }
 
+const updateSplashHtml = `<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Ford Kall</title>
+  <style>
+    :root { color-scheme: dark; font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    * { box-sizing: border-box; }
+    body { align-items: center; background: radial-gradient(ellipse at 50% 0%, #182016 0%, #0a0d0a 58%, #080a08 100%); color: #edf0eb; display: flex; height: 100vh; justify-content: center; margin: 0; overflow: hidden; user-select: none; }
+    main { width: 100%; padding: 30px 34px 26px; }
+    .brand { align-items: center; display: flex; gap: 11px; }
+    .mark { align-items: center; background: #b9ef45; border-radius: 10px; color: #17200c; display: flex; height: 36px; justify-content: center; width: 36px; }
+    .mark svg { height: 24px; width: 24px; }
+    .brand-name { font-size: 12px; font-weight: 750; letter-spacing: .12em; }
+    .brand-subtitle { color: #778077; font-size: 10px; letter-spacing: .09em; margin-top: 3px; }
+    .content { margin-top: 38px; }
+    .state { align-items: center; color: #b9ef45; display: flex; font-size: 10px; font-weight: 700; gap: 8px; letter-spacing: .11em; text-transform: uppercase; }
+    .spinner { animation: spin .85s linear infinite; border: 1.5px solid rgba(185, 239, 69, .22); border-radius: 50%; border-top-color: #b9ef45; height: 14px; width: 14px; }
+    .spinner.is-complete { animation: none; border-color: #b9ef45; position: relative; }
+    .spinner.is-complete::after { border-bottom: 1.5px solid #b9ef45; border-right: 1.5px solid #b9ef45; content: ""; height: 6px; left: 3px; position: absolute; top: 2px; transform: rotate(45deg); width: 3px; }
+    h1 { font-size: 21px; font-weight: 650; letter-spacing: -.025em; margin: 14px 0 7px; }
+    p { color: #909990; font-size: 12px; line-height: 1.55; margin: 0; min-height: 19px; }
+    .progress { background: #252c24; border-radius: 99px; height: 4px; margin-top: 22px; overflow: hidden; }
+    .progress[hidden] { display: none; }
+    .progress i { background: #b9ef45; border-radius: inherit; display: block; height: 100%; transition: width .2s ease; width: 0; }
+    footer { border-top: 1px solid #202620; color: #687168; font-size: 10px; letter-spacing: .025em; margin-top: 28px; padding-top: 15px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+  <main aria-live="polite" aria-atomic="true">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none"><path d="M3 14.5 4.6 10a2 2 0 0 1 1.9-1.4h11a2 2 0 0 1 1.9 1.4l1.6 4.5v4a1 1 0 0 1-1 1h-1a1 1 0 0 1-1-1v-1H6v1a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M5 14.5h14M7 11h10" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/><circle cx="7" cy="15" r=".8" fill="currentColor"/><circle cx="17" cy="15" r=".8" fill="currentColor"/></svg>
+      </div>
+      <div><div class="brand-name">FORD KALL</div><div class="brand-subtitle">CALLS, SEM COMPLICAÇÃO</div></div>
+    </div>
+    <section class="content">
+      <div class="state"><span id="state-icon" class="spinner"></span><span id="state-label">BUSCANDO ATUALIZAÇÕES</span></div>
+      <h1 id="state-title">Buscando atualizações</h1>
+      <p id="state-message">Verificando se há uma versão mais recente.</p>
+      <div id="progress" class="progress" hidden><i id="progress-bar"></i></div>
+    </section>
+    <footer>As atualizações são verificadas automaticamente ao abrir o aplicativo.</footer>
+  </main>
+  <script>
+    window.updateFordKallStatus = (state) => {
+      const title = document.getElementById('state-title')
+      const message = document.getElementById('state-message')
+      const label = document.getElementById('state-label')
+      const icon = document.getElementById('state-icon')
+      const progress = document.getElementById('progress')
+      const bar = document.getElementById('progress-bar')
+      const downloading = state.status === 'downloading'
+      const labels = {
+        checking: ['BUSCANDO ATUALIZAÇÕES', 'Verificando se há uma versão mais recente.'],
+        downloading: ['ATUALIZAÇÃO ENCONTRADA', 'Baixando Ford Kall ' + (state.availableVersion || '') + '…'],
+        ready: ['ATUALIZAÇÃO BAIXADA', 'Preparando o reinício para instalar a versão mais recente…'],
+        installing: ['INSTALANDO ATUALIZAÇÃO', 'O Ford Kall será reiniciado em instantes.'],
+        upToDate: ['TUDO ATUALIZADO', 'Abrindo o Ford Kall…'],
+        error: ['SEGUINDO COM A VERSÃO ATUAL', 'Não foi possível verificar agora. Abrindo o Ford Kall…'],
+      }
+      const copy = labels[state.status] || labels.checking
+      label.textContent = copy[0]
+      title.textContent = state.status === 'downloading' ? 'Baixando atualização' : state.status === 'installing' ? 'Instalando atualização' : state.status === 'upToDate' ? 'Tudo pronto' : state.status === 'error' ? 'Abrindo o aplicativo' : state.status === 'ready' ? 'Atualização pronta' : 'Buscando atualizações'
+      message.textContent = downloading ? copy[1] + ' ' + Math.round(state.percent || 0) + '%' : copy[1]
+      progress.hidden = !downloading
+      if (downloading) bar.style.width = Math.max(0, Math.min(100, state.percent || 0)) + '%'
+      icon.classList.toggle('is-complete', state.status === 'upToDate' || state.status === 'error')
+    }
+  </script>
+</body>
+</html>`
+
+const renderUpdateSplashState = (state = updateState) => {
+  if (!updateSplashWindow || updateSplashWindow.isDestroyed()) return
+  const serializedState = JSON.stringify(state)
+  void updateSplashWindow.webContents.executeJavaScript(
+    `window.updateFordKallStatus?.(${serializedState})`,
+  ).catch(() => {})
+}
+
+const createUpdateSplashWindow = async () => {
+  if (updateSplashWindow && !updateSplashWindow.isDestroyed()) return
+
+  const splash = new BrowserWindow({
+    width: 460,
+    height: 310,
+    center: true,
+    frame: false,
+    resizable: false,
+    minimizable: false,
+    maximizable: false,
+    show: false,
+    title: 'Ford Kall',
+    icon: iconPath(),
+    backgroundColor: '#080a08',
+    autoHideMenuBar: true,
+    webPreferences: {
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true,
+      backgroundThrottling: false,
+    },
+  })
+  updateSplashWindow = splash
+  splash.once('ready-to-show', () => {
+    if (startupUpdateGateActive && updateSplashWindow === splash) splash.show()
+  })
+  splash.webContents.on('did-finish-load', () => renderUpdateSplashState())
+  splash.on('close', () => {
+    if (!startupUpdateGateActive || isQuitting) return
+    startupUpdateGateActive = false
+    if (startupUpdateGateTimer) clearTimeout(startupUpdateGateTimer)
+    if (startupUpdateCheckTimeout) clearTimeout(startupUpdateCheckTimeout)
+    startupUpdateGateTimer = null
+    startupUpdateCheckTimeout = null
+    if (!mainWindow) void createMainWindow()
+  })
+  splash.on('closed', () => {
+    if (updateSplashWindow === splash) updateSplashWindow = null
+  })
+
+  await splash.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(updateSplashHtml)}`)
+}
+
+const finishStartupUpdateGate = async () => {
+  if (!startupUpdateGateActive) return
+  startupUpdateGateActive = false
+  if (startupUpdateGateTimer) clearTimeout(startupUpdateGateTimer)
+  if (startupUpdateCheckTimeout) clearTimeout(startupUpdateCheckTimeout)
+  startupUpdateGateTimer = null
+  startupUpdateCheckTimeout = null
+
+  const splash = updateSplashWindow
+  updateSplashWindow = null
+  if (splash && !splash.isDestroyed()) splash.close()
+  await createMainWindow()
+}
+
+const scheduleStartupGateFinish = (minimumVisibleMs = 700) => {
+  if (!startupUpdateGateActive) return
+  if (startupUpdateGateTimer) clearTimeout(startupUpdateGateTimer)
+  const remainingMs = Math.max(0, minimumVisibleMs - (Date.now() - startupUpdateGateStartedAt))
+  startupUpdateGateTimer = setTimeout(() => {
+    startupUpdateGateTimer = null
+    void finishStartupUpdateGate()
+  }, remainingMs)
+}
+
+const startStartupUpdateFlow = async () => {
+  if (!autoUpdateSupported()) {
+    await createMainWindow()
+    return
+  }
+
+  startupUpdateGateActive = true
+  startupUpdateGateStartedAt = Date.now()
+  try {
+    await createUpdateSplashWindow()
+  } catch (error) {
+    console.error('Ford Kall update splash failed to open', error)
+    startupUpdateGateActive = false
+    const splash = updateSplashWindow
+    updateSplashWindow = null
+    if (splash && !splash.isDestroyed()) splash.destroy()
+    await createMainWindow()
+    return
+  }
+
+  startupUpdateCheckTimeout = setTimeout(() => {
+    startupUpdateCheckTimeout = null
+    if (!startupUpdateGateActive || updateState.status !== 'checking') return
+    setUpdateState({
+      status: 'error',
+      message: 'A verificação demorou mais que o esperado. Abrindo a versão instalada.',
+    })
+    scheduleStartupGateFinish(1000)
+  }, 15000)
+  const state = await checkForUpdates()
+  if (state.status === 'upToDate') scheduleStartupGateFinish(700)
+  if (state.status === 'error') scheduleStartupGateFinish(1000)
+}
+
 const startUpdateInstall = ({ allowDuringCall = false } = {}) => {
   if (!autoUpdateSupported() || updateState.status !== 'ready' || updateInstallStarted) return
   if (isInCall && !allowDuringCall) {
@@ -780,17 +976,12 @@ const checkForUpdates = async () => {
   return updateState
 }
 
-const scheduleStartupUpdateCheck = () => {
-  if (!autoUpdateSupported()) return
-  const timer = setTimeout(() => void checkForUpdates(), 2500)
-  timer.unref?.()
-}
-
 const setUpdateState = (nextState) => {
   updateState = {
     currentVersion: app.getVersion(),
     ...nextState,
   }
+  renderUpdateSplashState(updateState)
   if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.webContents.isLoading()) {
     mainWindow.webContents.send('desktop:update-state', updateState)
   }
@@ -833,6 +1024,7 @@ const configureAutoUpdater = () => {
   })
   autoUpdater.on('update-not-available', () => {
     setUpdateState({ status: 'upToDate', message: 'Você já está na versão mais recente.' })
+    scheduleStartupGateFinish(700)
   })
   autoUpdater.on('update-downloaded', (info) => {
     setUpdateState({
@@ -853,6 +1045,7 @@ const configureAutoUpdater = () => {
       status: 'error',
       message: 'Não foi possível buscar ou baixar a atualização. Tente novamente em instantes.',
     })
+    scheduleStartupGateFinish(1000)
   })
 }
 
@@ -1010,6 +1203,11 @@ const configureWindowNavigation = (window) => {
 }
 
 const createMainWindow = async () => {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    showMainWindow()
+    return
+  }
+
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -1083,11 +1281,11 @@ app.whenReady().then(async () => {
   createTray()
 
   pendingRoomCode = findRoomCodeInArguments(process.argv)
-  await createMainWindow()
-  scheduleStartupUpdateCheck()
+  await startStartupUpdateFlow()
 
   app.on('activate', () => {
     if (mainWindow) showMainWindow()
+    else if (startupUpdateGateActive) showMainWindow()
     else void createMainWindow()
   })
 }).catch((error) => {
