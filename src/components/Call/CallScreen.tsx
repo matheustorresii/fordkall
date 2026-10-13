@@ -56,6 +56,7 @@ interface CallScreenProps {
   microphoneError: string
   microphoneStarting: boolean
   onMicrophoneErrorChange: (message: string) => void
+  onNavigateHome: () => void
   onLeave: () => Promise<void>
 }
 
@@ -138,6 +139,7 @@ export const CallScreen = ({
   microphoneError,
   microphoneStarting,
   onMicrophoneErrorChange,
+  onNavigateHome,
   onLeave,
 }: CallScreenProps) => {
   const snapshot = useRoomSnapshot(room)
@@ -419,13 +421,26 @@ export const CallScreen = ({
     ? snapshot.remoteVoices.find((voice) => voice.id === participantMenu.participantId)
     : undefined
 
+  const resetOtherGames = (selected: 'ito' | 'kiwi' | 'truco' | 'mind') => {
+    if (selected !== 'ito' && itoGame.state.gameId) void itoGame.reset()
+    if (selected !== 'kiwi' && explodingKiwi.state.gameId) void explodingKiwi.reset()
+    if (selected !== 'truco' && trucoGame.state.gameId) void trucoGame.reset()
+    if (selected !== 'mind' && mindGame.state.gameId) void mindGame.reset()
+  }
+
   return (
     <main className={`call-shell ${chatOpen || musicOpen ? 'call-shell--chat-open' : ''} ${musicOpen ? 'call-shell--music-open' : ''} ${gamesOpen ? 'call-shell--games-open' : ''}`}>
       <header className="call-header">
-        <div className="brand brand--compact">
+        <button
+          aria-label="Voltar para a comunidade sem sair da call"
+          className="brand brand--compact call-home-button"
+          onClick={onNavigateHome}
+          title="Voltar para a comunidade"
+          type="button"
+        >
           <BrandMark />
           <h1>FORD KALL</h1>
-        </div>
+        </button>
 
         <div className="room-plate">
           <strong>{roomCode}</strong>
@@ -570,28 +585,40 @@ export const CallScreen = ({
             />
           ) : gameMode === 'kiwi' ? (
             <ExplodingKiwiStage
-              game={explodingKiwi}
+              game={{ ...explodingKiwi, start: (...args) => {
+                resetOtherGames('kiwi')
+                return explodingKiwi.start(...args)
+              } }}
               onExit={() => setGamesOpen(false)}
               onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
             />
           ) : gameMode === 'truco' ? (
             <TrucoMineiroStage
-              game={trucoGame}
+              game={{ ...trucoGame, start: () => {
+                resetOtherGames('truco')
+                return trucoGame.start()
+              } }}
               onExit={() => setGamesOpen(false)}
               onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
             />
           ) : gameMode === 'mind' ? (
             <TheMindStage
-              game={mindGame}
+              game={{ ...mindGame, start: () => {
+                resetOtherGames('mind')
+                return mindGame.start()
+              } }}
               onExit={() => setGamesOpen(false)}
               onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
             />
           ) : (
             <ItoGameStage
-              game={itoGame}
+              game={{ ...itoGame, start: () => {
+                resetOtherGames('ito')
+                return itoGame.start()
+              } }}
               onExit={() => setGamesOpen(false)}
               onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}

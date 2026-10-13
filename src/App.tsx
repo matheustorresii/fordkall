@@ -19,6 +19,7 @@ function App() {
   )
   const [roomCode, setRoomCode] = useState(getRoomCodeFromUrl)
   const [adminOpen, setAdminOpen] = useState(false)
+  const [activeView, setActiveView] = useState<'home' | 'call'>('home')
 
   useEffect(() => {
     const desktop = window.fordKallDesktop
@@ -43,8 +44,14 @@ function App() {
     if (connected) {
       setRoomCode(nextRoomCode)
       replaceRoomCodeInCurrentUrl(nextRoomCode)
+      setActiveView('call')
     }
     return connected
+  }
+
+  const leaveCall = async () => {
+    await liveKit.leave()
+    setActiveView('home')
   }
 
   if (account.loading && !account.profile) {
@@ -65,36 +72,55 @@ function App() {
     )
   }
 
-  if (adminOpen && (account.profile.role === 'owner' || account.profile.role === 'admin')) {
+  const canOpenAdmin = account.profile.role === 'owner' || account.profile.role === 'admin'
+  if (adminOpen && canOpenAdmin && !liveKit.room) {
     return <AdminDashboard currentRole={account.profile.role} onClose={() => setAdminOpen(false)} />
   }
 
-  if (liveKit.room) {
-    return (
-      <CallScreen
-        microphoneError={liveKit.microphoneError}
-        microphoneStarting={liveKit.microphoneStarting}
-        onLeave={liveKit.leave}
-        onMicrophoneErrorChange={liveKit.setMicrophoneError}
-        room={liveKit.room}
-        roomCode={roomCode}
-        status={liveKit.status}
-      />
-    )
-  }
-
   return (
-    <SocialHome
-      account={account.profile}
-      connectionError={liveKit.error}
-      initialRoomCode={roomCode}
-      onlineUsers={socialPresence.onlineUsers}
-      onJoin={join}
-      onOpenAdmin={() => setAdminOpen(true)}
-      onProfileChange={account.updateProfile}
-      onSignOut={account.logout}
-      status={liveKit.status}
-    />
+    <div className="app-routes">
+      {liveKit.room && (
+        <div
+          aria-hidden={activeView !== 'call' || adminOpen}
+          className={`app-route ${activeView === 'call' && !adminOpen ? '' : 'app-route--hidden'}`}
+        >
+          <CallScreen
+            microphoneError={liveKit.microphoneError}
+            microphoneStarting={liveKit.microphoneStarting}
+            onLeave={leaveCall}
+            onMicrophoneErrorChange={liveKit.setMicrophoneError}
+            onNavigateHome={() => setActiveView('home')}
+            room={liveKit.room}
+            roomCode={roomCode}
+            status={liveKit.status}
+          />
+        </div>
+      )}
+      <div
+        aria-hidden={(liveKit.room && activeView === 'call') || adminOpen}
+        className={`app-route ${((liveKit.room && activeView === 'call') || adminOpen) ? 'app-route--hidden' : ''}`}
+      >
+        <SocialHome
+          account={account.profile}
+          activeRoomCode={liveKit.room ? liveKit.activeRoomCode : ''}
+          connectionError={liveKit.error}
+          initialRoomCode={roomCode}
+          onlineUsers={socialPresence.onlineUsers}
+          onJoin={join}
+          onLeaveCall={leaveCall}
+          onOpenAdmin={() => setAdminOpen(true)}
+          onProfileChange={account.updateProfile}
+          onReturnToCall={() => setActiveView('call')}
+          onSignOut={account.logout}
+          status={liveKit.status}
+        />
+      </div>
+      {adminOpen && canOpenAdmin && liveKit.room && (
+        <div className="app-route">
+          <AdminDashboard currentRole={account.profile.role} onClose={() => setAdminOpen(false)} />
+        </div>
+      )}
+    </div>
   )
 }
 

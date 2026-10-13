@@ -8815,3 +8815,55 @@ svg {
   background: color-mix(in srgb, var(--surface-1) 96%, transparent);
   color: var(--text-primary);
 }
+
+.app-routes {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  overflow: hidden;
+}
+
+.app-route {
+  position: absolute;
+  inset: 0;
+  visibility: visible;
+}
+
+.app-route--hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.call-home-button {
+  padding: 0;
+  border: 0;
+  color: inherit;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+}
+
+.call-home-button:hover .brand__mark {
+  filter: brightness(1.08);
+}
+
+/* Game tables live inside a real safe area between the call header and dock. */
+.call-shell--games-open .call-workspace {
+  position: absolute;
+  top: 64px;
+  right: 0;
+  bottom: 92px;
+  left: 0;
+  width: auto;
+  height: auto;
+  flex: none;
+  padding: 0;
+  overflow: hidden;
+}
+
+@media (max-width: 720px) {
+  .call-shell--games-open .call-workspace {
+    top: 56px;
+    bottom: 78px;
+  }
+}

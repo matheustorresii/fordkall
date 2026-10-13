@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { normalizeProfileAppearance } from '../../services/profile'
 import {
+  describeSocialError,
   getRecentDirectConversations,
   getSocialProfileCards,
   subscribeToDirectInbox,
@@ -24,13 +25,16 @@ import { SocialSidebar, type SocialSection } from './SocialSidebar'
 
 interface SocialHomeProps {
   account: AccountProfile
+  activeRoomCode: string
   status: ConnectionStatus
   connectionError: string
   initialRoomCode: string
   onlineUsers: SocialPresenceEntry[]
   onJoin: (profile: LocalProfile, roomCode: string) => Promise<boolean>
+  onLeaveCall: () => Promise<void>
   onOpenAdmin: () => void
   onProfileChange: (profile: LocalProfile) => Promise<AccountProfile>
+  onReturnToCall: () => void
   onSignOut: () => Promise<void>
 }
 
@@ -44,13 +48,16 @@ const toSocialUser = (account: AccountProfile): SocialUser => ({
 
 export const SocialHome = ({
   account,
+  activeRoomCode,
   status,
   connectionError,
   initialRoomCode,
   onlineUsers,
   onJoin,
+  onLeaveCall,
   onOpenAdmin,
   onProfileChange,
+  onReturnToCall,
   onSignOut,
 }: SocialHomeProps) => {
   const [section, setSection] = useState<SocialSection>(initialRoomCode ? 'rooms' : 'general')
@@ -60,6 +67,7 @@ export const SocialHome = ({
   const [profileEditorOpen, setProfileEditorOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [topError, setTopError] = useState('')
+  const [dmError, setDmError] = useState('')
   const currentUser = useMemo(() => toSocialUser(account), [account])
   const onlineIdSet = useMemo(() => new Set(onlineUsers.map((user) => user.userId)), [onlineUsers])
   const connecting = status === 'connecting' || status === 'reconnecting'
@@ -75,8 +83,15 @@ export const SocialHome = ({
   useEffect(() => {
     let cancelled = false
     const load = () => getRecentDirectConversations(account.id)
-      .then((items) => { if (!cancelled) setConversations(items) })
-      .catch(() => undefined)
+      .then((items) => {
+        if (!cancelled) {
+          setConversations(items)
+          setDmError('')
+        }
+      })
+      .catch((cause: unknown) => {
+        if (!cancelled) setDmError(describeSocialError(cause, 'load'))
+      })
 
     void load()
     const unsubscribe = subscribeToDirectInbox(() => { void load() })
@@ -113,6 +128,7 @@ export const SocialHome = ({
     setSection('people')
     setMobileMenuOpen(false)
     setTopError('')
+    setDmError('')
   }
 
   const joinRoom = async (roomCode: string) => {
@@ -120,6 +136,14 @@ export const SocialHome = ({
     if (!normalizedCode) {
       setSection('rooms')
       setTopError('Digite um código de sala ou cole o link do convite.')
+      return
+    }
+    if (activeRoomCode) {
+      if (normalizedCode === activeRoomCode) {
+        onReturnToCall()
+        return
+      }
+      setTopError('Você já está em uma call. Volte para ela ou encerre a conexão antes de entrar em outra sala.')
       return
     }
     setTopError('')
@@ -175,6 +199,17 @@ export const SocialHome = ({
             <strong>{title}</strong>
           </div>
           <div className="social-topbar__actions">
+            {activeRoomCode && (
+              <button
+                className="social-return-call"
+                onClick={onReturnToCall}
+                title={`Voltar à call ${activeRoomCode}`}
+                type="button"
+              >
+                <Icon name="headphones" />
+                <span>Voltar à call</span>
+              </button>
+            )}
             <span className="social-topbar__connected"><i /> Conectado</span>
             <DesktopUpdateControl variant="lobby" />
             {(account.role === 'owner' || account.role === 'admin') && (
@@ -203,7 +238,18 @@ export const SocialHome = ({
           </div>
         </header>
 
-        {topError && <p className="social-top-error" role="alert">{topError}</p>}
+        {activeRoomCode && (
+          <aside className="social-call-banner" role="status">
+            <span className="social-call-banner__status"><i />Call em andamento</span>
+            <strong>{activeRoomCode}</strong>
+            <div>
+              <button className="social-call-banner__return" onClick={onReturnToCall} type="button">Voltar à call</button>
+              <button className="social-call-banner__leave" onClick={() => void onLeaveCall()} type="button">Desconectar</button>
+            </div>
+          </aside>
+        )}
+
+        {(topError || dmError) && <p className="social-top-error" role="alert">{topError || dmError}</p>}
         <div className="social-content" key={selectedConversation?.id || section}>
           {selectedConversation ? (
             <SocialMessageView

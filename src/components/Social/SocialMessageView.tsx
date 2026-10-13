@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
 import {
+  describeSocialError,
   getCommunityMessages,
   getDirectMessages,
   sendCommunityMessage,
@@ -65,8 +66,8 @@ export const SocialMessageView = (props: SocialMessageViewProps) => {
       if (!cancelled) {
         setMessages((current) => nextMessages.reduce(mergeMessages, current))
       }
-    }).catch(() => {
-      if (!cancelled) setError('Não foi possível carregar as mensagens. Tente novamente.')
+    }).catch((cause: unknown) => {
+      if (!cancelled) setError(describeSocialError(cause, 'load'))
     }).finally(() => {
       if (!cancelled) setLoading(false)
     })
@@ -101,8 +102,8 @@ export const SocialMessageView = (props: SocialMessageViewProps) => {
         : await sendDirectMessage(props.currentUser.id, peerId, body)
       setMessages((current) => mergeMessages(current, message))
       setDraft('')
-    } catch {
-      setError('A mensagem não foi enviada. Confira a conexão e tente novamente.')
+    } catch (cause) {
+      setError(describeSocialError(cause, 'send'))
     } finally {
       setSending(false)
     }

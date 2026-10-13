@@ -47,9 +47,26 @@ const toSocialUser = (row: SocialProfileRow): SocialUser => ({
 })
 
 const pairFor = (first: string, second: string) =>
-  first.localeCompare(second) < 0
+  first < second
     ? { user_low: first, user_high: second }
     : { user_low: second, user_high: first }
+
+export const describeSocialError = (error: unknown, action: 'load' | 'send') => {
+  const message = error instanceof Error ? error.message : String(error || '')
+  if (/PGRST205|relation ["']?public?\.?direct_messages|does not exist|schema cache/i.test(message)) {
+    return 'As mensagens diretas ainda não estão configuradas no banco deste servidor. A migration social_hub precisa ser aplicada.'
+  }
+  if (/row-level security|permission denied|42501/i.test(message)) {
+    return 'O servidor recusou o acesso às mensagens desta conta. Verifique se a migration social_hub e as permissões estão atualizadas.'
+  }
+  if (/failed to fetch|network|websocket|timeout/i.test(message)) {
+    return 'Sem conexão com o serviço de mensagens. Confira sua internet e tente novamente.'
+  }
+  const detail = message.trim().replace(/\s+/g, ' ').slice(0, 180)
+  return action === 'load'
+    ? `Não foi possível carregar as mensagens${detail ? ` (${detail})` : ''}.`
+    : `A mensagem não foi enviada${detail ? ` (${detail})` : ''}.`
+}
 
 export const getSocialProfileCards = async (ids: string[], includeAvatar = true) => {
   const uniqueIds = [...new Set(ids)]
@@ -125,7 +142,8 @@ export const getDirectMessages = async (currentUserId: string, otherUserId: stri
       .eq('user_high', pair.user_high)
       .neq('sender_id', currentUserId)
       .is('read_at', null)
-    failOnError(readError)
+    // Failing to mark a thread as read must never hide its messages.
+    if (readError) console.warn('Could not mark direct messages as read:', readError.message)
   }
   return hydrateMessages(rows)
 }

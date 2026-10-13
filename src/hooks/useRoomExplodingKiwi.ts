@@ -506,7 +506,6 @@ export const useRoomExplodingKiwi = (room: Room) => {
       return null
     }
     if (command.type === 'reset') {
-      if (current.phase === 'playing' && !player) return 'Só alguém da partida pode encerrar esta rodada.'
       handsRef.current = {}; peeksRef.current = {}; stashesRef.current = {}; takenRef.current = {}; towerStashRef.current = []; deckRef.current = []; discardRef.current = []
       setHand([]); setPeek([]); setStash([]); commit((latest) => emptyState(room.localParticipant.identity, latest.revision)); return null
     }
