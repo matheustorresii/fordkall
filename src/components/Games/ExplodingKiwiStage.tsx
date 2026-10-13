@@ -9,7 +9,7 @@ interface ExplodingKiwiStageProps {
   game: Game
   participants: ParticipantMedia[]
   onExit: () => void
-  onSelectIto: () => void
+  onOpenGameHub: () => void
 }
 
 const expansionLabels: Record<KiwiExpansion, { name: string; note: string }> = {
@@ -105,7 +105,7 @@ const allCardTypes: KiwiCardType[] = [
 ]
 const isPublicCardType = (value: string): value is KiwiCardType => allCardTypes.includes(value as KiwiCardType)
 
-export const ExplodingKiwiStage = ({ game, participants, onExit, onSelectIto }: ExplodingKiwiStageProps) => {
+export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }: ExplodingKiwiStageProps) => {
   const [expansions, setExpansions] = useState<KiwiExpansion[]>([])
   const [excludedCards, setExcludedCards] = useState<KiwiCardType[]>(excludedByDefault)
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -181,10 +181,9 @@ export const ExplodingKiwiStage = ({ game, participants, onExit, onSelectIto }: 
           <span className="kiwi-stage__mark"><img alt="" src="/assets/exploding-kiwi/kiwi-burst.png" /></span>
           <div><small>JOGOS DA SALA</small><strong>EXPLODING KIWI <span>· cartas</span></strong></div>
         </div>
-        <nav className="kiwi-stage__switcher" aria-label="Escolher jogo">
-          <button onClick={onSelectIto} type="button">ITO</button>
-          <button className="is-active" type="button">Exploding Kiwi</button>
-        </nav>
+        <button className="kiwi-stage__hub-button" onClick={onOpenGameHub} type="button">
+          <Icon name="gamepad" />Trocar jogo
+        </button>
         <div className="kiwi-stage__topbar-actions">
           {game.state.gameId && <span className="kiwi-stage__status"><i />{game.state.players.filter((player) => player.alive).length} vivas</span>}
           {game.state.phase === 'finished' && <button className="kiwi-stage__text-button" onClick={() => game.reset()} type="button">Nova rodada</button>}

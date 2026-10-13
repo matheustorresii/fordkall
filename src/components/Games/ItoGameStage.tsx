@@ -23,7 +23,7 @@ interface ItoGameStageProps {
   game: ItoGameController
   participants: ParticipantMedia[]
   onExit: () => void
-  onSelectKiwi: () => void
+  onOpenGameHub: () => void
 }
 
 const avatarLetters = (name: string) =>
@@ -65,7 +65,7 @@ const ItoRoster = ({
   </div>
 )
 
-export const ItoGameStage = ({ game, participants, onExit, onSelectKiwi }: ItoGameStageProps) => {
+export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoGameStageProps) => {
   const [draft, setDraft] = useState('')
   const myIdentity = participants.find((participant) => participant.isLocal)?.id ?? ''
   const myPlayer = playerById(game.state.players, myIdentity)
@@ -91,10 +91,9 @@ export const ItoGameStage = ({ game, participants, onExit, onSelectKiwi }: ItoGa
             <strong>ITO <span>· cooperativo</span></strong>
           </div>
         </div>
-        <nav className="ito-stage__switcher" aria-label="Escolher jogo">
-          <button className="is-active" type="button">ITO</button>
-          <button onClick={onSelectKiwi} type="button">Exploding Kiwi</button>
-        </nav>
+        <button className="ito-stage__hub-button" onClick={onOpenGameHub} type="button">
+          <Icon name="gamepad" />Trocar jogo
+        </button>
         <div className="ito-stage__topbar-actions">
           {game.state.gameId && <span className="ito-stage__status"><i />{game.state.players.length} na rodada</span>}
           <button aria-label="Voltar para a call" className="icon-button" onClick={onExit} title="Voltar para a call" type="button">

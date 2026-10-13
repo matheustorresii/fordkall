@@ -41,10 +41,9 @@
 .kiwi-eyebrow { color: #a2c691; font: 700 10px/1.4 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.12em; }
 .kiwi-stage__brand strong { display: block; margin-top: 3px; font-size: 14px; letter-spacing: 0.04em; }
 .kiwi-stage__brand strong span { color: var(--muted, #929e99); font-size: 12px; font-weight: 500; letter-spacing: 0; }
-.kiwi-stage__switcher { gap: 3px; padding: 4px; border: 1px solid rgba(129, 149, 142, 0.16); border-radius: 12px; background: rgba(26, 34, 30, 0.68); }
-.kiwi-stage__switcher button { min-height: 32px; padding: 0 12px; border: 0; border-radius: 9px; background: transparent; color: #99a59f; cursor: pointer; font: inherit; font-size: 12px; }
-.kiwi-stage__switcher button:hover { color: #e5ece7; }
-.kiwi-stage__switcher button.is-active { background: #29372d; color: #e3f1d6; }
+.kiwi-stage__hub-button { display: inline-flex; min-height: 36px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; border: 1px solid rgba(129, 149, 142, 0.2); border-radius: 10px; background: rgba(26, 34, 30, 0.68); color: #c0cbc4; cursor: pointer; font: inherit; font-size: 12px; transition: border-color 140ms ease, background 140ms ease, color 140ms ease; }
+.kiwi-stage__hub-button:hover { border-color: rgba(157, 193, 139, 0.42); background: rgba(39, 53, 40, 0.38); color: #e5ece7; }
+.kiwi-stage__hub-button svg { width: 16px; height: 16px; }
 .kiwi-stage__topbar-actions { justify-content: flex-end; gap: 12px; min-width: 200px; }
 .kiwi-stage__status { gap: 7px; color: #bdc9c1; font-size: 12px; white-space: nowrap; }
 .kiwi-stage__status i { width: 7px; height: 7px; border-radius: 50%; background: #9ac981; box-shadow: 0 0 10px rgba(154, 201, 129, 0.42); }
@@ -191,8 +190,7 @@
   .kiwi-stage__brand small { font-size: 8px; }
   .kiwi-stage__brand strong { font-size: 10px; }
   .kiwi-stage__brand strong span { display: none; }
-  .kiwi-stage__switcher { padding: 3px; }
-  .kiwi-stage__switcher button { min-height: 28px; padding: 0 7px; font-size: 10px; }
+  .kiwi-stage__hub-button { min-height: 32px; gap: 6px; padding: 0 8px; font-size: 10px; }
   .kiwi-stage__topbar-actions { min-width: 0; gap: 6px; }
   .kiwi-stage__status { display: none; }
   .kiwi-lobby { display: flex; flex-direction: column; gap: 22px; padding: 20px 14px; }
@@ -235,7 +233,7 @@
 
 @media (max-width: 420px) {
   .kiwi-stage__brand strong { max-width: 94px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .kiwi-stage__switcher button { padding: 0 5px; font-size: 9px; }
+  .kiwi-stage__hub-button { gap: 4px; padding: 0 6px; font-size: 9px; }
   .kiwi-player__badge { display: none; }
   .kiwi-table__counts span { padding: 5px 7px; font-size: 9px; }
   .kiwi-table__message { max-width: 26vw; }

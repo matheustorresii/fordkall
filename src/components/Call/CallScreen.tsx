@@ -34,6 +34,7 @@ import type {
 import { ChatPanel } from '../Chat/ChatPanel'
 import { ItoGameStage } from '../Games/ItoGameStage'
 import { ExplodingKiwiStage } from '../Games/ExplodingKiwiStage'
+import { RoomGamesHub } from '../Games/RoomGamesHub'
 import { MusicPanel } from '../Music/MusicPanel'
 import { ParticipantAudioLayer } from '../Participants/ParticipantAudioLayer'
 import { ParticipantContextMenu } from '../Participants/ParticipantContextMenu'
@@ -164,7 +165,7 @@ export const CallScreen = ({
   const [chatOpen, setChatOpen] = useState(false)
   const [musicOpen, setMusicOpen] = useState(false)
   const [gamesOpen, setGamesOpen] = useState(false)
-  const [gameMode, setGameMode] = useState<'ito' | 'kiwi'>('ito')
+  const [gameMode, setGameMode] = useState<'hub' | 'ito' | 'kiwi'>('hub')
   const [unreadMessages, setUnreadMessages] = useState(0)
   const lastSeenMessageId = useRef('')
   const [participantMenu, setParticipantMenu] = useState<{
@@ -468,16 +469,21 @@ export const CallScreen = ({
             {music.state.queue.length > 0 && <span>{Math.min(music.state.queue.length, 99)}</span>}
           </button>
           <button
-            aria-label={`${gamesOpen ? 'Fechar' : 'Abrir'} jogos`}
+            aria-label={`${gamesOpen ? 'Fechar jogos' : 'Abrir central de jogos'}`}
             className={`participants-toggle games-toggle ${gamesOpen ? 'is-active' : ''} ${itoGame.state.gameId || explodingKiwi.state.gameId ? 'has-game' : ''}`}
             onClick={() => {
               setLayoutMenuPoint(null)
               setParticipantsOpen(false)
               setChatOpen(false)
               setMusicOpen(false)
-              setGamesOpen((current) => !current)
+              if (gamesOpen) {
+                setGamesOpen(false)
+              } else {
+                setGameMode('hub')
+                setGamesOpen(true)
+              }
             }}
-            title="Jogos da sala"
+            title="Central de jogos"
             type="button"
           >
             <Icon name="gamepad" />
@@ -520,18 +526,28 @@ export const CallScreen = ({
 
       <div className="call-workspace">
         {gamesOpen ? (
-          gameMode === 'kiwi' ? (
+          gameMode === 'hub' ? (
+            <RoomGamesHub
+              itoActive={Boolean(itoGame.state.gameId)}
+              itoPlayers={itoGame.state.players.length}
+              kiwiActive={Boolean(explodingKiwi.state.gameId)}
+              kiwiPlayers={explodingKiwi.state.players.filter((player) => player.alive).length}
+              onExit={() => setGamesOpen(false)}
+              onSelectIto={() => setGameMode('ito')}
+              onSelectKiwi={() => setGameMode('kiwi')}
+            />
+          ) : gameMode === 'kiwi' ? (
             <ExplodingKiwiStage
               game={explodingKiwi}
               onExit={() => setGamesOpen(false)}
-              onSelectIto={() => setGameMode('ito')}
+              onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
             />
           ) : (
             <ItoGameStage
               game={itoGame}
               onExit={() => setGamesOpen(false)}
-              onSelectKiwi={() => setGameMode('kiwi')}
+              onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
             />
           )
