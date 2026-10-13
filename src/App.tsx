@@ -54,6 +54,11 @@ function App() {
     setActiveView('home')
   }
 
+  const signOut = async () => {
+    if (liveKit.room) await leaveCall()
+    await account.logout()
+  }
+
   if (account.loading && !account.profile) {
     return <main className="app-loading"><span className="spinner" /><span>Preparando sua garagem…</span></main>
   }
@@ -111,7 +116,7 @@ function App() {
           onOpenAdmin={() => setAdminOpen(true)}
           onProfileChange={account.updateProfile}
           onReturnToCall={() => setActiveView('call')}
-          onSignOut={account.logout}
+          onSignOut={signOut}
           status={liveKit.status}
         />
       </div>
