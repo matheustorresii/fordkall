@@ -118,8 +118,8 @@ const isCat = (type: KiwiCardType) => type.startsWith('kiwi-cat-') || type === '
 const isNowCard = (type: KiwiCardType) => ['alter-future-now', 'clairvoyance', 'feed-dead', 'shuffle-now'].includes(type)
 const cardTitle = (type: KiwiCardType) => ({
   'kiwi-burst': 'Kiwi Explosivo', 'leaf-helmet': 'Folha-Segura', attack: 'Ataque', favor: 'Favor', nope: 'Não!', shuffle: 'Embaralhar', skip: 'Pular',
-  'see-future-3': 'Ver o Futuro · 3', 'alter-future-3': 'Mudar o Futuro · 3', 'kiwi-cat-a': 'Gatinho Kiwi A', 'kiwi-cat-b': 'Gatinho Kiwi B',
-  'kiwi-cat-c': 'Gatinho Kiwi C', 'kiwi-cat-d': 'Gatinho Kiwi D', 'kiwi-cat-e': 'Gatinho Kiwi E', imploding: 'Kiwi Implosivo', 'feral-kiwi': 'Kiwi Selvagem',
+  'see-future-3': 'Ver o Futuro · 3', 'alter-future-3': 'Mudar o Futuro · 3', 'kiwi-cat-a': 'Kiwi A', 'kiwi-cat-b': 'Kiwi B',
+  'kiwi-cat-c': 'Kiwi C', 'kiwi-cat-d': 'Kiwi D', 'kiwi-cat-e': 'Kiwi E', imploding: 'Kiwi Implosivo', 'feral-kiwi': 'Kiwi Selvagem',
   'targeted-attack': 'Ataque Direcionado', reverse: 'Reverter', 'draw-bottom': 'Comprar por Baixo', streaking: 'Kiwi Persistente', 'catomic-bomb': 'Kiwi Atômico',
   mark: 'Marcar', curse: 'Maldição do Bumbum', 'super-skip': 'Super Pulo', 'see-future-5': 'Ver o Futuro · 5', 'alter-future-5': 'Mudar o Futuro · 5',
   'swap-top-bottom': 'Trocar Topo e Fundo', 'garbage-collection': 'Coleta de Descartes', barking: 'Kiwi Latidor', 'alter-future-now': 'Mudar o Futuro · Agora',
@@ -468,7 +468,8 @@ export const useRoomExplodingKiwi = (room: Room) => {
         towerStashRef.current = preparedForTower.splice(0, Math.min(6, preparedForTower.length))
         actions = shuffle([...preparedForTower, towerCard!])
       } else towerStashRef.current = []
-      let defuses = expansions.includes('zombie') ? [] : Array.from({ length: 6 }, () => makeCard('leaf-helmet'))
+      // Each player gets one Defuse, with exactly one more in the draw pile.
+      let defuses = expansions.includes('zombie') ? [] : Array.from({ length: players.length + 1 }, () => makeCard('leaf-helmet'))
       let zombies = expansions.includes('zombie') ? Array.from({ length: 5 }, () => makeCard('zombie')) : []
       let imploding = actions.filter((card) => card.type === 'imploding')
       actions = actions.filter((card) => card.type !== 'imploding' && card.type !== 'kiwi-burst')
@@ -840,7 +841,7 @@ export const useRoomExplodingKiwi = (room: Room) => {
         return 'Esta carta só pode ser usada na defesa ou na condição indicada.'
       }
       if (primary.type === 'nope') return 'Use Não! durante a janela de resposta.'
-      if (isCat(primary.type)) return 'Gatinhos só podem ser jogados em combos.'
+      if (isCat(primary.type)) return 'Cartas de Kiwi só podem ser jogadas em combos.'
       const randomTarget = player?.blind ? shuffle(current.players.filter((item) => item.alive && item.identity !== senderIdentity))[0]?.identity : ''
       const targetIdentity = player?.blind ? randomTarget ?? '' : command.targetIdentity
       const targeted = ['favor', 'targeted-attack', 'curse', 'mark', 'take-that', 'feed-dead'].includes(primary.type)

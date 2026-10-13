@@ -518,6 +518,30 @@
   animation: ito-number-reveal 600ms cubic-bezier(.18,.8,.24,1) both;
 }
 .ito-order-row__number::after { position: absolute; right: 5px; bottom: 3px; color: rgba(23,48,52,.48); content: 'ITO'; font: 700 6px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: .08em; }
+
+/* The order phase is a table of clue cards laid out on a visible 0–100 rail. */
+.ito-number-track { display: grid; min-width: 0; gap: 3px; }
+.ito-number-track__ends { display: grid; grid-template-columns: auto minmax(24px, 1fr) auto; align-items: center; gap: 12px; padding-inline: 5px; }
+.ito-number-track__ends > span { display: grid; gap: 2px; }
+.ito-number-track__ends > span:last-child { text-align: right; }
+.ito-number-track__ends strong { color: #d7e7e1; font: 750 15px/1 var(--font-mono, ui-monospace, monospace); }
+.ito-number-track__ends small { color: #88bdc6; font: 700 8px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: .12em; }
+.ito-number-track__ends i { height: 1px; background: linear-gradient(90deg, rgba(136,189,198,.1), rgba(136,189,198,.58), rgba(136,189,198,.1)); }
+.ito-order-list { position: relative; display: flex; align-items: stretch; gap: 13px; overflow-x: auto; overflow-y: hidden; padding: 24px 7px 18px; scrollbar-color: rgba(136,189,198,.32) transparent; scroll-snap-type: x proximity; }
+.ito-order-list::before { position: absolute; z-index: 0; top: 53%; right: 16px; left: 16px; border-top: 1px dashed rgba(136,189,198,.14); content: ''; pointer-events: none; }
+.ito-order-row { position: relative; z-index: 1; display: grid; width: clamp(166px, 18vw, 210px); min-width: clamp(166px, 18vw, 210px); min-height: 238px; grid-template-rows: auto auto minmax(68px, 1fr) auto; justify-items: stretch; gap: 8px; padding: 11px; border-color: rgba(136,189,198,.24); border-radius: 17px; background: linear-gradient(150deg, #253333, #172321 70%); box-shadow: 0 12px 25px rgba(0,0,0,.26), inset 0 1px rgba(255,255,255,.06); scroll-snap-align: center; }
+.ito-order-row:hover { transform: translateY(-3px) rotate(0); border-color: rgba(136,189,198,.5); background: linear-gradient(150deg, #2a3c3b, #182725 72%); }
+.ito-order-row__position { color: #8dc9d5; font: 700 9px/1 var(--font-mono, ui-monospace, monospace); text-align: left; }
+.ito-order-row__number { width: 66px; min-width: 66px; height: 79px; min-height: 79px; justify-self: center; margin: 0; border-color: rgba(141,201,213,.48); border-radius: 13px; background: radial-gradient(ellipse at 50% 20%, #f5fcf7, #bfd5d0 75%); box-shadow: 0 9px 17px rgba(0,0,0,.25), inset 0 0 0 4px rgba(255,255,255,.42); color: #173034; font-size: 31px; }
+.ito-order-row__number::after { right: 7px; bottom: 6px; }
+.ito-order-row__person { min-width: 0; align-items: center; gap: 7px; }
+.ito-order-row__person > span:last-child { min-width: 0; text-align: center; }
+.ito-order-row__person strong { font-size: 11px; }
+.ito-order-row__person small { display: -webkit-box; overflow: hidden; color: #bdcbc5; font-size: 11px; line-height: 1.35; text-overflow: ellipsis; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+.ito-order-row__controls { justify-content: center; gap: 8px; }
+.ito-order-row__controls button { width: 40px; height: 32px; border-radius: 10px; background: rgba(7,14,13,.5); font-size: 18px; }
+.ito-order-row__controls button:hover:not(:disabled) { transform: translateY(-1px); border-color: #8dc9d5; background: rgba(77,137,155,.2); }
+
 @keyframes ito-scene-enter { from { opacity: 0; } to { opacity: 1; } }
 @keyframes ito-content-enter { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes ito-card-deal { from { opacity: 0; transform: translateY(13px) rotateX(8deg) scale(.97); } to { opacity: 1; transform: translateY(0) rotateX(0) scale(1); } }

@@ -4243,6 +4243,10 @@ svg {
     padding-bottom: var(--mobile-chat-height);
   }
 
+  .call-shell--games-open .call-workspace {
+    padding: 58px 0 78px;
+  }
+
   .chat-panel {
     top: auto;
     height: var(--mobile-chat-height);
@@ -5125,6 +5129,11 @@ svg {
   min-height: 0;
   flex: 1;
   overflow: hidden;
+}
+
+/* Keep game tables clear of the fixed call header and voice controls. */
+.call-shell--games-open .call-workspace {
+  padding: 64px 0 92px;
 }
 
 .games-toggle.is-active {

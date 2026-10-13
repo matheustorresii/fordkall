@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type FormEvent } from 'react'
 import type { ParticipantMedia } from '../../types'
 import type { ItoPlayer, ItoRoomState } from '../../hooks/useRoomIto'
 import { Icon } from '../ui/Icon'
@@ -67,6 +67,8 @@ const ItoRoster = ({
 
 export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoGameStageProps) => {
   const [draft, setDraft] = useState('')
+  const orderRailRef = useRef<HTMLDivElement>(null)
+  const previousCardPositions = useRef(new Map<string, DOMRect>())
   const myIdentity = participants.find((participant) => participant.isLocal)?.id ?? ''
   const myPlayer = playerById(game.state.players, myIdentity)
   const allCluesSubmitted = game.state.players.length > 0 && game.state.players.every((player) => player.clue)
@@ -75,6 +77,28 @@ export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoG
     .filter((player): player is ItoPlayer => Boolean(player))
 
   useEffect(() => setDraft(''), [game.state.gameId, game.state.phase])
+
+  useLayoutEffect(() => {
+    const cards = Array.from(orderRailRef.current?.querySelectorAll<HTMLElement>('[data-ito-player]') ?? [])
+    const nextPositions = new Map<string, DOMRect>()
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    for (const card of cards) {
+      const identity = card.dataset.itoPlayer
+      if (!identity) continue
+      const next = card.getBoundingClientRect()
+      const previous = previousCardPositions.current.get(identity)
+      if (previous && !reduceMotion) {
+        const deltaX = previous.left - next.left
+        const deltaY = previous.top - next.top
+        if (deltaX || deltaY) card.animate([
+          { transform: `translate(${deltaX}px, ${deltaY}px)` },
+          { transform: 'translate(0, 0)' },
+        ], { duration: 280, easing: 'cubic-bezier(.2,.8,.2,1)' })
+      }
+      nextPositions.set(identity, next)
+    }
+    previousCardPositions.current = nextPositions
+  }, [game.state.gameId, game.state.order])
 
   const submitClue = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -229,30 +253,32 @@ export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoG
           )}
 
           {(game.state.phase === 'order' || game.state.phase === 'revealed') && (
-            <div className="ito-order-list" aria-label="Ordem das dicas">
-              {orderedPlayers.map((player, index) => (
-                <div className="ito-order-row" key={player.identity}>
-                  <span className="ito-order-row__position">{String(index + 1).padStart(2, '0')}</span>
-                  <div className="ito-order-row__person">
-                    <span className="ito-player-card__avatar">{avatarLetters(player.name)}</span>
-                    <span><strong>{player.name}</strong><small>{player.clue}</small></span>
-                  </div>
-                  {game.state.phase === 'revealed' ? (
+            <div className="ito-number-track" aria-label="Ordem das dicas do número menor para o maior">
+              <div className="ito-number-track__ends"><span><strong>0</strong><small>MENOR</small></span><i /><span><strong>100</strong><small>MAIOR</small></span></div>
+              <div className="ito-order-list" ref={orderRailRef}>
+                {orderedPlayers.map((player, index) => (
+                  <article className="ito-order-row" data-ito-player={player.identity} key={player.identity}>
+                    <span className="ito-order-row__position">{String(index + 1).padStart(2, '0')}</span>
                     <strong
-                      aria-label={`${player.name}, número ${numberFor(player.identity, game.state) ?? 'indisponível'}`}
+                      aria-label={game.state.phase === 'revealed'
+                        ? `${player.name}, número ${numberFor(player.identity, game.state) ?? 'indisponível'}`
+                        : `${player.name}, número ainda secreto`}
                       className="ito-order-row__number"
                       key={`${game.state.gameId}-${numberFor(player.identity, game.state) ?? 'hidden'}`}
-                    >
-                      {numberFor(player.identity, game.state) ?? '—'}
-                    </strong>
-                  ) : (
-                    <div className="ito-order-row__controls">
-                      <button aria-label={`Mover ${player.name} para cima`} disabled={!game.isParticipating || index === 0} onClick={() => game.movePlayer(player.identity, -1)} type="button">↑</button>
-                      <button aria-label={`Mover ${player.name} para baixo`} disabled={!game.isParticipating || index === orderedPlayers.length - 1} onClick={() => game.movePlayer(player.identity, 1)} type="button">↓</button>
+                    >{game.state.phase === 'revealed' ? numberFor(player.identity, game.state) ?? '—' : '?'}</strong>
+                    <div className="ito-order-row__person">
+                      <span className="ito-player-card__avatar">{participants.find((participant) => participant.id === player.identity)?.avatarDataUrl
+                        ? <img alt="" src={participants.find((participant) => participant.id === player.identity)?.avatarDataUrl} />
+                        : avatarLetters(player.name)}</span>
+                      <span><strong>{player.name}</strong><small>{player.clue}</small></span>
                     </div>
-                  )}
-                </div>
-              ))}
+                    {game.state.phase === 'order' && <div className="ito-order-row__controls">
+                      <button aria-label={`Mover ${player.name} para a esquerda`} disabled={!game.isParticipating || index === 0} onClick={() => game.movePlayer(player.identity, -1)} type="button">←</button>
+                      <button aria-label={`Mover ${player.name} para a direita`} disabled={!game.isParticipating || index === orderedPlayers.length - 1} onClick={() => game.movePlayer(player.identity, 1)} type="button">→</button>
+                    </div>}
+                  </article>
+                ))}
+              </div>
             </div>
           )}
 

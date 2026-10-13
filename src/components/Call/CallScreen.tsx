@@ -420,7 +420,7 @@ export const CallScreen = ({
     : undefined
 
   return (
-    <main className={`call-shell ${chatOpen || musicOpen ? 'call-shell--chat-open' : ''} ${musicOpen ? 'call-shell--music-open' : ''}`}>
+    <main className={`call-shell ${chatOpen || musicOpen ? 'call-shell--chat-open' : ''} ${musicOpen ? 'call-shell--music-open' : ''} ${gamesOpen ? 'call-shell--games-open' : ''}`}>
       <header className="call-header">
         <div className="brand brand--compact">
           <BrandMark />

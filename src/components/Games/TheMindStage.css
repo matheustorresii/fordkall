@@ -214,3 +214,10 @@
     transition: none !important;
   }
 }
+
+/* Keep the lifted cards fully inside their horizontal scroll viewport. */
+.mind-hand__cards { min-height: 122px; overflow-y: hidden; padding: 18px 6px 12px; }
+
+@media (max-width: 760px) {
+  .mind-hand__cards { min-height: 101px; padding: 16px 5px 10px; }
+}

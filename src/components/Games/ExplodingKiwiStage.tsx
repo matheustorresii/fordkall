@@ -115,10 +115,12 @@ export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }
   const [secondPosition, setSecondPosition] = useState(0)
   const [reviveIdentity, setReviveIdentity] = useState('')
   const [orderedPeek, setOrderedPeek] = useState<string[]>([])
+  const [dismissedPeekKey, setDismissedPeekKey] = useState('')
   const [remainingSeconds, setRemainingSeconds] = useState(0)
   const myIdentity = participants.find((participant) => participant.isLocal)?.id ?? ''
   const myPlayer = game.state.players.find((player) => player.identity === myIdentity)
   const prompt = game.state.prompt
+  const peekKey = game.peek.map((card) => card.id).join(':')
   const activeCard = game.hand.find((card) => selectedIds.includes(card.id))
   const isComboFive = selectedIds.length === 5
   const isComboTriple = selectedIds.length === 3
@@ -130,6 +132,7 @@ export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }
 
   useEffect(() => setSelectedIds((ids) => ids.filter((id) => game.hand.some((card) => card.id === id))), [game.hand])
   useEffect(() => setOrderedPeek(game.peek.map((card) => card.id)), [game.peek])
+  useEffect(() => { if (game.peek.length === 0) setDismissedPeekKey('') }, [game.peek])
   useEffect(() => {
     const pending = game.state.pendingAction
     if (!pending) { setRemainingSeconds(0); return }
@@ -155,6 +158,9 @@ export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }
     const updated = [...ids]; [updated[index], updated[next]] = [updated[next]!, updated[index]!]; return updated
   })
   const currentPlayer = game.state.players.find((player) => player.identity === game.state.currentPlayerIdentity)
+  const recentPlays = useMemo(() => {
+    return game.state.discard.filter((card) => card.playedByIdentity).slice(-8)
+  }, [game.state.discard])
   const supportPlayers = game.state.players.filter((player) => !player.alive)
   const canStart = game.participantCount >= 2 && game.participantCount <= 5
   const helpCardIds = game.state.discard.map((card) => card.type)
@@ -259,6 +265,17 @@ export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }
             ))}
           </div>
 
+          {recentPlays.length > 0 && <section className="kiwi-play-history" aria-label="Cartas jogadas recentemente">
+            <span className="kiwi-play-history__label">CARTAS JOGADAS</span>
+            <div className="kiwi-play-history__cards">
+              {recentPlays.map((card) => <article className="kiwi-play-card" key={card.id}>
+                <img alt="" src={artByType[card.type] ?? artByType['kiwi-burst']} />
+                <strong>{game.cardTitle(card.type)}</strong>
+                <small>{game.state.players.find((player) => player.identity === card.playedByIdentity)?.name ?? 'Jogador'}</small>
+              </article>)}
+            </div>
+          </section>}
+
           <div className="kiwi-table__board">
             <button className="kiwi-deck" disabled={!game.isMyTurn || Boolean(game.state.pendingAction || game.state.pendingDefenseIdentity || prompt) || game.state.phase !== 'playing'} onClick={() => game.draw()} type="button">
               <span className="kiwi-deck__art"><img alt="" src="/assets/exploding-kiwi/shuffle.png" /></span><strong>COMPRAR</strong><small>{game.state.deckCount} restantes</small>
@@ -266,6 +283,13 @@ export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }
             <div className="kiwi-discard"><small>DESCARTE</small>{game.state.discard.at(-1) ? <><img alt="" className="kiwi-discard__art" key={game.state.discard.at(-1)!.id} src={artByType[game.state.discard.at(-1)!.type] ?? artByType['kiwi-burst']} /><strong>{game.cardTitle(game.state.discard.at(-1)!.type)}</strong></> : <span>Vazio</span>}</div>
             <div className="kiwi-table__message" role="status">{game.state.lastAction || 'Escolha uma carta para começar.'}</div>
           </div>
+
+          {game.peek.length > 0 && peekKey !== dismissedPeekKey && !prompt && <section className="kiwi-future-reveal" aria-live="polite">
+            <div className="kiwi-future-reveal__heading"><span><small>INFORMAÇÃO PRIVADA</small><strong>Topo do monte</strong></span><button aria-label="Fechar cartas reveladas" onClick={() => setDismissedPeekKey(peekKey)} type="button"><Icon name="x" /></button></div>
+            <div className="kiwi-future-reveal__cards">{game.peek.map((card, index) => <article className="kiwi-future-card" key={card.id}>
+              <small>{index === 0 ? 'PRÓXIMA' : `DEPOIS · ${index + 1}`}</small><img alt="" src={artByType[card.type] ?? artByType['kiwi-burst']} /><strong>{game.cardTitle(card.type)}</strong>
+            </article>)}</div>
+          </section>}
 
           {game.state.pendingAction && <section className="kiwi-response" aria-live="polite">
             <div><span className="kiwi-eyebrow">JANELA DE RESPOSTA · {remainingSeconds}s</span><strong>{game.cardTitle(isPublicCardType(game.state.pendingAction.cardType) ? game.state.pendingAction.cardType : 'kiwi-cat-a')} · {game.state.pendingAction.nopeCount % 2 ? 'anulada por enquanto' : 'pode ser anulada'}</strong></div>

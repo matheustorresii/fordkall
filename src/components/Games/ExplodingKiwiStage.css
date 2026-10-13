@@ -370,3 +370,39 @@
     transition: none !important;
   }
 }
+
+/* A card-table treatment: show actual plays on the felt instead of relying on event text. */
+.kiwi-play-history { display: grid; min-width: 0; gap: 2px; }
+.kiwi-play-history__label { color: #a2c691; font: 700 8px/1.3 var(--font-mono, ui-monospace, monospace); letter-spacing: .14em; }
+.kiwi-play-history__cards { display: flex; min-width: 0; align-items: center; gap: 9px; overflow-x: auto; overflow-y: hidden; padding: 7px 6px 10px; scrollbar-color: rgba(145,169,143,.28) transparent; }
+.kiwi-play-card { display: grid; width: 84px; min-width: 84px; height: 102px; grid-template-rows: 43px auto 15px; justify-items: center; gap: 3px; padding: 6px 5px 5px; border: 1px solid rgba(202,214,193,.3); border-radius: 12px; background: linear-gradient(150deg,#344536,#1a251d 75%); box-shadow: 0 7px 16px rgba(0,0,0,.24), inset 0 1px rgba(255,255,255,.07); text-align: center; animation: kiwi-card-land 420ms cubic-bezier(.18,.8,.24,1) both; }
+.kiwi-play-card img { width: 42px; height: 42px; object-fit: contain; filter: drop-shadow(0 4px 7px rgba(0,0,0,.28)); }
+.kiwi-play-card strong { align-self: center; display: -webkit-box; max-width: 100%; overflow: hidden; color: #e5ecdf; font-size: 9px; line-height: 1.15; text-wrap: balance; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.kiwi-play-card small { max-width: 100%; overflow: hidden; color: #a6b6a7; font: 600 7px/1 var(--font-mono, ui-monospace, monospace); text-overflow: ellipsis; white-space: nowrap; }
+.kiwi-future-reveal { display: grid; gap: 9px; padding: 11px 13px; border: 1px solid rgba(168,209,143,.34); border-radius: 15px; background: linear-gradient(135deg,rgba(36,52,39,.94),rgba(15,22,18,.94)); box-shadow: 0 12px 28px rgba(0,0,0,.28); animation: kiwi-prompt-arrive 300ms cubic-bezier(.18,.8,.24,1) both; }
+.kiwi-future-reveal__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.kiwi-future-reveal__heading > span { display: grid; gap: 3px; }
+.kiwi-future-reveal__heading small { color: #a2c691; font: 700 8px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: .12em; }
+.kiwi-future-reveal__heading strong { color: #eef4e9; font-size: 13px; }
+.kiwi-future-reveal__heading button { display: grid; width: 29px; height: 29px; place-items: center; border: 1px solid rgba(164,190,154,.2); border-radius: 8px; background: rgba(9,14,10,.4); color: #c2d1bc; cursor: pointer; }
+.kiwi-future-reveal__heading button:hover { border-color: rgba(168,209,143,.56); color: #f0f5e9; }
+.kiwi-future-reveal__heading button svg { width: 15px; height: 15px; }
+.kiwi-future-reveal__cards { display: flex; gap: 9px; overflow-x: auto; padding: 5px 3px 8px; }
+.kiwi-future-card { display: grid; width: 95px; min-width: 95px; min-height: 108px; grid-template-rows: auto 50px auto; justify-items: center; gap: 4px; padding: 7px; border: 1px solid rgba(202,214,193,.31); border-radius: 11px; background: linear-gradient(150deg,#354736,#1a251d); box-shadow: 0 7px 14px rgba(0,0,0,.22); text-align: center; }
+.kiwi-future-card > small { color: #b7d4a1; font: 700 7px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: .08em; }
+.kiwi-future-card img { width: 48px; height: 48px; object-fit: contain; }
+.kiwi-future-card > strong { align-self: center; display: -webkit-box; overflow: hidden; color: #e4ebdf; font-size: 8px; line-height: 1.2; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+
+.kiwi-table { scroll-padding-bottom: 24px; }
+.kiwi-card-row { min-height: 190px; padding: 22px 6px 14px; }
+
+@media (max-width: 760px) {
+  .kiwi-play-history { gap: 3px; }
+  .kiwi-play-card { width: 72px; min-width: 72px; height: 94px; grid-template-rows: 38px auto 14px; }
+  .kiwi-play-card img { width: 37px; height: 37px; }
+  .kiwi-card-row { min-height: 158px; padding: 18px 5px 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kiwi-play-card, .kiwi-future-reveal { animation: none !important; }
+}
