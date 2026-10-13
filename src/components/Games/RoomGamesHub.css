@@ -77,6 +77,13 @@
 .room-game-card__art svg { width: 23px; height: 23px; }
 .room-game-card__art--kiwi { border-color: rgba(177, 199, 132, 0.27); background: rgba(135, 155, 76, 0.14); }
 .room-game-card__art--kiwi img { width: 100%; height: 100%; object-fit: cover; }
+.room-game-card__art--truco { display: flex; align-items: center; justify-content: center; gap: 1px; border-color: rgba(202, 151, 139, 0.27); background: rgba(123, 56, 50, 0.16); font-family: Georgia, serif; font-size: 24px; }
+.room-game-card__art--truco span:first-child { color: #d2d6d2; }
+.room-game-card__art--truco span:last-child { margin-top: 8px; color: #d98d80; }
+.room-game-card--truco:hover { border-color: rgba(209, 145, 127, 0.5); }
+.room-game-card__art--mind { display: flex; align-items: center; justify-content: center; gap: 3px; border-color: rgba(159, 180, 219, 0.27); background: rgba(60, 78, 124, 0.18); color: #c3d0f0; font: 700 9px/1 var(--font-mono, ui-monospace, monospace); }
+.room-game-card__art--mind span:nth-child(2) { align-self: flex-start; margin-top: 13px; color: #8ea3d8; font-size: 12px; }
+.room-game-card--mind:hover { border-color: rgba(152, 174, 222, 0.5); }
 .room-game-card__status { display: inline-flex; align-items: center; gap: 7px; padding: 6px 9px; border: 1px solid rgba(118, 189, 153, 0.2); border-radius: 999px; background: rgba(53, 104, 75, 0.15); color: #a8d0b6; font-size: 10px; white-space: nowrap; }
 .room-game-card__status i { width: 6px; height: 6px; border-radius: 50%; background: #8fcda5; box-shadow: 0 0 8px rgba(143, 205, 165, 0.42); }
 .room-game-card__copy { display: grid; gap: 7px; }

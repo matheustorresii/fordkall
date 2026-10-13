@@ -20,6 +20,7 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - volume da transmissão separado do volume do microfone de quem transmite;
 - seleção entre múltiplas transmissões simultâneas;
 - chat realtime de texto e imagens de até 4 MB durante a call;
+- central de jogos sincronizados na sala: ITO, Exploding Kiwi, Truco Mineiro em duplas e The Mind cooperativo;
 - Picture-in-Picture da transmissão selecionada;
 - janela separada, redimensionável e encaixável no desktop para a transmissão selecionada;
 - seleção persistente de microfone e webcam, além de saídas separadas para voz/live quando `setSinkId` é suportado;

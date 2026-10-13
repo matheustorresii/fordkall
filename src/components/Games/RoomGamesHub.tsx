@@ -6,8 +6,14 @@ interface RoomGamesHubProps {
   itoPlayers: number
   kiwiActive: boolean
   kiwiPlayers: number
+  trucoActive: boolean
+  trucoPlayers: number
+  mindActive: boolean
+  mindPlayers: number
   onSelectIto: () => void
   onSelectKiwi: () => void
+  onSelectTruco: () => void
+  onSelectMind: () => void
   onExit: () => void
 }
 
@@ -16,8 +22,14 @@ export const RoomGamesHub = ({
   itoPlayers,
   kiwiActive,
   kiwiPlayers,
+  trucoActive,
+  trucoPlayers,
+  mindActive,
+  mindPlayers,
   onSelectIto,
   onSelectKiwi,
+  onSelectTruco,
+  onSelectMind,
   onExit,
 }: RoomGamesHubProps) => (
   <section className="room-games-hub" aria-label="Central de jogos da sala">
@@ -41,7 +53,7 @@ export const RoomGamesHub = ({
       <div className="room-games-hub__intro">
         <span>JOGAR EM GRUPO</span>
         <h2>O que vamos jogar?</h2>
-        <p>Escolha um jogo para abrir ou retomar. As partidas ficam salvas na sala enquanto vocês conversam.</p>
+        <p>Escolha um jogo para abrir ou retomar. As ações e as cartas privadas sincronizam com quem está na sala.</p>
       </div>
 
       <div className="room-games-hub__grid">
@@ -73,6 +85,36 @@ export const RoomGamesHub = ({
           </span>
           <span className="room-game-card__bottomline">
             <span>{kiwiActive ? `${kiwiPlayers} vivas · retomar` : 'Cartas · 2–5 jogadores'}</span>
+            <Icon name="chevron" />
+          </span>
+        </button>
+
+        <button className="room-game-card room-game-card--truco" onClick={onSelectTruco} type="button">
+          <span className="room-game-card__topline">
+            <span className="room-game-card__art room-game-card__art--truco"><span>♠</span><span>♥</span></span>
+            {trucoActive && <span className="room-game-card__status"><i />Partida ativa</span>}
+          </span>
+          <span className="room-game-card__copy">
+            <strong>Truco Mineiro</strong>
+            <span>Monte as duplas, esconda suas cartas e aumente a aposta na hora certa.</span>
+          </span>
+          <span className="room-game-card__bottomline">
+            <span>{trucoActive ? `${trucoPlayers}/4 na mesa · retomar` : 'Cartas · 4 jogadores'}</span>
+            <Icon name="chevron" />
+          </span>
+        </button>
+
+        <button className="room-game-card room-game-card--mind" onClick={onSelectMind} type="button">
+          <span className="room-game-card__topline">
+            <span className="room-game-card__art room-game-card__art--mind"><span>1</span><span>···</span><span>100</span></span>
+            {mindActive && <span className="room-game-card__status"><i />Partida ativa</span>}
+          </span>
+          <span className="room-game-card__copy">
+            <strong>The Mind</strong>
+            <span>Joguem suas cartas em ordem crescente — sem combinar quem tem qual número.</span>
+          </span>
+          <span className="room-game-card__bottomline">
+            <span>{mindActive ? `${mindPlayers} pessoas · retomar` : 'Cooperativo · 2–4 jogadores'}</span>
             <Icon name="chevron" />
           </span>
         </button>

@@ -1,0 +1,133 @@
+.truco-stage { position: relative; display: flex; width: 100%; height: 100%; min-height: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--line, #29312e); border-radius: 22px; background: radial-gradient(ellipse at 50% 0%, rgba(139, 126, 105, .09), transparent 42%), linear-gradient(145deg, #141513, #0c0e0d 58%, #111311); color: var(--text, #e7ece9); }
+.truco-stage__topbar { z-index: 2; display: flex; min-height: 70px; align-items: center; justify-content: space-between; gap: 16px; padding: 10px 20px; border-bottom: 1px solid rgba(156, 153, 136, .15); background: rgba(8, 10, 9, .62); }
+.truco-stage__brand,.truco-stage__topbar-actions,.truco-stage__status { display: flex; align-items: center; }
+.truco-stage__brand { min-width: 200px; gap: 11px; }
+.truco-stage__mark { display: flex; width: 43px; height: 43px; flex: 0 0 auto; align-items: center; justify-content: center; border: 1px solid rgba(195, 156, 140, .27); border-radius: 14px; background: rgba(91, 46, 40, .2); font: 20px Georgia, serif; }
+.truco-stage__mark span:first-child { color: #d8ded9; }
+.truco-stage__mark span:last-child { margin: 8px 0 0 -2px; color: #dc8b7a; }
+.truco-stage__brand small,.truco-eyebrow { color: #b2a58c; font: 700 10px/1.4 var(--font-mono, ui-monospace, monospace); letter-spacing: .12em; }
+.truco-stage__brand strong { display: block; margin-top: 3px; font-size: 14px; letter-spacing: .02em; }
+.truco-stage__hub-button { display: inline-flex; min-height: 36px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; border: 1px solid rgba(150, 149, 137, .2); border-radius: 10px; background: rgba(26, 28, 26, .68); color: #c0c4c0; cursor: pointer; font: inherit; font-size: 12px; }
+.truco-stage__hub-button:hover { border-color: rgba(196, 162, 137, .44); color: #f0eee8; }
+.truco-stage__hub-button svg { width: 16px; height: 16px; }
+.truco-stage__topbar-actions { min-width: 200px; justify-content: flex-end; gap: 12px; }
+.truco-stage__status { gap: 7px; color: #bdc4bd; font-size: 12px; white-space: nowrap; }
+.truco-stage__status i { width: 7px; height: 7px; border-radius: 50%; background: #b3ceaa; box-shadow: 0 0 10px rgba(179, 206, 170, .42); }
+.truco-stage__error { z-index: 3; display: flex; align-items: center; gap: 10px; margin: 12px 18px 0; padding: 10px 12px; border: 1px solid rgba(238, 164, 111, .3); border-radius: 11px; background: rgba(63, 40, 28, .9); color: #f4c4a3; font-size: 13px; }
+.truco-stage__error > span { flex: 1; }
+.truco-stage__error svg { width: 17px; height: 17px; flex: 0 0 auto; }
+.truco-stage__error button { display: grid; width: 28px; height: 28px; place-items: center; border: 0; background: none; color: inherit; cursor: pointer; }
+.truco-lobby { display: grid; width: min(1000px, 100%); min-height: 0; grid-template-columns: minmax(0, 1fr) minmax(260px, .8fr); align-content: center; gap: 28px clamp(24px, 5vw, 58px); overflow: auto; margin: auto; padding: clamp(22px, 4vw, 52px); }
+.truco-lobby__intro { align-self: center; max-width: 560px; }
+.truco-lobby__intro h2 { margin: 12px 0 14px; color: #f1f2ed; font-size: clamp(32px, 4vw, 48px); font-weight: 650; line-height: 1.07; letter-spacing: -.04em; }
+.truco-lobby__intro p { max-width: 480px; margin: 0; color: #aab1ab; font-size: 15px; line-height: 1.7; }
+.truco-lobby__rules { display: flex; align-self: center; flex-direction: column; gap: 18px; padding: 19px; border: 1px solid rgba(155, 148, 130, .18); border-radius: 16px; background: rgba(21, 23, 21, .64); }
+.truco-lobby__rules > div { display: grid; gap: 8px; }
+.truco-lobby__rules small,.truco-lobby__footer > div > small { color: #858c84; font: 600 10px/1.4 var(--font-mono, ui-monospace, monospace); letter-spacing: .08em; }
+.truco-lobby__rules strong { color: #e6e4dc; font: 650 19px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: .06em; }
+.truco-lobby__rules strong span { color: #777e75; font-weight: 400; }
+.truco-lobby__rules p { margin: 0; color: #979f97; font-size: 12px; line-height: 1.55; }
+.truco-lobby__footer { display: flex; grid-column: 1 / -1; align-items: flex-end; justify-content: space-between; gap: 16px; padding-top: 2px; }
+.truco-lobby__footer > div > small { display: block; margin-bottom: 9px; }
+.truco-roster { display: flex; flex-wrap: wrap; gap: 7px; }
+.truco-roster__person { display: flex; max-width: 190px; align-items: center; gap: 7px; padding: 5px 10px 5px 5px; overflow: hidden; border: 1px solid rgba(145, 145, 132, .18); border-radius: 999px; background: rgba(22, 24, 22, .78); color: #d1d5d0; font-size: 12px; }
+.truco-roster__person > i,.truco-player__avatar { display: grid; width: 28px; height: 28px; flex: 0 0 auto; place-items: center; overflow: hidden; border: 1px solid rgba(171, 161, 140, .25); border-radius: 50%; background: #292b26; color: #d7cfbc; font: 700 10px/1 var(--font-mono, ui-monospace, monospace); font-style: normal; }
+.truco-roster__person img,.truco-player__avatar img { width: 100%; height: 100%; object-fit: cover; }
+.truco-roster__person > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.truco-lobby__hint { grid-column: 1 / -1; justify-self: end; margin-top: -24px; color: #a8b0a8; font-size: 12px; }
+.truco-button { display: inline-flex; min-height: 38px; align-items: center; justify-content: center; gap: 8px; padding: 0 13px; border: 1px solid rgba(155, 148, 130, .24); border-radius: 10px; background: rgba(34, 34, 30, .78); color: #e0e2db; cursor: pointer; font: inherit; font-size: 12px; font-weight: 650; transition: border-color 140ms ease, background 140ms ease, transform 140ms ease; }
+.truco-button:hover:not(:disabled) { transform: translateY(-1px); border-color: rgba(208, 172, 142, .5); background: rgba(58, 47, 39, .64); }
+.truco-button:disabled { cursor: not-allowed; opacity: .4; }
+.truco-button svg { width: 16px; height: 16px; }
+.truco-button--primary { border-color: rgba(203, 161, 126, .46); background: #c9a37f; color: #211a15; }
+.truco-button--primary:hover:not(:disabled) { border-color: #dfc1a3; background: #d6b18d; }
+.truco-button--subtle { background: transparent; color: #a3aaa3; }
+.truco-table { display: flex; min-height: 0; flex: 1; flex-direction: column; gap: 14px; overflow: auto; padding: clamp(14px, 2vw, 24px); }
+.truco-table__heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+.truco-table__heading h2 { margin: 5px 0 0; color: #edf0eb; font-size: clamp(22px, 3vw, 32px); line-height: 1.15; letter-spacing: -.03em; }
+.truco-score { display: flex; align-items: center; gap: 12px; padding: 8px 13px; border: 1px solid rgba(148, 146, 132, .18); border-radius: 14px; background: rgba(20, 22, 20, .8); }
+.truco-score__team { display: grid; justify-items: center; gap: 2px; min-width: 44px; }
+.truco-score__team small { color: #92978e; font: 600 9px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: .07em; }
+.truco-score__team strong { color: #e8e8e0; font-size: 22px; line-height: 1; }
+.truco-score__team--0 strong { color: #d8b596; }
+.truco-score__team--1 strong { color: #a9bec9; }
+.truco-score__divider { color: #697068; }
+.truco-table__message { margin: -4px 0 0; color: #aab1a8; font-size: 13px; }
+.truco-table__players { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.truco-player { position: relative; display: flex; min-width: 0; min-height: 60px; align-items: center; gap: 9px; padding: 8px 10px; border: 1px solid rgba(142, 143, 131, .17); border-radius: 12px; background: rgba(23, 25, 22, .78); }
+.truco-player--team-0 .truco-player__avatar { border-color: rgba(194, 153, 122, .3); color: #d8b596; }
+.truco-player--team-1 .truco-player__avatar { border-color: rgba(134, 168, 189, .3); color: #acc4d2; }
+.truco-player.is-current { border-color: rgba(195, 173, 130, .54); background: rgba(45, 42, 32, .74); box-shadow: 0 0 0 1px rgba(195, 173, 130, .08) inset; }
+.truco-player > span { display: block; min-width: 0; flex: 1; }
+.truco-player > span strong,.truco-player > span small { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.truco-player > span strong { color: #e0e4de; font-size: 11px; font-weight: 650; }
+.truco-player > span small { margin-top: 3px; color: #8e978e; font-size: 9px; }
+.truco-player em { color: #d8c394; font: 700 8px/1 var(--font-mono, ui-monospace, monospace); font-style: normal; white-space: nowrap; }
+.truco-play-card { display: grid; width: 31px; height: 40px; flex: 0 0 auto; place-items: center; border: 1px solid rgba(185, 184, 166, .35); border-radius: 6px; background: #e7e4d9; color: #25251f; font: 700 13px/1 var(--font-mono, ui-monospace, monospace); box-shadow: 0 3px 7px rgba(0,0,0,.24); }
+.truco-play-card.is-red { color: #9e463c; }
+.truco-raise { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 12px 14px; border: 1px solid rgba(204, 164, 122, .26); border-radius: 13px; background: rgba(54, 43, 32, .42); }
+.truco-raise > div:first-child { display: grid; gap: 4px; }
+.truco-raise > div:first-child small { color: #c5a782; font: 700 9px/1.4 var(--font-mono, ui-monospace, monospace); letter-spacing: .1em; }
+.truco-raise > div:first-child strong { color: #eee4d5; font-size: 13px; }
+.truco-raise__actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px; }
+.truco-table__call-row { display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: 12px; color: #9ea69d; font-size: 12px; }
+.truco-button--raise { min-height: 34px; padding-inline: 11px; border-color: rgba(193, 156, 123, .35); color: #dec19d; }
+.truco-hand { display: flex; min-height: 0; flex-direction: column; gap: 9px; padding: 12px; border: 1px solid rgba(142, 143, 131, .16); border-radius: 14px; background: rgba(12, 14, 12, .72); }
+.truco-hand__heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.truco-hand__heading strong { color: #dce2dc; font-size: 13px; }
+.truco-hand__heading small { color: #919990; font-size: 10px; }
+.truco-hand__cards { display: flex; min-height: 116px; align-items: flex-end; gap: 9px; overflow-x: auto; padding: 3px 2px 5px; }
+.truco-card { position: relative; display: flex; width: clamp(78px, 9vw, 104px); min-width: clamp(78px, 9vw, 104px); height: 110px; flex-direction: column; align-items: flex-start; justify-content: space-between; padding: 11px 12px; border: 1px solid #c9c7bc; border-radius: 10px; background: linear-gradient(150deg, #f1efe5, #d9d8cc); color: #24251f; cursor: pointer; text-align: left; box-shadow: 0 3px 7px rgba(0,0,0,.19); transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease; }
+.truco-card:hover:not(:disabled) { transform: translateY(-5px); border-color: #f1dfb9; box-shadow: 0 8px 16px rgba(0,0,0,.25); }
+.truco-card:focus-visible { outline: 2px solid #d2b38b; outline-offset: 2px; }
+.truco-card:disabled { cursor: not-allowed; opacity: .67; }
+.truco-card > strong { font: 700 25px/1 var(--font-mono, ui-monospace, monospace); }
+.truco-card > span { align-self: flex-end; font: 30px/1 Georgia, serif; }
+.truco-card.is-red { color: #a2483d; }
+.truco-card.is-manilha { border-color: #c0a578; box-shadow: 0 0 0 2px rgba(192, 165, 120, .26) inset; }
+.truco-card > small { position: absolute; right: 5px; bottom: 5px; color: #77684c; font: 700 7px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: .06em; }
+.truco-hand__waiting { align-self: center; color: #9ba39b; font-size: 12px; }
+.truco-result-actions { display: flex; flex-wrap: wrap; justify-content: center; gap: 9px; padding: 9px 0; }
+
+@media (max-width: 760px) {
+  .truco-stage { border-radius: 15px; }
+  .truco-stage__topbar { min-height: 58px; padding: 8px 12px; }
+  .truco-stage__mark { width: 36px; height: 36px; border-radius: 11px; font-size: 17px; }
+  .truco-stage__brand { min-width: 0; }
+  .truco-stage__topbar-actions { min-width: 0; }
+  .truco-stage__hub-button { gap: 5px; padding: 0 7px; font-size: 10px; }
+  .truco-stage__status { display: none; }
+  .truco-lobby { grid-template-columns: minmax(0, 1fr); gap: 18px; padding: 19px 14px; }
+  .truco-lobby__intro h2 { font-size: 31px; }
+  .truco-lobby__intro p { font-size: 13px; }
+  .truco-lobby__rules { gap: 12px; padding: 14px; }
+  .truco-lobby__rules strong { font-size: 17px; }
+  .truco-lobby__footer { grid-column: auto; align-items: stretch; flex-direction: column; }
+  .truco-lobby__footer .truco-button { align-self: flex-start; }
+  .truco-lobby__hint { grid-column: auto; justify-self: start; margin-top: -12px; }
+  .truco-table { gap: 10px; padding: 12px 9px; }
+  .truco-table__heading { align-items: flex-start; flex-direction: column; }
+  .truco-table__heading h2 { font-size: 23px; }
+  .truco-score { align-self: stretch; justify-content: center; padding: 6px 10px; }
+  .truco-score__team { grid-template-columns: auto auto; align-items: baseline; gap: 7px; }
+  .truco-player { min-height: 50px; gap: 6px; padding: 6px; }
+  .truco-player__avatar { width: 28px; height: 28px; }
+  .truco-player > span strong { font-size: 9px; }
+  .truco-player > span small { font-size: 8px; }
+  .truco-player em { display: none; }
+  .truco-play-card { width: 26px; height: 34px; font-size: 11px; }
+  .truco-raise { align-items: stretch; flex-direction: column; padding: 10px; }
+  .truco-raise__actions { justify-content: flex-start; }
+  .truco-table__call-row { align-items: flex-start; }
+  .truco-hand { padding: 9px; }
+  .truco-card { width: 80px; min-width: 80px; height: 100px; padding: 9px; }
+}
+
+@media (max-width: 430px) {
+  .truco-player__avatar { display: none; }
+  .truco-player { gap: 3px; padding: 5px 4px; }
+  .truco-player > span strong { font-size: 8px; }
+  .truco-player > span small { font-size: 7px; }
+  .truco-play-card { width: 23px; height: 31px; font-size: 10px; }
+  .truco-stage__brand strong { max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
