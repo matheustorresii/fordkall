@@ -27,7 +27,6 @@ interface TrucoMineiroStageProps {
 
 const suitMark: Record<TrucoCard['suit'], string> = { paus: '♣', ouros: '♦', copas: '♥', espadas: '♠' }
 const avatarLetters = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?'
-const cardName = (card: TrucoCard) => `${card.rank}${suitMark[card.suit]}`
 const isManilha = (card: TrucoCard) => ['4-paus', '7-copas', 'A-espadas', '7-ouros'].includes(card.id)
 
 export const TrucoMineiroStage = ({ game, participants, onExit, onOpenGameHub }: TrucoMineiroStageProps) => {
@@ -119,14 +118,19 @@ export const TrucoMineiroStage = ({ game, participants, onExit, onOpenGameHub }:
             {[...game.state.players].sort((a, b) => a.seat - b.seat).map((player) => {
               const participant = participants.find((person) => person.id === player.identity)
               const isCurrent = game.state.phase === 'playing' && game.state.currentSeat === player.seat
+              const played = visiblePlays.find((play) => play.identity === player.identity)
               return (
                 <div className={`truco-player truco-player--team-${player.team} ${isCurrent ? 'is-current' : ''}`} key={player.identity}>
                   <i className="truco-player__avatar">{participant?.avatarDataUrl ? <img alt="" src={participant.avatarDataUrl} /> : avatarLetters(player.name)}</i>
                   <span><strong>{player.name}{player.identity === localIdentity ? ' · você' : ''}</strong><small>Dupla {player.team + 1}{player.seat === game.state.dealerSeat ? ' · mão do baralho' : ''}</small></span>
                   {isCurrent && <em>SUA VEZ</em>}
-                  {visiblePlays.find((play) => play.identity === player.identity) && (
-                    <b className={`truco-play-card ${visiblePlays.find((play) => play.identity === player.identity)?.card.suit === 'copas' || visiblePlays.find((play) => play.identity === player.identity)?.card.suit === 'ouros' ? 'is-red' : ''}`}>
-                      {cardName(visiblePlays.find((play) => play.identity === player.identity)!.card)}
+                  {played && (
+                    <b
+                      aria-label={`${played.card.rank} de ${played.card.suit}`}
+                      className={`truco-play-card ${played.card.suit === 'copas' || played.card.suit === 'ouros' ? 'is-red' : ''}`}
+                      key={`${game.state.trickPlays.length}-${played.card.id}`}
+                    >
+                      <span>{played.card.rank}</span><i>{suitMark[played.card.suit]}</i>
                     </b>
                   )}
                 </div>
@@ -166,7 +170,9 @@ export const TrucoMineiroStage = ({ game, participants, onExit, onOpenGameHub }:
                       title={`${card.rank} de ${card.suit}${isManilha(card) ? ' · manilha fixa' : ''}`}
                       type="button"
                     >
-                      <strong>{card.rank}</strong><span>{suitMark[card.suit]}</span>
+                      <span className="truco-card__corner"><strong>{card.rank}</strong><i>{suitMark[card.suit]}</i></span>
+                      <span className="truco-card__pip" aria-hidden="true">{suitMark[card.suit]}</span>
+                      <span className="truco-card__corner truco-card__corner--bottom" aria-hidden="true"><strong>{card.rank}</strong><i>{suitMark[card.suit]}</i></span>
                       {isManilha(card) && <small>MANILHA</small>}
                     </button>
                   ))}

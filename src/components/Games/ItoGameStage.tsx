@@ -171,7 +171,7 @@ export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoG
               <div className="ito-number-card">
                 <small>SEU NÚMERO SECRETO</small>
                 {game.isParticipating && game.localNumber !== null
-                  ? <strong>{game.localNumber}</strong>
+                  ? <strong key={`${game.state.gameId}-${game.localNumber}`}>{game.localNumber}</strong>
                   : <strong className="ito-number-card__waiting">···</strong>}
                 <span>{game.isParticipating
                   ? game.localNumber !== null ? 'Guarde só para você.' : 'Recebendo sua carta…'
@@ -238,7 +238,13 @@ export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoG
                     <span><strong>{player.name}</strong><small>{player.clue}</small></span>
                   </div>
                   {game.state.phase === 'revealed' ? (
-                    <strong className="ito-order-row__number">{numberFor(player.identity, game.state) ?? '—'}</strong>
+                    <strong
+                      aria-label={`${player.name}, número ${numberFor(player.identity, game.state) ?? 'indisponível'}`}
+                      className="ito-order-row__number"
+                      key={`${game.state.gameId}-${numberFor(player.identity, game.state) ?? 'hidden'}`}
+                    >
+                      {numberFor(player.identity, game.state) ?? '—'}
+                    </strong>
                   ) : (
                     <div className="ito-order-row__controls">
                       <button aria-label={`Mover ${player.name} para cima`} disabled={!game.isParticipating || index === 0} onClick={() => game.movePlayer(player.identity, -1)} type="button">↑</button>

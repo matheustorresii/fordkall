@@ -263,7 +263,7 @@ export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }
             <button className="kiwi-deck" disabled={!game.isMyTurn || Boolean(game.state.pendingAction || game.state.pendingDefenseIdentity || prompt) || game.state.phase !== 'playing'} onClick={() => game.draw()} type="button">
               <span className="kiwi-deck__art"><img alt="" src="/assets/exploding-kiwi/shuffle.png" /></span><strong>COMPRAR</strong><small>{game.state.deckCount} restantes</small>
             </button>
-            <div className="kiwi-discard"><small>DESCARTE</small>{game.state.discard.at(-1) ? <><img alt="" src={artByType[game.state.discard.at(-1)!.type] ?? artByType['kiwi-burst']} /><strong>{game.cardTitle(game.state.discard.at(-1)!.type)}</strong></> : <span>Vazio</span>}</div>
+            <div className="kiwi-discard"><small>DESCARTE</small>{game.state.discard.at(-1) ? <><img alt="" className="kiwi-discard__art" key={game.state.discard.at(-1)!.id} src={artByType[game.state.discard.at(-1)!.type] ?? artByType['kiwi-burst']} /><strong>{game.cardTitle(game.state.discard.at(-1)!.type)}</strong></> : <span>Vazio</span>}</div>
             <div className="kiwi-table__message" role="status">{game.state.lastAction || 'Escolha uma carta para começar.'}</div>
           </div>
 
@@ -309,7 +309,7 @@ export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }
                 </div>
               </div>
               {game.hand.length ? <div className={`kiwi-card-row ${myPlayer?.blind ? 'is-blind' : ''}`}>
-                {game.hand.map((card) => <button aria-pressed={selectedIds.includes(card.id)} className={`kiwi-card ${selectedIds.includes(card.id) ? 'is-selected' : ''} ${card.marked ? 'is-marked' : ''}`} key={card.id} onClick={() => toggleCard(card.id)} title={myPlayer?.blind ? 'Carta virada' : descriptions[card.type]} type="button">
+                {game.hand.map((card) => <button aria-label={myPlayer?.blind ? 'Carta virada' : `${game.cardTitle(card.type)}. ${descriptions[card.type]}`} aria-pressed={selectedIds.includes(card.id)} className={`kiwi-card ${selectedIds.includes(card.id) ? 'is-selected' : ''} ${card.marked ? 'is-marked' : ''}`} key={card.id} onClick={() => toggleCard(card.id)} title={myPlayer?.blind ? 'Carta virada' : descriptions[card.type]} type="button">
                   {!myPlayer?.blind && <img alt="" src={artByType[card.type] ?? artByType['kiwi-burst']} />}
                   <span className="kiwi-card__name">{myPlayer?.blind ? 'Virada' : game.cardTitle(card.type)}</span>
                   {!myPlayer?.blind && <small>{descriptions[card.type]}</small>}

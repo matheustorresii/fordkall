@@ -131,3 +131,106 @@
   .truco-play-card { width: 23px; height: 31px; font-size: 10px; }
   .truco-stage__brand strong { max-width: 115px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+
+.truco-stage { animation: truco-scene-enter 420ms ease-out both; }
+.truco-lobby, .truco-table { animation: truco-table-enter 520ms cubic-bezier(.2,.75,.25,1) both; }
+.truco-table__players { perspective: 900px; }
+.truco-player { box-shadow: 0 6px 18px rgba(0,0,0,.13), inset 0 1px rgba(255,255,255,.02); transition: transform 200ms ease, border-color 200ms ease, background 200ms ease, box-shadow 200ms ease; }
+.truco-player.is-current { box-shadow: 0 0 0 1px rgba(195,173,130,.11) inset, 0 8px 24px rgba(0,0,0,.18); }
+.truco-player.is-current::after { position: absolute; top: 0; right: 12px; left: 12px; height: 1px; background: linear-gradient(90deg, transparent, rgba(219,192,143,.72), transparent); content: ''; animation: truco-turn-glow 2.4s ease-in-out infinite; }
+.truco-play-card {
+  position: relative;
+  display: flex;
+  width: 34px;
+  height: 44px;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 0;
+  padding: 4px 5px;
+  border-color: #d1ccb9;
+  border-radius: 6px;
+  background: linear-gradient(150deg, #f6f4e9, #dbd9cd);
+  box-shadow: 0 4px 9px rgba(0,0,0,.27), inset 0 0 0 2px rgba(255,255,255,.38);
+  animation: truco-card-play 360ms cubic-bezier(.16,.82,.26,1) both;
+}
+.truco-play-card::after { position: absolute; inset: 3px; border: 1px solid rgba(84,83,71,.14); border-radius: 3px; content: ''; pointer-events: none; }
+.truco-play-card > span { font: 700 10px/1 var(--font-mono, ui-monospace, monospace); }
+.truco-play-card > i { align-self: flex-end; margin: auto 0 0; font: 20px/.8 Georgia,serif; font-style: normal; }
+.truco-raise { box-shadow: 0 12px 28px rgba(0,0,0,.15); animation: truco-prompt-enter 320ms ease both; }
+.truco-hand { position: relative; overflow: hidden; box-shadow: 0 13px 28px rgba(0,0,0,.16), inset 0 1px rgba(255,255,255,.025); }
+.truco-hand::before { position: absolute; top: 0; right: 12px; left: 12px; height: 1px; background: linear-gradient(90deg, transparent, rgba(201,163,127,.25), transparent); content: ''; }
+.truco-hand__cards { perspective: 1000px; gap: 12px; padding-inline: 5px; }
+.truco-card {
+  isolation: isolate;
+  overflow: hidden;
+  border-color: #d8d4c6;
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse at 50% 45%, rgba(255,255,255,.54), transparent 48%),
+    repeating-linear-gradient(0deg, rgba(58,52,39,.018) 0 1px, transparent 1px 4px),
+    linear-gradient(150deg, #f8f5e9, #dddbcf);
+  box-shadow: 0 8px 16px rgba(0,0,0,.23), inset 0 0 0 4px rgba(255,255,255,.42), inset 0 -12px 22px rgba(83,76,58,.045);
+  transform-origin: center 115%;
+  animation: truco-card-deal 440ms cubic-bezier(.18,.8,.24,1) backwards;
+}
+.truco-card::before {
+  position: absolute;
+  z-index: -1;
+  inset: 7px;
+  border: 1px solid rgba(100,95,79,.18);
+  border-radius: 6px;
+  background: repeating-linear-gradient(45deg, rgba(98,94,79,.025) 0 1px, transparent 1px 5px);
+  content: '';
+}
+.truco-card:nth-child(2) { animation-delay: 75ms; }
+.truco-card:nth-child(3) { animation-delay: 150ms; }
+.truco-card:hover:not(:disabled) { z-index: 2; transform: translateY(-10px) rotate(-2deg) scale(1.045); border-color: #fff1d2; box-shadow: 0 19px 28px rgba(0,0,0,.34), inset 0 0 0 4px rgba(255,255,255,.5), 0 0 0 1px rgba(255,231,192,.3); }
+.truco-card:active:not(:disabled) { transform: translateY(-4px) scale(.99); }
+.truco-card > span.truco-card__corner {
+  position: absolute;
+  z-index: 1;
+  top: 11px;
+  left: 12px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 0;
+  align-self: auto;
+  font: inherit;
+}
+.truco-card__corner > strong { font: 750 22px/.9 var(--font-mono, ui-monospace, monospace); }
+.truco-card__corner > i { font: 19px/.95 Georgia,serif; font-style: normal; }
+.truco-card > span.truco-card__corner--bottom { top: auto; right: 11px; bottom: 10px; left: auto; transform: rotate(180deg); }
+.truco-card > span.truco-card__pip { position: absolute; z-index: 0; top: 50%; left: 50%; display: block; align-self: auto; color: currentColor; font: 48px/1 Georgia,serif; opacity: .9; transform: translate(-50%,-50%); }
+.truco-card.is-red { background-color: #f3ebe1; background-image: radial-gradient(ellipse at 50% 45%, rgba(255,255,255,.58), transparent 48%), repeating-linear-gradient(0deg, rgba(108,45,37,.025) 0 1px, transparent 1px 4px), linear-gradient(150deg,#fbf3e9,#e6d8cf); }
+.truco-card.is-manilha { border-color: #d0aa66; box-shadow: 0 0 0 2px rgba(192,165,120,.32) inset, 0 8px 16px rgba(0,0,0,.23); }
+.truco-card.is-manilha::after { position: absolute; z-index: 2; inset: 2px; border: 1px solid rgba(212,174,103,.5); border-radius: 9px; background: linear-gradient(115deg, transparent 22%, rgba(255,238,187,.14) 47%, transparent 67%); content: ''; pointer-events: none; }
+.truco-card > small { z-index: 3; top: 7px; right: 7px; bottom: auto; padding: 3px 4px; border: 1px solid rgba(144,112,59,.28); border-radius: 4px; background: rgba(226,204,161,.58); color: #765f38; font-size: 6px; }
+.truco-lobby__rules { box-shadow: 0 14px 32px rgba(0,0,0,.14), inset 0 1px rgba(255,255,255,.025); }
+.truco-score__team strong { transition: transform 220ms cubic-bezier(.2,.8,.2,1), color 220ms ease; }
+.truco-table__message { padding: 9px 12px; border: 1px solid rgba(196,162,137,.12); border-radius: 9px; background: rgba(52,43,34,.25); }
+@keyframes truco-scene-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes truco-table-enter { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes truco-card-deal { from { opacity: 0; transform: translateY(22px) rotate(0deg) scale(.9); } to { opacity: 1; } }
+@keyframes truco-card-play { 0% { opacity: 0; transform: translateY(-13px) rotate(8deg) scale(.85); } 75% { transform: translateY(2px) rotate(-2deg) scale(1.04); } 100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); } }
+@keyframes truco-prompt-enter { from { opacity: 0; transform: translateY(7px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes truco-turn-glow { 50% { opacity: .45; } }
+
+@media (max-width: 760px) {
+  .truco-hand__cards { perspective: none; gap: 8px; }
+  .truco-card { border-radius: 10px; }
+  .truco-card > span.truco-card__corner { top: 9px; left: 9px; }
+  .truco-card > span.truco-card__corner--bottom { top: auto; right: 8px; bottom: 8px; left: auto; }
+  .truco-card__corner > strong { font-size: 19px; }
+  .truco-card__corner > i { font-size: 16px; }
+  .truco-card > span.truco-card__pip { font-size: 39px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .truco-stage, .truco-lobby, .truco-table, .truco-player.is-current::after,
+  .truco-play-card, .truco-raise, .truco-card, .truco-score__team strong {
+    animation: none !important;
+    transition: none !important;
+  }
+}

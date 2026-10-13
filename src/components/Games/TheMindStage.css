@@ -123,3 +123,94 @@
   .mind-hand__heading .mind-button { font-size: 9px; }
   .mind-stage__brand strong { max-width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 }
+
+.mind-stage { animation: mind-scene-enter 420ms ease-out both; }
+.mind-lobby, .mind-table { animation: mind-table-enter 520ms cubic-bezier(.2,.75,.25,1) both; }
+.mind-lobby__steps { box-shadow: 0 14px 32px rgba(0,0,0,.15), inset 0 1px rgba(255,255,255,.025); }
+.mind-lobby__steps > div { transition: transform 200ms ease, color 200ms ease; }
+.mind-lobby__steps > div:hover { transform: translateX(3px); color: #e1e7f3; }
+.mind-player { box-shadow: 0 5px 17px rgba(0,0,0,.12), inset 0 1px rgba(255,255,255,.02); transition: border-color 220ms ease, background 220ms ease, transform 220ms ease; }
+.mind-player.is-local { box-shadow: 0 0 0 1px rgba(159,180,224,.06) inset, 0 8px 21px rgba(0,0,0,.16); }
+.mind-player__avatar { box-shadow: 0 0 0 3px rgba(159,180,224,.04); }
+.mind-resources { box-shadow: 0 8px 20px rgba(0,0,0,.14), inset 0 1px rgba(255,255,255,.025); }
+.mind-resources strong i { transition: color 250ms ease, transform 250ms cubic-bezier(.2,.8,.2,1); }
+.mind-resources strong i.is-full { animation: mind-resource-glow 2.2s ease-in-out infinite; }
+.mind-resources strong i.mind-shuriken { display: inline-block; animation: mind-shuriken-turn 8s linear infinite; }
+.mind-sequence { box-shadow: inset 0 1px rgba(255,255,255,.025); }
+.mind-sequence__cards { min-height: 34px; gap: 6px; padding: 1px 2px 3px; }
+.mind-sequence__cards > span {
+  position: relative;
+  width: 31px;
+  height: 31px;
+  border-color: rgba(173,187,226,.42);
+  border-radius: 7px;
+  background: linear-gradient(145deg, #e9ebf1, #c9d0e1);
+  color: #29324a;
+  box-shadow: 0 3px 7px rgba(0,0,0,.22), inset 0 0 0 2px rgba(255,255,255,.4);
+  animation: mind-card-play 360ms cubic-bezier(.16,.82,.26,1) both;
+}
+.mind-sequence__cards > span:nth-child(2) { animation-delay: 35ms; }
+.mind-sequence__cards > span:nth-child(3) { animation-delay: 70ms; }
+.mind-sequence__cards > span:nth-child(4) { animation-delay: 105ms; }
+.mind-hand { position: relative; overflow: hidden; box-shadow: 0 13px 30px rgba(0,0,0,.17), inset 0 1px rgba(255,255,255,.025); }
+.mind-hand::before { position: absolute; top: 0; right: 12px; left: 12px; height: 1px; background: linear-gradient(90deg,transparent,rgba(172,190,240,.28),transparent); content: ''; }
+.mind-hand__cards { min-height: 98px; gap: 10px; overflow-y: visible; perspective: 1100px; padding: 8px 4px 10px; }
+.mind-card {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  width: clamp(54px, 6vw, 68px);
+  min-width: clamp(54px, 6vw, 68px);
+  height: 82px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-color: #d6d9e5;
+  border-radius: 11px;
+  background:
+    radial-gradient(ellipse at 50% 44%, rgba(255,255,255,.82), transparent 45%),
+    repeating-linear-gradient(0deg, rgba(52,65,99,.018) 0 1px, transparent 1px 4px),
+    linear-gradient(150deg,#f0f1f6,#c9d0e2);
+  box-shadow: 0 8px 15px rgba(0,0,0,.24), inset 0 0 0 4px rgba(255,255,255,.45), inset 0 -9px 18px rgba(53,66,101,.07);
+  transform-origin: center 115%;
+  animation: mind-card-deal 440ms cubic-bezier(.18,.8,.24,1) backwards;
+}
+.mind-card::before { position: absolute; z-index: -1; inset: 6px; border: 1px solid rgba(65,78,115,.18); border-radius: 6px; content: ''; }
+.mind-card:nth-child(2) { animation-delay: 65ms; }
+.mind-card:nth-child(3) { animation-delay: 130ms; }
+.mind-card:nth-child(4) { animation-delay: 195ms; }
+.mind-card:nth-child(5) { animation-delay: 260ms; }
+.mind-card:nth-child(6) { animation-delay: 325ms; }
+.mind-card:hover { z-index: 2; transform: translateY(-10px) rotate(-2deg) scale(1.055); background-color: #f7f7fb; box-shadow: 0 19px 28px rgba(0,0,0,.34), inset 0 0 0 4px rgba(255,255,255,.56), 0 0 0 1px rgba(179,196,238,.24); }
+.mind-card:active { transform: translateY(-3px) scale(.99); }
+.mind-card > strong { z-index: 1; color: #303a57; font: 750 22px/1 var(--font-mono, ui-monospace, monospace); text-shadow: 0 1px rgba(255,255,255,.6); }
+.mind-card__corner { position: absolute; top: 8px; left: 8px; color: #465372; font: 700 8px/1 var(--font-mono, ui-monospace, monospace); }
+.mind-card__corner--bottom { top: auto; right: 8px; bottom: 8px; left: auto; transform: rotate(180deg); }
+.mind-card__sigil { position: absolute; z-index: 0; color: rgba(87,104,151,.12); font: 31px/1 Georgia,serif; }
+.mind-hand__waiting { min-height: 56px; }
+.mind-mistake { box-shadow: 0 8px 22px rgba(0,0,0,.12); animation: mind-mistake-enter 300ms ease-out both; }
+.mind-result-actions { animation: mind-table-enter 360ms ease-out both; }
+@keyframes mind-scene-enter { from { opacity: 0; } to { opacity: 1; } }
+@keyframes mind-table-enter { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes mind-card-deal { from { opacity: 0; transform: translateY(20px) rotate(0deg) scale(.9); } to { opacity: 1; } }
+@keyframes mind-card-play { 0% { opacity: 0; transform: translateY(-10px) rotate(8deg) scale(.8); } 75% { transform: translateY(1px) rotate(-2deg) scale(1.04); } 100% { opacity: 1; transform: translateY(0) rotate(0) scale(1); } }
+@keyframes mind-mistake-enter { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes mind-resource-glow { 50% { filter: drop-shadow(0 0 4px currentColor); } }
+@keyframes mind-shuriken-turn { to { transform: rotate(360deg); } }
+
+@media (max-width: 760px) {
+  .mind-hand__cards { min-height: 83px; gap: 7px; padding-block: 5px 8px; }
+  .mind-card { width: 53px; min-width: 53px; height: 72px; border-radius: 9px; }
+  .mind-card > strong { font-size: 19px; }
+  .mind-card__corner { top: 7px; left: 7px; }
+  .mind-card__corner--bottom { top: auto; right: 7px; bottom: 7px; left: auto; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mind-stage, .mind-lobby, .mind-table, .mind-player, .mind-resources strong i,
+  .mind-sequence__cards > span, .mind-hand, .mind-card, .mind-mistake, .mind-result-actions {
+    animation: none !important;
+    transition: none !important;
+  }
+}

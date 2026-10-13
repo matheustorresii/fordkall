@@ -138,7 +138,12 @@ export const TheMindStage = ({ game, participants, onExit, onOpenGameHub }: TheM
               {localPlayer ? (
                 <div className="mind-hand__cards">
                   {game.hand.map((card) => (
-                    <button className="mind-card" key={card} onClick={() => game.play(card)} title={`Jogar ${card}`} type="button">{String(card).padStart(2, '0')}</button>
+                    <button aria-label={`Jogar carta ${card}`} className="mind-card" key={card} onClick={() => game.play(card)} title={`Jogar ${card}`} type="button">
+                      <span className="mind-card__corner">{card}</span>
+                      <strong>{String(card).padStart(2, '0')}</strong>
+                      <span className="mind-card__sigil" aria-hidden="true">✦</span>
+                      <span className="mind-card__corner mind-card__corner--bottom" aria-hidden="true">{card}</span>
+                    </button>
                   ))}
                   {!game.hand.length && <span className="mind-hand__waiting">Aguardando a equipe…</span>}
                 </div>

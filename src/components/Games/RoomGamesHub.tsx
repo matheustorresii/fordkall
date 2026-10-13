@@ -59,7 +59,10 @@ export const RoomGamesHub = ({
       <div className="room-games-hub__grid">
         <button className="room-game-card room-game-card--ito" onClick={onSelectIto} type="button">
           <span className="room-game-card__topline">
-            <span className="room-game-card__art room-game-card__art--ito"><Icon name="users" /></span>
+            <span className="room-game-card__art room-game-card__art--ito" aria-hidden="true">
+              <span className="room-game-card__mini-card room-game-card__mini-card--back">?</span>
+              <span className="room-game-card__mini-card room-game-card__mini-card--front">72</span>
+            </span>
             {itoActive && <span className="room-game-card__status"><i />Partida ativa</span>}
           </span>
           <span className="room-game-card__copy">
@@ -75,6 +78,7 @@ export const RoomGamesHub = ({
         <button className="room-game-card room-game-card--kiwi" onClick={onSelectKiwi} type="button">
           <span className="room-game-card__topline">
             <span className="room-game-card__art room-game-card__art--kiwi">
+              <span className="room-game-card__mini-card room-game-card__mini-card--back" aria-hidden="true" />
               <img alt="" src="/assets/exploding-kiwi/kiwi-burst.png" />
             </span>
             {kiwiActive && <span className="room-game-card__status"><i />Partida ativa</span>}
@@ -91,7 +95,10 @@ export const RoomGamesHub = ({
 
         <button className="room-game-card room-game-card--truco" onClick={onSelectTruco} type="button">
           <span className="room-game-card__topline">
-            <span className="room-game-card__art room-game-card__art--truco"><span>♠</span><span>♥</span></span>
+            <span className="room-game-card__art room-game-card__art--truco" aria-hidden="true">
+              <span className="room-game-card__mini-card">A<span>♠</span></span>
+              <span className="room-game-card__mini-card">7<span>♥</span></span>
+            </span>
             {trucoActive && <span className="room-game-card__status"><i />Partida ativa</span>}
           </span>
           <span className="room-game-card__copy">
@@ -106,7 +113,10 @@ export const RoomGamesHub = ({
 
         <button className="room-game-card room-game-card--mind" onClick={onSelectMind} type="button">
           <span className="room-game-card__topline">
-            <span className="room-game-card__art room-game-card__art--mind"><span>1</span><span>···</span><span>100</span></span>
+            <span className="room-game-card__art room-game-card__art--mind" aria-hidden="true">
+              <span className="room-game-card__mini-card">1</span>
+              <span className="room-game-card__mini-card">100</span>
+            </span>
             {mindActive && <span className="room-game-card__status"><i />Partida ativa</span>}
           </span>
           <span className="room-game-card__copy">
