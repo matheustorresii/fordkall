@@ -27,7 +27,8 @@
     "test:ito": "node --experimental-strip-types --test scripts/ito-rules.test.mjs",
     "test:poker": "node --experimental-strip-types --test scripts/poker.test.mjs",
     "test:games": "npm run test:ito && npm run test:poker",
-    "test:music": "node --experimental-strip-types --test scripts/music.test.mjs scripts/music-player.test.mjs"
+    "test:music": "node --experimental-strip-types --test scripts/music.test.mjs scripts/music-player.test.mjs",
+    "test:social:live": "node scripts/social-live.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",

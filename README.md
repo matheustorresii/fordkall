@@ -103,6 +103,22 @@ https://<project-ref>.supabase.co/functions/v1/livekit-webhook
 
 A função `livekit-token` verifica sessão, status da conta e rate limit antes de emitir uma credencial de sala. Com `LIVEKIT_URL`, `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET`, ela gera um JWT próprio de validade curta. Enquanto essas credenciais não estiverem configuradas, `LIVEKIT_TOKEN_SERVER_ID` permite usar o Development Token Server atrás da mesma barreira autenticada, sem expor seu ID no frontend.
 
+### Validação das mensagens diretas
+
+A migration `20261015000000_fix_direct_message_permissions.sql` corrige a autorização de envio sem liberar a leitura de perfis privados. A política anterior consultava o destinatário sob a RLS de `profiles`, que permite ler apenas o próprio perfil, e recusava todas as DMs. Como a correção é no banco, também atende os aplicativos já instalados.
+
+Para validar permissões, histórico offline, respostas e isolamento entre contas, sem persistir dados de teste:
+
+```bash
+npx supabase db query --linked --file supabase/tests/direct_messages.sql
+```
+
+O teste abaixo é **manual e opt-in**, exige o CLI autenticado no projeto vinculado e verifica a API pública e a entrega realtime de verdade. Cria três contas temporárias e remove suas contas e mensagens ao terminar; não consulta conversas de usuários reais nem imprime chaves. Não deve ser executado automaticamente no CI de um fork.
+
+```bash
+npm run test:social:live -- --linked
+```
+
 ## Rodando localmente
 
 ```bash
