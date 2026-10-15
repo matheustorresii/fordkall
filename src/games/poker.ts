@@ -217,6 +217,50 @@ export const evaluatePokerHand = (cards: PokerCard[]): PokerHand => {
           }
   return best!
 }
+
+/** Local readout only: highlight the made combination, not its unused cards or kickers. */
+export const describePokerHand = (
+  hole: readonly PokerCard[],
+  board: readonly PokerCard[],
+): Pick<PokerHand, 'category' | 'name' | 'cards'> | null => {
+  const available = [...hole, ...board]
+  if (
+    hole.length !== 2 ||
+    ![0, 3, 4, 5].includes(board.length) ||
+    available.some((card) => !isPokerCard(card)) ||
+    new Set(available).size !== available.length
+  )
+    return null
+
+  const hand = board.length
+    ? evaluatePokerHand(available)
+    : { category: pokerRank(hole[0]!) === pokerRank(hole[1]!) ? 1 : 0, cards: hole }
+  const counts = new Map<number, number>()
+  for (const card of hand.cards) counts.set(pokerRank(card), (counts.get(pokerRank(card)) ?? 0) + 1)
+  const highest = Math.max(...hand.cards.map(pokerRank))
+  const cards = hand.cards.filter((card) => {
+    const rank = pokerRank(card),
+      count = counts.get(rank)!
+    switch (hand.category) {
+      case 0:
+        return rank === highest
+      case 1:
+      case 2:
+        return count === 2
+      case 3:
+        return count === 3
+      case 7:
+        return count === 4
+      default:
+        return true
+    }
+  })
+  return {
+    category: hand.category,
+    name: 'name' in hand ? hand.name : handNames[hand.category]!,
+    cards,
+  }
+}
 const cloneEngine = (engine: PokerEngine): PokerEngine => ({
   state: {
     ...engine.state,

@@ -5,6 +5,7 @@ import {
   createPokerMatch,
   dealPokerHand,
   defaultPokerSettings,
+  describePokerHand,
   evaluatePokerFive,
   evaluatePokerHand,
   makePokerDeck,
@@ -67,6 +68,69 @@ test('melhor combinação de sete; pode jogar só o board e dois trincas viram f
   assert.equal(evaluatePokerHand(cards('2s 3h As Ks Qs Js Ts')).name, 'Royal flush')
   assert.equal(evaluatePokerHand(cards('As Ad Ac Ks Kd Kc 2s')).category, 6)
   assert.equal(evaluatePokerHand(cards('As 2d 3c 4h 5s 9h Td')).category, 4)
+})
+test('leitura local funciona antes do flop e marca só a carta alta ou o par', () => {
+  assert.deepEqual(describePokerHand(cards('Ks Ad'), []), {
+    category: 0,
+    name: 'Carta alta',
+    cards: ['Ad'],
+  })
+  assert.deepEqual(describePokerHand(cards('Qs Qd'), []), {
+    category: 1,
+    name: 'Um par',
+    cards: ['Qs', 'Qd'],
+  })
+})
+test('leitura local acompanha par → dois pares → full house, sem borda nos kickers', () => {
+  const hole = Object.freeze(cards('Qs 6c')),
+    board = Object.freeze(cards('Qh 9d 2s 9s Qc'))
+  const flop = describePokerHand(hole, board.slice(0, 3)),
+    turn = describePokerHand(hole, board.slice(0, 4)),
+    river = describePokerHand(hole, board)
+  assert.equal(flop.name, 'Um par')
+  assert.deepEqual(new Set(flop.cards), new Set(cards('Qs Qh')))
+  assert.equal(turn.name, 'Dois pares')
+  assert.deepEqual(new Set(turn.cards), new Set(cards('Qs Qh 9d 9s')))
+  assert.equal(river.name, 'Full house')
+  assert.deepEqual(new Set(river.cards), new Set(cards('Qs Qh Qc 9d 9s')))
+  assert.deepEqual(hole, cards('Qs 6c'), 'não modifica a mão privada')
+  assert.deepEqual(board, cards('Qh 9d 2s 9s Qc'), 'não modifica o board público')
+})
+test('borda da combinação cobre todas as categorias e não confunde draws com mãos prontas', () => {
+  const examples = [
+    ['As 7c', 'Kd Qh 2s', 'Carta alta', 'As'],
+    ['As 7c', 'Kd Kh 2s', 'Um par', 'Kd Kh'],
+    ['As Ad', 'Kh Kc 9h 9s 2h', 'Dois pares', 'As Ad Kh Kc'],
+    ['As Ad', 'Ac Kh 9s', 'Trinca', 'As Ad Ac'],
+    ['As 2d', '3c 4h 5s 9h Td', 'Sequência', 'As 2d 3c 4h 5s'],
+    ['7h 3h', 'Ah Kh Jh Qh 2s', 'Flush', '7h Ah Kh Jh Qh'],
+    ['As Ad', 'Ac Ks Kd Kc 2s', 'Full house', 'As Ad Ac Ks Kd'],
+    ['As Ad', 'Ac Ah Ks', 'Quadra', 'As Ad Ac Ah'],
+    ['9s Ts', 'Js Qs Ks 2h 3c', 'Straight flush', '9s Ts Js Qs Ks'],
+    ['2d 3c', 'As Ks Qs Js Ts', 'Royal flush', 'As Ks Qs Js Ts'],
+    ['Ah Kh', 'Qh Jh 2s', 'Carta alta', 'Ah'],
+    ['2d 3c', 'As 5h 7c 9d Kh', 'Carta alta', 'As'],
+  ]
+  for (const [hole, board, name, highlighted] of examples) {
+    const readout = describePokerHand(cards(hole), cards(board))
+    assert.equal(readout.name, name, `${hole} + ${board}`)
+    assert.deepEqual(new Set(readout.cards), new Set(cards(highlighted)), `${name}: somente a combinação feita`)
+    assert.equal(readout.category, evaluatePokerHand(cards(`${hole} ${board}`)).category)
+  }
+})
+test('leitura local não tenta avaliar cartas ausentes, repetidas ou um board parcial inválido', () => {
+  for (const [hole, board] of [
+    [[], []],
+    [['As'], []],
+    [cards('As Ad Ac'), []],
+    [cards('As As'), []],
+    [cards('As Xd'), []],
+    [cards('As Ad'), cards('As Kd Qh')],
+    [cards('As Ad'), ['Kh']],
+    [cards('As Ad'), cards('Kh Qd')],
+    [cards('As Ad'), cards('Kh Qd Jh Ts 9c 8s')],
+  ])
+    assert.equal(describePokerHand(hole, board), null)
 })
 test('todas as 2.598.960 mãos de cinco cartas têm a distribuição exata das categorias', () => {
   const deck = makePokerDeck(seeded(7)),

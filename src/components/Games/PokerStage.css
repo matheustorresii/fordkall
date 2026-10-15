@@ -115,6 +115,11 @@
     0 0 0 2px var(--accent),
     0 4px 16px #b7ed3933;
 }
+.poker-card.is-best-hand {
+  border-color: #d1b15f;
+  outline: 1px solid #e8c86b80;
+  outline-offset: 1px;
+}
 .poker-card > strong {
   font:
     44px/1 Georgia,
@@ -615,6 +620,11 @@
   color: var(--text-muted);
   font-size: 11px;
   line-height: 1.5;
+}
+.poker-own-hand .poker-hand-strength {
+  color: #e7ca7c;
+  font-size: 12px;
+  font-weight: 650;
 }
 .poker-own-hand.is-folded .poker-own-hand__cards {
   opacity: 0.55;
@@ -1158,6 +1168,9 @@
   .poker-own-hand small {
     font-size: 10px;
   }
+  .poker-own-hand .poker-hand-strength {
+    font-size: 11px;
+  }
   .poker-action-caption {
     gap: 5px;
     margin-bottom: 6px;
@@ -1265,7 +1278,17 @@
     gap: 6px;
   }
   .poker-own-hand > span {
+    text-align: center;
+  }
+  .poker-own-hand > span > strong {
     display: none;
+  }
+  .poker-own-hand small {
+    font-size: 9px;
+    line-height: 1.25;
+  }
+  .poker-own-hand .poker-hand-strength {
+    font-size: 10px;
   }
   .poker-seat__cards {
     display: none;

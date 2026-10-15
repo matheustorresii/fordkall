@@ -3,7 +3,7 @@ import type { ParticipantMedia } from '../../types'
 import type { useRoomPoker } from '../../hooks/useRoomPoker'
 import {
   defaultPokerSettings,
-  evaluatePokerHand,
+  describePokerHand,
   pokerLegalActions,
   pokerPotTotal,
   readPokerSettings,
@@ -84,8 +84,8 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
       : `Call ${chips(legal.callAmount)}`
   const totalPot = result ? result.pots.reduce((total, pot) => total + pot.amount, 0) : pokerPotTotal(state)
   const winningCards = new Set(Object.keys(result?.payouts ?? {}).flatMap((id) => result?.bestCards[id] ?? []))
-  const personalBest =
-    game.hand.length === 2 && state.board.length >= 3 ? evaluatePokerHand([...game.hand, ...state.board]).name : ''
+  const personalBest = local?.inHand && !local.folded ? describePokerHand(game.hand, state.board) : null
+  const personalCards = new Set(personalBest?.cards)
   const currentName = state.players.find((p) => p.identity === state.current)?.name ?? ''
   const seconds = state.turnExpiresAt ? Math.max(0, Math.ceil((state.turnExpiresAt - now) / 1000)) : null
   const winners = state.players.filter((p) => (result?.payouts[p.identity] ?? 0) > 0)
@@ -314,6 +314,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                     {state.board[index] && (
                       <PokerCardFace
                         card={state.board[index]}
+                        bestHand={!ended && personalCards.has(state.board[index]!)}
                         highlighted={ended && winningCards.has(state.board[index]!)}
                       />
                     )}
@@ -337,6 +338,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                     game.hand.map((card) => (
                       <PokerCardFace
                         card={card}
+                        bestHand={!ended && personalCards.has(card)}
                         highlighted={Boolean(result?.bestCards[identity]?.includes(card))}
                         key={`${state.gameId}-${card}`}
                       />
@@ -359,13 +361,24 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                         ? 'Você deu fold'
                         : 'Sua mão'}
                 </strong>
-                <small>
-                  {personalBest ||
-                    (local?.inHand
-                      ? 'Só você vê estas cartas'
-                      : local
-                        ? 'Aguarde a próxima partida'
-                        : 'Você não ocupa um assento')}
+                <small
+                  aria-atomic="true"
+                  aria-live="polite"
+                  className={personalBest ? 'poker-hand-strength' : undefined}
+                  title={
+                    personalBest
+                      ? 'Sua combinação atual. Durante a mão, as cartas que a formam ficam em amarelo.'
+                      : undefined
+                  }
+                >
+                  {personalBest?.name ||
+                    (local?.folded
+                      ? 'Suas cartas não participam desta mão'
+                      : local?.inHand
+                        ? 'Só você vê estas cartas'
+                        : local
+                          ? 'Aguarde a próxima partida'
+                          : 'Você não ocupa um assento')}
                 </small>
               </span>
             </div>
