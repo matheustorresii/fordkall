@@ -1700,6 +1700,42 @@
     font-size: 11px;
   }
 }
+/* Compact web-only phones; desktop app windows cannot be this narrow. */
+@media (max-width: 380px) {
+  .coup-stage .game-hud {
+    max-width: calc(100% - 225px);
+  }
+  .coup-stage .game-hud > button[aria-label='Histórico da partida'] {
+    display: none;
+  }
+  .coup-action {
+    padding: 4px 6px;
+    gap: 5px;
+  }
+  .coup-action strong {
+    font-size: 9px;
+    line-height: 1.2;
+  }
+  .coup-action small {
+    display: none;
+  }
+  .coup-action--coup small {
+    display: block;
+  }
+  .coup-hand .coup-card__caption strong {
+    font-size: 7px;
+  }
+  .coup-hand .coup-card__caption {
+    padding-right: 3px;
+    padding-left: 3px;
+  }
+  .coup-center {
+    width: 44%;
+  }
+  .coup-table[data-phase='turn'] .coup-center p {
+    display: none;
+  }
+}
 @media (prefers-reduced-motion: reduce) {
   .coup-stage *,
   .coup-modal * {
