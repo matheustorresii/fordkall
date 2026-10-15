@@ -234,3 +234,101 @@
     transition: none !important;
   }
 }
+
+/* The hand is played across a shared felt table, with seats arranged around it. */
+.call-shell--games-open .truco-stage {
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(43, 97, 69, .18), transparent 55%),
+    radial-gradient(ellipse at 50% 0%, rgba(157, 126, 91, .1), transparent 48%),
+    linear-gradient(145deg, #111412, #090c0a 68%, #111311);
+}
+.call-shell--games-open .truco-stage__topbar { display: none; }
+.call-shell--games-open .truco-lobby { width: min(1500px, 100%); height: 100%; padding: 84px clamp(22px, 5vw, 78px) 112px; }
+.call-shell--games-open .truco-lobby__intro h2 { font-size: clamp(42px, 6vw, 76px); }
+.call-shell--games-open .truco-lobby__intro p { font-size: clamp(15px, 1.3vw, 18px); }
+.call-shell--games-open .truco-lobby__rules { padding: 25px; border-radius: 20px; background: rgba(25, 28, 24, .76); }
+.call-shell--games-open .truco-lobby__footer { align-items: center; }
+.call-shell--games-open .truco-button { min-height: 44px; padding-inline: 17px; border-radius: 12px; }
+.call-shell--games-open .truco-table {
+  width: 100%;
+  height: 100%;
+  padding: 82px clamp(18px, 4vw, 64px) 116px;
+  gap: clamp(10px, 1.4vh, 17px);
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+.call-shell--games-open .truco-table__heading { align-items: center; padding-inline: 8px; }
+.call-shell--games-open .truco-table__heading h2 { font-size: clamp(28px, 3.4vw, 44px); }
+.call-shell--games-open .truco-score { padding: 10px 18px; border-color: rgba(203, 176, 139, .26); background: rgba(27, 30, 26, .8); }
+.call-shell--games-open .truco-score__team strong { font-size: 30px; }
+.call-shell--games-open .truco-table__players {
+  position: relative;
+  display: block;
+  width: min(1500px, 100%);
+  min-height: clamp(310px, 42vh, 540px);
+  flex: 1 0 clamp(310px, 42vh, 540px);
+  align-self: center;
+  overflow: visible;
+  border: 14px solid rgba(123, 105, 75, .66);
+  border-radius: 48% / 44%;
+  background: radial-gradient(ellipse at 50% 45%, #286242 0%, #1d5238 55%, #153c2d 100%);
+  box-shadow: inset 0 0 0 3px rgba(225, 205, 159, .18), inset 0 0 72px rgba(3, 19, 10, .48), 0 26px 68px rgba(0, 0, 0, .32);
+}
+.call-shell--games-open .truco-table__players::before { position: absolute; inset: 9px; border: 1px solid rgba(231, 213, 166, .19); border-radius: inherit; content: ''; pointer-events: none; }
+.call-shell--games-open .truco-table__players::after { position: absolute; top: 50%; left: 50%; width: min(31vw, 380px); height: min(17vw, 190px); border: 1px solid rgba(229, 216, 175, .13); border-radius: 50%; background: radial-gradient(ellipse, rgba(18, 57, 38, .13), transparent 70%); content: ''; transform: translate(-50%, -50%); pointer-events: none; }
+.call-shell--games-open .truco-player {
+  position: absolute;
+  z-index: 2;
+  width: clamp(190px, 22vw, 270px);
+  min-height: 72px;
+  padding: 11px 13px;
+  border-color: rgba(220, 217, 196, .28);
+  border-radius: 17px;
+  background: rgba(15, 23, 19, .88);
+  box-shadow: 0 12px 32px rgba(0,0,0,.25), inset 0 1px rgba(255,255,255,.05);
+  backdrop-filter: blur(9px);
+}
+.call-shell--games-open .truco-player--seat-0 { bottom: 10px; left: 50%; transform: translateX(-50%); }
+.call-shell--games-open .truco-player--seat-1 { top: 50%; left: 12px; transform: translateY(-50%); }
+.call-shell--games-open .truco-player--seat-2 { top: 10px; left: 50%; transform: translateX(-50%); }
+.call-shell--games-open .truco-player--seat-3 { top: 50%; right: 12px; transform: translateY(-50%); }
+.call-shell--games-open .truco-player.is-current { border-color: rgba(242, 213, 159, .9); background: rgba(54, 48, 34, .95); box-shadow: 0 0 0 2px rgba(237, 211, 159, .15), 0 14px 36px rgba(0,0,0,.35); }
+.call-shell--games-open .truco-player__avatar { width: 42px; height: 42px; }
+.call-shell--games-open .truco-player > span strong { font-size: 13px; }
+.call-shell--games-open .truco-player > span small { font-size: 10px; }
+.call-shell--games-open .truco-play-card { position: absolute; z-index: 4; width: 55px; height: 76px; padding: 7px; border-radius: 9px; box-shadow: 0 10px 22px rgba(0,0,0,.4); }
+.call-shell--games-open .truco-player--seat-0 .truco-play-card { top: -66px; left: 50%; transform: translateX(-50%) rotate(-5deg); }
+.call-shell--games-open .truco-player--seat-1 .truco-play-card { top: 50%; right: -42px; transform: translateY(-50%) rotate(5deg); }
+.call-shell--games-open .truco-player--seat-2 .truco-play-card { bottom: -66px; left: 50%; transform: translateX(-50%) rotate(5deg); }
+.call-shell--games-open .truco-player--seat-3 .truco-play-card { top: 50%; left: -42px; transform: translateY(-50%) rotate(-5deg); }
+.call-shell--games-open .truco-hand { width: min(760px, 100%); min-height: 0; align-self: center; padding: 5px 14px 0; border: 0; border-top: 1px solid rgba(202, 191, 165, .18); border-radius: 0; background: linear-gradient(180deg, rgba(16, 19, 16, .08), rgba(9, 12, 10, .18)); }
+.call-shell--games-open .truco-hand__cards { min-height: 144px; justify-content: center; gap: 15px; padding: 18px 8px 12px; overflow-y: visible; }
+.call-shell--games-open .truco-card { width: clamp(86px, 8vw, 116px); min-width: clamp(86px, 8vw, 116px); height: 132px; border-radius: 13px; }
+.call-shell--games-open .truco-card > strong { font-size: 29px; }
+.call-shell--games-open .truco-card > span.truco-card__pip { font-size: 52px; }
+
+@media (max-width: 760px) {
+  .call-shell--games-open .truco-lobby { padding: 66px 14px 90px; }
+  .call-shell--games-open .truco-lobby__intro h2 { font-size: 38px; }
+  .call-shell--games-open .truco-table { gap: 10px; padding: 68px 10px 92px; }
+  .call-shell--games-open .truco-table__heading { align-items: center; flex-direction: row; }
+  .call-shell--games-open .truco-table__heading h2 { font-size: 20px; }
+  .call-shell--games-open .truco-score { gap: 6px; padding: 6px 9px; }
+  .call-shell--games-open .truco-score__team { min-width: 31px; }
+  .call-shell--games-open .truco-score__team strong { font-size: 19px; }
+  .call-shell--games-open .truco-score__team small { font-size: 7px; }
+  .call-shell--games-open .truco-table__players { display: grid; min-height: 0; flex: 1 0 auto; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; align-content: center; padding: 12px; border-width: 7px; border-radius: 28px; }
+  .call-shell--games-open .truco-table__players::after { display: none; }
+  .call-shell--games-open .truco-player { position: relative; inset: auto; width: auto; min-height: 66px; transform: none; padding: 7px; }
+  .call-shell--games-open .truco-player__avatar { width: 30px; height: 30px; }
+  .call-shell--games-open .truco-player > span strong { font-size: 10px; }
+  .call-shell--games-open .truco-player > span small { font-size: 8px; }
+  .call-shell--games-open .truco-player em { font-size: 7px; }
+  .call-shell--games-open .truco-play-card { top: -20px !important; right: -8px !important; bottom: auto !important; left: auto !important; width: 42px; height: 56px; transform: rotate(5deg) !important; }
+  .call-shell--games-open .truco-hand { padding-inline: 4px; }
+  .call-shell--games-open .truco-hand__cards { min-height: 110px; justify-content: flex-start; gap: 8px; padding: 14px 4px 9px; }
+  .call-shell--games-open .truco-card { width: 73px; min-width: 73px; height: 104px; padding: 9px; }
+  .call-shell--games-open .truco-card > span.truco-card__pip { font-size: 39px; }
+}

@@ -120,7 +120,7 @@ export const TrucoMineiroStage = ({ game, participants, onExit, onOpenGameHub }:
               const isCurrent = game.state.phase === 'playing' && game.state.currentSeat === player.seat
               const played = visiblePlays.find((play) => play.identity === player.identity)
               return (
-                <div className={`truco-player truco-player--team-${player.team} ${isCurrent ? 'is-current' : ''}`} key={player.identity}>
+                <div className={`truco-player truco-player--team-${player.team} truco-player--seat-${player.seat} ${isCurrent ? 'is-current' : ''}`} key={player.identity}>
                   <i className="truco-player__avatar">{participant?.avatarDataUrl ? <img alt="" src={participant.avatarDataUrl} /> : avatarLetters(player.name)}</i>
                   <span><strong>{player.name}{player.identity === localIdentity ? ' · você' : ''}</strong><small>Dupla {player.team + 1}{player.seat === game.state.dealerSeat ? ' · mão do baralho' : ''}</small></span>
                   {isCurrent && <em>SUA VEZ</em>}

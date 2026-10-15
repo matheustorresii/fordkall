@@ -555,3 +555,58 @@
     transition: none !important;
   }
 }
+
+/* ITO is a shared card table, not a narrow settings panel. */
+.call-shell--games-open .ito-stage {
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(ellipse at 50% 58%, rgba(57, 112, 113, .16), transparent 55%),
+    radial-gradient(ellipse at 50% 0%, rgba(101, 147, 146, .12), transparent 52%),
+    linear-gradient(145deg, #101715, #090d0c 68%, #0d1111);
+}
+.call-shell--games-open .ito-stage__topbar { display: none; }
+.call-shell--games-open .ito-lobby,
+.call-shell--games-open .ito-round {
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  margin: 0;
+  padding: 82px clamp(18px, 4vw, 64px) 112px;
+}
+.call-shell--games-open .ito-round { gap: clamp(14px, 2.1vh, 24px); }
+.call-shell--games-open .ito-round__heading h2 { font-size: clamp(28px, 3.4vw, 46px); }
+.call-shell--games-open .ito-secret-row { grid-template-columns: minmax(220px, .58fr) minmax(0, 1.42fr); gap: clamp(16px, 2vw, 28px); }
+.call-shell--games-open .ito-number-card { min-height: 190px; border-radius: 22px; box-shadow: 0 24px 70px rgba(0, 0, 0, .25), inset 0 1px rgba(255,255,255,.05); }
+.call-shell--games-open .ito-number-card > strong { font-size: clamp(52px, 6vw, 76px); }
+.call-shell--games-open .ito-player-grid { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
+.call-shell--games-open .ito-player-card { min-height: 72px; padding: 12px 14px; border-radius: 16px; background: linear-gradient(145deg, rgba(30, 42, 39, .78), rgba(14, 22, 20, .72)); }
+.call-shell--games-open .ito-number-track { width: 100%; padding: 2px 0; }
+.call-shell--games-open .ito-order-list {
+  display: flex;
+  width: 100%;
+  min-width: 0;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: stretch;
+  gap: clamp(12px, 1.5vw, 22px);
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 26px 10px 24px;
+  overscroll-behavior-inline: contain;
+  scrollbar-width: thin;
+}
+.call-shell--games-open .ito-order-row { width: clamp(180px, 17vw, 246px); min-width: clamp(180px, 17vw, 246px); min-height: 265px; }
+.call-shell--games-open .ito-order-row__number { width: 82px; min-width: 82px; height: 100px; font-size: 38px; }
+.call-shell--games-open .ito-round__footer { padding: 4px 2px 0; }
+
+@media (max-width: 760px) {
+  .call-shell--games-open .ito-lobby,
+  .call-shell--games-open .ito-round { padding: 68px 14px 96px; }
+  .call-shell--games-open .ito-round { gap: 14px; }
+  .call-shell--games-open .ito-secret-row { grid-template-columns: 1fr; }
+  .call-shell--games-open .ito-number-card { min-height: 145px; }
+  .call-shell--games-open .ito-order-list { gap: 10px; padding: 20px 6px 18px; }
+  .call-shell--games-open .ito-order-row { width: 164px; min-width: 164px; min-height: 224px; }
+  .call-shell--games-open .ito-order-row__number { width: 68px; min-width: 68px; height: 78px; font-size: 31px; }
+}

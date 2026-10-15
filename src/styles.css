@@ -8850,10 +8850,7 @@ svg {
 /* Game tables live inside a real safe area between the call header and dock. */
 .call-shell--games-open .call-workspace {
   position: absolute;
-  top: 64px;
-  right: 0;
-  bottom: 92px;
-  left: 0;
+  inset: 0;
   width: auto;
   height: auto;
   flex: none;
@@ -8863,7 +8860,89 @@ svg {
 
 @media (max-width: 720px) {
   .call-shell--games-open .call-workspace {
-    top: 56px;
-    bottom: 78px;
+    inset: 0;
   }
+}
+
+/* Games are their own full-screen destination; only the global call controls float above them. */
+.call-shell--games-open .call-header {
+  position: absolute;
+  z-index: 50;
+  top: 0;
+  right: 0;
+  left: 0;
+  display: flex;
+  height: auto;
+  min-height: 0;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: max(12px, env(safe-area-inset-top)) 14px 0;
+  border: 0;
+  background: transparent;
+  pointer-events: none;
+}
+
+.call-shell--games-open .call-header > * { pointer-events: auto; }
+.call-shell--games-open .call-header .room-plate { display: none; }
+.call-shell--games-open .call-home-button {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(180, 198, 207, 0.2);
+  border-radius: 14px;
+  background: rgba(18, 24, 28, 0.72);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(18px);
+}
+.call-shell--games-open .call-home-button h1 { display: none; }
+.call-shell--games-open .call-home-button .brand__mark { width: 30px; height: 30px; }
+.call-shell--games-open .call-header__actions {
+  display: flex;
+  max-width: calc(100vw - 72px);
+  flex-wrap: nowrap;
+  justify-self: auto;
+  gap: 6px;
+  padding: 5px;
+  border: 1px solid rgba(180, 198, 207, 0.2);
+  border-radius: 16px;
+  background: rgba(18, 24, 28, 0.72);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(18px);
+}
+.call-shell--games-open .call-header__actions .layout-toggle { display: none; }
+.call-shell--games-open .call-header__actions .participants-toggle,
+.call-shell--games-open .call-header__actions .connection-pill {
+  width: 38px;
+  min-width: 38px;
+  height: 38px;
+  justify-content: center;
+  padding: 0;
+  border-color: transparent;
+  border-radius: 11px;
+  background: transparent;
+  box-shadow: none;
+}
+.call-shell--games-open .call-header__actions .participants-toggle:hover,
+.call-shell--games-open .call-header__actions .participants-toggle.is-active {
+  border-color: rgba(178, 203, 215, 0.2);
+  background: rgba(180, 198, 207, 0.1);
+}
+.call-shell--games-open .call-header__actions .connection-pill { display: grid; }
+.call-shell--games-open .call-header__actions .connection-pill i { display: block; }
+.call-shell--games-open .call-dock { z-index: 60; }
+
+@media (max-width: 720px) {
+  .call-shell--games-open .call-header { padding-right: 8px; padding-left: 8px; }
+  .call-shell--games-open .call-home-button { width: 38px; height: 38px; border-radius: 12px; }
+  .call-shell--games-open .call-header__actions { gap: 2px; padding: 3px; }
+  .call-shell--games-open .call-header__actions .participants-toggle,
+  .call-shell--games-open .call-header__actions .connection-pill {
+    width: 34px;
+    min-width: 34px;
+    height: 34px;
+  }
+  .call-shell--games-open .call-header__actions .connection-pill { display: none; }
 }

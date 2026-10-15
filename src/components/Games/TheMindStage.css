@@ -221,3 +221,84 @@
 @media (max-width: 760px) {
   .mind-hand__cards { min-height: 101px; padding: 16px 5px 10px; }
 }
+
+/* The Mind gets a quiet, spacious table: seats, a shared center and a private hand. */
+.call-shell--games-open .mind-stage {
+  border: 0;
+  border-radius: 0;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(76, 100, 153, .18), transparent 56%),
+    radial-gradient(ellipse at 50% 0%, rgba(111, 131, 181, .12), transparent 50%),
+    linear-gradient(145deg, #11141b, #090c12 68%, #10131a);
+}
+.call-shell--games-open .mind-stage__topbar { display: none; }
+.call-shell--games-open .mind-lobby { width: min(1500px, 100%); height: 100%; padding: 84px clamp(22px, 5vw, 78px) 112px; }
+.call-shell--games-open .mind-lobby__intro h2 { font-size: clamp(42px, 6vw, 76px); }
+.call-shell--games-open .mind-lobby__intro p { font-size: clamp(15px, 1.3vw, 18px); }
+.call-shell--games-open .mind-lobby__steps { padding: 23px; border-radius: 20px; }
+.call-shell--games-open .mind-lobby__footer { align-items: center; }
+.call-shell--games-open .mind-button { min-height: 44px; padding-inline: 17px; border-radius: 12px; }
+.call-shell--games-open .mind-table {
+  width: 100%;
+  height: 100%;
+  padding: 82px clamp(18px, 4vw, 64px) 116px;
+  gap: clamp(12px, 2vh, 22px);
+  overflow-x: hidden;
+  scrollbar-width: thin;
+}
+.call-shell--games-open .mind-table__heading { align-items: center; padding-inline: 8px; }
+.call-shell--games-open .mind-table__heading h2 { font-size: clamp(28px, 3.4vw, 44px); }
+.call-shell--games-open .mind-table__heading p { font-size: 14px; }
+.call-shell--games-open .mind-resources { gap: 18px; padding: 10px 16px; border-radius: 15px; background: rgba(27, 33, 48, .7); }
+.call-shell--games-open .mind-resources strong i { font-size: 14px; }
+.call-shell--games-open .mind-table__players { display: flex; min-height: 64px; flex-wrap: nowrap; justify-content: center; gap: clamp(10px, 1.5vw, 22px); overflow-x: auto; padding: 3px 8px 9px; }
+.call-shell--games-open .mind-player { min-width: 170px; min-height: 61px; flex: 0 0 auto; gap: 10px; padding: 8px 13px; border-color: rgba(158, 172, 206, .15); border-radius: 18px; background: rgba(22, 28, 41, .68); }
+.call-shell--games-open .mind-player.is-local { border-color: rgba(171, 190, 240, .52); background: rgba(46, 59, 90, .7); box-shadow: 0 0 0 1px rgba(171,190,240,.08) inset; }
+.call-shell--games-open .mind-player__avatar { width: 42px; height: 42px; }
+.call-shell--games-open .mind-player > span strong { font-size: 12px; }
+.call-shell--games-open .mind-player > span small { font-size: 10px; }
+.call-shell--games-open .mind-sequence {
+  position: relative;
+  min-height: 190px;
+  flex: 1 0 190px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 42px 24px 20px;
+  border: 1px solid rgba(164, 181, 223, .2);
+  border-radius: 46% / 40%;
+  background: radial-gradient(ellipse at center, rgba(60, 78, 128, .68), rgba(27, 38, 69, .82) 54%, rgba(15, 21, 37, .72));
+  box-shadow: inset 0 0 0 10px rgba(178, 189, 217, .025), inset 0 0 55px rgba(3, 7, 18, .42), 0 24px 65px rgba(0,0,0,.24);
+}
+.call-shell--games-open .mind-sequence__heading { position: absolute; top: 20px; right: 28px; left: 28px; }
+.call-shell--games-open .mind-sequence__heading strong { color: #e2e9fa; font-size: 13px; }
+.call-shell--games-open .mind-sequence__cards { min-height: 106px; justify-content: center; gap: 9px; overflow-y: visible; }
+.call-shell--games-open .mind-sequence__cards > span { width: 66px; height: 92px; border-color: rgba(214, 224, 248, .55); border-radius: 11px; background: linear-gradient(145deg, #eff1f8, #c5cee2); box-shadow: 0 11px 20px rgba(0,0,0,.3), inset 0 0 0 3px rgba(255,255,255,.46); color: #222a3c; font-size: 21px; animation: mind-card-play 300ms cubic-bezier(.16,.82,.26,1) both; }
+.call-shell--games-open .mind-sequence__cards > small { color: #c5cee2; font-size: 13px; }
+.call-shell--games-open .mind-hand { width: min(920px, 100%); align-self: center; padding: 8px 12px 0; border: 0; border-top: 1px solid rgba(166, 181, 216, .18); border-radius: 0; background: linear-gradient(180deg, rgba(16, 20, 30, .08), rgba(8, 11, 17, .2)); }
+.call-shell--games-open .mind-hand__heading strong { font-size: 13px; }
+.call-shell--games-open .mind-hand__cards { min-height: 140px; justify-content: center; gap: 11px; padding: 20px 8px 12px; overflow-y: visible; }
+.call-shell--games-open .mind-card { width: clamp(66px, 7vw, 86px); min-width: clamp(66px, 7vw, 86px); height: 118px; border-radius: 12px; font-size: 24px; box-shadow: 0 11px 22px rgba(0,0,0,.3), inset 0 0 0 3px rgba(255,255,255,.42); }
+.call-shell--games-open .mind-card:hover { transform: translateY(-11px) rotate(-2deg); }
+
+@media (max-width: 760px) {
+  .call-shell--games-open .mind-lobby { padding: 66px 14px 90px; }
+  .call-shell--games-open .mind-lobby__intro h2 { font-size: 38px; }
+  .call-shell--games-open .mind-table { gap: 10px; padding: 68px 10px 92px; }
+  .call-shell--games-open .mind-table__heading { align-items: flex-start; }
+  .call-shell--games-open .mind-table__heading h2 { font-size: 20px; }
+  .call-shell--games-open .mind-table__heading p { font-size: 11px; }
+  .call-shell--games-open .mind-resources { gap: 8px; padding: 7px 9px; }
+  .call-shell--games-open .mind-resources strong i { font-size: 10px; }
+  .call-shell--games-open .mind-table__players { justify-content: flex-start; min-height: 49px; gap: 7px; }
+  .call-shell--games-open .mind-player { min-width: 146px; min-height: 48px; padding: 5px 8px; }
+  .call-shell--games-open .mind-player__avatar { width: 32px; height: 32px; }
+  .call-shell--games-open .mind-sequence { min-height: 152px; flex-basis: 152px; border-radius: 31% / 28%; padding: 38px 12px 12px; }
+  .call-shell--games-open .mind-sequence__heading { top: 13px; right: 16px; left: 16px; }
+  .call-shell--games-open .mind-sequence__cards { min-height: 83px; gap: 5px; }
+  .call-shell--games-open .mind-sequence__cards > span { width: 47px; height: 68px; font-size: 15px; }
+  .call-shell--games-open .mind-hand { padding-inline: 3px; }
+  .call-shell--games-open .mind-hand__cards { min-height: 105px; justify-content: flex-start; gap: 7px; padding: 16px 4px 9px; }
+  .call-shell--games-open .mind-card { width: 55px; min-width: 55px; height: 82px; font-size: 18px; }
+  .call-shell--games-open .mind-hand__heading strong { font-size: 11px; }
+}
