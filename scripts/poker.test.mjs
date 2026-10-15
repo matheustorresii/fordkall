@@ -81,7 +81,7 @@ test('leitura local funciona antes do flop e marca só a carta alta ou o par', (
     cards: ['Qs', 'Qd'],
   })
 })
-test('leitura local acompanha par → dois pares → full house, sem borda nos kickers', () => {
+test('leitura local acompanha par → dois pares → full house e preserva os destaques antes do river', () => {
   const hole = Object.freeze(cards('Qs 6c')),
     board = Object.freeze(cards('Qh 9d 2s 9s Qc'))
   const flop = describePokerHand(hole, board.slice(0, 3)),
@@ -100,7 +100,7 @@ test('borda da combinação cobre todas as categorias e não confunde draws com 
   const examples = [
     ['As 7c', 'Kd Qh 2s', 'Carta alta', 'As'],
     ['As 7c', 'Kd Kh 2s', 'Um par', 'Kd Kh'],
-    ['As Ad', 'Kh Kc 9h 9s 2h', 'Dois pares', 'As Ad Kh Kc'],
+    ['As Ad', 'Kh Kc 9h 9s 2h', 'Dois pares', 'As Ad Kh Kc 9h'],
     ['As Ad', 'Ac Kh 9s', 'Trinca', 'As Ad Ac'],
     ['As 2d', '3c 4h 5s 9h Td', 'Sequência', 'As 2d 3c 4h 5s'],
     ['7h 3h', 'Ah Kh Jh Qh 2s', 'Flush', '7h Ah Kh Jh Qh'],
@@ -109,13 +109,59 @@ test('borda da combinação cobre todas as categorias e não confunde draws com 
     ['9s Ts', 'Js Qs Ks 2h 3c', 'Straight flush', '9s Ts Js Qs Ks'],
     ['2d 3c', 'As Ks Qs Js Ts', 'Royal flush', 'As Ks Qs Js Ts'],
     ['Ah Kh', 'Qh Jh 2s', 'Carta alta', 'Ah'],
-    ['2d 3c', 'As 5h 7c 9d Kh', 'Carta alta', 'As'],
+    ['2d 3c', 'As 5h 7c 9d Kh', 'Carta alta', 'As 5h 7c 9d Kh'],
   ]
   for (const [hole, board, name, highlighted] of examples) {
     const readout = describePokerHand(cards(hole), cards(board))
     assert.equal(readout.name, name, `${hole} + ${board}`)
-    assert.deepEqual(new Set(readout.cards), new Set(cards(highlighted)), `${name}: somente a combinação feita`)
+    assert.deepEqual(new Set(readout.cards), new Set(cards(highlighted)), `${name}: cartas corretas para esta etapa`)
     assert.equal(readout.category, evaluatePokerHand(cards(`${hole} ${board}`)).category)
+  }
+})
+test('no river, AAKKQ supera AAKK9 e a borda inclui exatamente o kicker que desempata', () => {
+  const board = cards('As Ad Kc 3h Kh'),
+    queens = describePokerHand(cards('Qs Jh'), board),
+    nines = describePokerHand(cards('9s 9d'), board)
+  assert.equal(queens.name, 'Dois pares')
+  assert.equal(nines.name, 'Dois pares')
+  assert.deepEqual(new Set(queens.cards), new Set(cards('As Ad Kc Kh Qs')))
+  assert.deepEqual(new Set(nines.cards), new Set(cards('As Ad Kc Kh 9s')))
+  assert.ok(evaluatePokerFive(queens.cards).score > evaluatePokerFive(nines.cards).score)
+})
+test('somente no river, carta alta, par, trinca e quadra incluem os kickers na borda', () => {
+  const examples = [
+    ['As 7c', 'Kd Qh 2s 4d 9c', 'Carta alta'],
+    ['As Ad', 'Kd Qh 2s 4d 9c', 'Um par'],
+    ['As Ad', 'Ac Qh 2s 4d 9c', 'Trinca'],
+    ['As Ad', 'Ac Ah 2s 4d 9c', 'Quadra'],
+  ]
+  for (const [hole, board, name] of examples) {
+    const own = cards(hole),
+      community = cards(board),
+      river = describePokerHand(own, community)
+    assert.equal(river.name, name)
+    assert.equal(river.cards.length, 5)
+    assert.deepEqual(river.cards, evaluatePokerHand([...own, ...community]).cards)
+    for (const count of [3, 4]) {
+      const before = describePokerHand(own, community.slice(0, count))
+      assert.equal(before.name, name)
+      assert.equal(before.cards.length, { 'Carta alta': 1, 'Um par': 2, Trinca: 3, Quadra: 4 }[name])
+    }
+  }
+})
+test('as cinco melhores no river podem usar nenhuma, uma ou duas cartas privadas', () => {
+  const examples = [
+    ['2d 3c', 'As Ks Qs Js Ts', 0],
+    ['Qs Jh', 'As Ad Kc 3h Kh', 1],
+    ['As Ad', 'Ac Kh Ks 2d 3c', 2],
+  ]
+  for (const [hole, board, privateCount] of examples) {
+    const own = cards(hole),
+      community = cards(board),
+      readout = describePokerHand(own, community)
+    assert.equal(readout.cards.length, 5)
+    assert.equal(readout.cards.filter((card) => own.includes(card)).length, privateCount)
+    assert.deepEqual(readout.cards, evaluatePokerHand([...own, ...community]).cards)
   }
 })
 test('leitura local não tenta avaliar cartas ausentes, repetidas ou um board parcial inválido', () => {

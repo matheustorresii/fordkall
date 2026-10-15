@@ -367,7 +367,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                   className={personalBest ? 'poker-hand-strength' : undefined}
                   title={
                     personalBest
-                      ? 'Sua combinação atual. Durante a mão, as cartas que a formam ficam em amarelo.'
+                      ? 'Antes do river, a borda indica a combinação. No river, indica as cinco melhores cartas, incluindo as de desempate.'
                       : undefined
                   }
                 >

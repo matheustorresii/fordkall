@@ -218,7 +218,7 @@ export const evaluatePokerHand = (cards: PokerCard[]): PokerHand => {
   return best!
 }
 
-/** Local readout only: highlight the made combination, not its unused cards or kickers. */
+/** Local readout: the made combination before the river; all five best cards on the river. */
 export const describePokerHand = (
   hole: readonly PokerCard[],
   board: readonly PokerCard[],
@@ -239,6 +239,7 @@ export const describePokerHand = (
   for (const card of hand.cards) counts.set(pokerRank(card), (counts.get(pokerRank(card)) ?? 0) + 1)
   const highest = Math.max(...hand.cards.map(pokerRank))
   const cards = hand.cards.filter((card) => {
+    if (board.length === 5) return true
     const rank = pokerRank(card),
       count = counts.get(rank)!
     switch (hand.category) {
