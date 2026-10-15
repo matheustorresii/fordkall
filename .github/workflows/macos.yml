@@ -48,6 +48,9 @@ jobs:
       - name: Test Coup rules and private state
         run: npm run test:coup
 
+      - name: Test Codenames rules and secret key
+        run: npm run test:codenames
+
       - name: Test room music synchronization and playback
         run: npm run test:music
 

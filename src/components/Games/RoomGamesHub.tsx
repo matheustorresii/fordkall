@@ -15,15 +15,18 @@ interface RoomGamesHubProps {
   pokerPlayers: number
   coupActive: boolean
   coupPlayers: number
+  codenamesActive: boolean
+  codenamesPlayers: number
   onSelectIto: () => void
   onSelectKiwi: () => void
   onSelectTruco: () => void
   onSelectMind: () => void
   onSelectPoker: () => void
   onSelectCoup: () => void
+  onSelectCodenames: () => void
   onExit: () => void
 }
-type Category = 'all' | 'cards' | 'cooperative'
+type Category = 'all' | 'cards' | 'cooperative' | 'words'
 const PAGE_SIZE = 6
 const normalize = (value: string) =>
   value
@@ -32,7 +35,11 @@ const normalize = (value: string) =>
     .toLowerCase()
 const CatalogArt = ({ kind }: { kind: string }) => (
   <span aria-hidden="true" className={`game-catalog-art game-catalog-art--${kind}`}>
-    {kind === 'coup' ? (
+    {kind === 'codenames' ? (
+      ['LUA', 'PONTE', 'ÓRBITA', 'CHAVE', 'MAR', 'ROSA', 'COROA', 'BANCO', 'FOLHA'].map((word, i) =>
+        <i className="game-catalog-art__word" data-color={i % 4 === 0 ? 'red' : i % 3 === 0 ? 'blue' : 'neutral'} key={word}>{word}</i>,
+      )
+    ) : kind === 'coup' ? (
       <><img className="game-catalog-art__coup-side" alt="" src="/assets/coup/assassin.webp" /><img alt="" src="/assets/coup/duke.webp" /></>
     ) : kind === 'kiwi' ? (
       <img alt="" src="/assets/exploding-kiwi/kiwi-burst.png" />
@@ -77,6 +84,17 @@ export const RoomGamesHub = (props: RoomGamesHubProps) => {
   const [page, setPage] = useState(0)
   // A catalog entry is all a new game needs here; pagination bounds the layout as it grows.
   const catalog = [
+    {
+      id: 'codenames',
+      title: 'Codenames',
+      subtitle: 'Uma pista conecta tudo',
+      description: 'Duas equipes, palavras e uma chave secreta.',
+      category: 'words',
+      players: '4–12',
+      active: props.codenamesActive,
+      count: props.codenamesPlayers,
+      open: props.onSelectCodenames,
+    },
     {
       id: 'coup',
       title: 'Coup',
@@ -193,6 +211,7 @@ export const RoomGamesHub = (props: RoomGamesHubProps) => {
               { id: 'all', title: 'Todos' },
               { id: 'cards', title: 'Cartas' },
               { id: 'cooperative', title: 'Cooperativos' },
+              { id: 'words', title: 'Palavras' },
             ] as const
           ).map((filter) => (
             <button
