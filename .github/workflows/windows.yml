@@ -28,6 +28,9 @@ jobs:
       - name: Test ITO rules
         run: npm run test:ito
 
+      - name: Test Poker rules
+        run: npm run test:poker
+
       - name: Build installer and portable app
         shell: pwsh
         run: |

@@ -36,6 +36,9 @@ jobs:
       - name: Test ITO rules
         run: npm run test:ito
 
+      - name: Test Poker rules
+        run: npm run test:poker
+
       - name: Build
         run: npm run build
         env:

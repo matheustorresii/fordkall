@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Icon } from '../ui/Icon'
 import './RoomGamesHub.css'
 
@@ -10,125 +11,271 @@ interface RoomGamesHubProps {
   trucoPlayers: number
   mindActive: boolean
   mindPlayers: number
+  pokerActive: boolean
+  pokerPlayers: number
   onSelectIto: () => void
   onSelectKiwi: () => void
   onSelectTruco: () => void
   onSelectMind: () => void
+  onSelectPoker: () => void
   onExit: () => void
 }
-
-export const RoomGamesHub = ({
-  itoActive,
-  itoPlayers,
-  kiwiActive,
-  kiwiPlayers,
-  trucoActive,
-  trucoPlayers,
-  mindActive,
-  mindPlayers,
-  onSelectIto,
-  onSelectKiwi,
-  onSelectTruco,
-  onSelectMind,
-  onExit,
-}: RoomGamesHubProps) => (
-  <section className="room-games-hub" aria-label="Central de jogos da sala">
-    <header className="room-games-hub__topbar">
-      <div className="room-games-hub__brand">
-        <span className="room-games-hub__mark"><Icon name="gamepad" /></span>
-        <div><small>ATIVIDADES DA SALA</small><strong>Central de jogos</strong></div>
-      </div>
-      <button
-        aria-label="Voltar para a call"
-        className="icon-button"
-        onClick={onExit}
-        title="Voltar para a call"
-        type="button"
-      >
-        <Icon name="x" />
-      </button>
-    </header>
-
-    <div className="room-games-hub__content">
-      <div className="room-games-hub__intro">
-        <span>JOGAR EM GRUPO</span>
-        <h2>O que vamos jogar?</h2>
-        <p>Escolha um jogo para abrir ou retomar. As ações e as cartas privadas sincronizam com quem está na sala.</p>
-      </div>
-
-      <div className="room-games-hub__grid">
-        <button className="room-game-card room-game-card--ito" onClick={onSelectIto} type="button">
-          <span className="room-game-card__topline">
-            <span className="room-game-card__art room-game-card__art--ito" aria-hidden="true">
-              <span className="room-game-card__mini-card room-game-card__mini-card--back">?</span>
-              <span className="room-game-card__mini-card room-game-card__mini-card--front">72</span>
-            </span>
-            {itoActive && <span className="room-game-card__status"><i />Partida ativa</span>}
-          </span>
-          <span className="room-game-card__copy">
-            <strong>ITO</strong>
-            <span>Leiam as dicas, descubram as intenções e organizem os números em equipe.</span>
-          </span>
-          <span className="room-game-card__bottomline">
-            <span>{itoActive ? `${itoPlayers} na rodada · retomar` : 'Cooperativo · todos jogam'}</span>
-            <Icon name="chevron" />
-          </span>
-        </button>
-
-        <button className="room-game-card room-game-card--kiwi" onClick={onSelectKiwi} type="button">
-          <span className="room-game-card__topline">
-            <span className="room-game-card__art room-game-card__art--kiwi">
-              <span className="room-game-card__mini-card room-game-card__mini-card--back" aria-hidden="true" />
-              <img alt="" src="/assets/exploding-kiwi/kiwi-burst.png" />
-            </span>
-            {kiwiActive && <span className="room-game-card__status"><i />Partida ativa</span>}
-          </span>
-          <span className="room-game-card__copy">
-            <strong>Exploding Kiwi</strong>
-            <span>Use suas cartas, evite explodir e seja a última pessoa viva.</span>
-          </span>
-          <span className="room-game-card__bottomline">
-            <span>{kiwiActive ? `${kiwiPlayers} vivas · retomar` : 'Cartas · 2–5 jogadores'}</span>
-            <Icon name="chevron" />
-          </span>
-        </button>
-
-        <button className="room-game-card room-game-card--truco" onClick={onSelectTruco} type="button">
-          <span className="room-game-card__topline">
-            <span className="room-game-card__art room-game-card__art--truco" aria-hidden="true">
-              <span className="room-game-card__mini-card">A<span>♠</span></span>
-              <span className="room-game-card__mini-card">7<span>♥</span></span>
-            </span>
-            {trucoActive && <span className="room-game-card__status"><i />Partida ativa</span>}
-          </span>
-          <span className="room-game-card__copy">
-            <strong>Truco Mineiro</strong>
-            <span>Monte as duplas, esconda suas cartas e aumente a aposta na hora certa.</span>
-          </span>
-          <span className="room-game-card__bottomline">
-            <span>{trucoActive ? `${trucoPlayers}/4 na mesa · retomar` : 'Cartas · 4 jogadores'}</span>
-            <Icon name="chevron" />
-          </span>
-        </button>
-
-        <button className="room-game-card room-game-card--mind" onClick={onSelectMind} type="button">
-          <span className="room-game-card__topline">
-            <span className="room-game-card__art room-game-card__art--mind" aria-hidden="true">
-              <span className="room-game-card__mini-card">1</span>
-              <span className="room-game-card__mini-card">100</span>
-            </span>
-            {mindActive && <span className="room-game-card__status"><i />Partida ativa</span>}
-          </span>
-          <span className="room-game-card__copy">
-            <strong>The Mind</strong>
-            <span>Joguem suas cartas em ordem crescente — sem combinar quem tem qual número.</span>
-          </span>
-          <span className="room-game-card__bottomline">
-            <span>{mindActive ? `${mindPlayers} pessoas · retomar` : 'Cooperativo · 2–4 jogadores'}</span>
-            <Icon name="chevron" />
-          </span>
-        </button>
-      </div>
-    </div>
-  </section>
+type Category = 'all' | 'cards' | 'cooperative'
+const PAGE_SIZE = 6
+const normalize = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+const CatalogArt = ({ kind }: { kind: string }) => (
+  <span aria-hidden="true" className={`game-catalog-art game-catalog-art--${kind}`}>
+    {kind === 'kiwi' ? (
+      <img alt="" src="/assets/exploding-kiwi/kiwi-burst.png" />
+    ) : kind === 'poker' ? (
+      <>
+        <i>
+          A<span>♠</span>
+        </i>
+        <i>
+          A<span>♥</span>
+        </i>
+        <b className="game-catalog-art__chips" />
+      </>
+    ) : kind === 'truco' ? (
+      <>
+        <i>
+          4<span>♣</span>
+        </i>
+        <i>
+          7<span>♥</span>
+        </i>
+      </>
+    ) : kind === 'ito' ? (
+      <>
+        <i>12</i>
+        <i>72</i>
+        <b className="game-catalog-art__scale">0 — 100</b>
+      </>
+    ) : (
+      <>
+        <i>1</i>
+        <i>100</i>
+        <b className="game-catalog-art__star">✦</b>
+      </>
+    )}
+  </span>
 )
+
+export const RoomGamesHub = (props: RoomGamesHubProps) => {
+  const [query, setQuery] = useState('')
+  const [category, setCategory] = useState<Category>('all')
+  const [page, setPage] = useState(0)
+  // A catalog entry is all a new game needs here; pagination bounds the layout as it grows.
+  const catalog = [
+    {
+      id: 'poker',
+      title: 'Poker',
+      subtitle: 'Texas Hold’em',
+      description: 'Blefe, aposte e leve o pote.',
+      category: 'cards',
+      players: '2–6',
+      active: props.pokerActive,
+      count: props.pokerPlayers,
+      open: props.onSelectPoker,
+    },
+    {
+      id: 'kiwi',
+      title: 'Exploding Kiwi',
+      subtitle: 'Último kiwi de pé',
+      description: 'Compre uma carta. Torça para não explodir.',
+      category: 'cards',
+      players: '2–5',
+      active: props.kiwiActive,
+      count: props.kiwiPlayers,
+      open: props.onSelectKiwi,
+    },
+    {
+      id: 'truco',
+      title: 'Truco Mineiro',
+      subtitle: 'Vale seis?',
+      description: 'Sua dupla, suas cartas e um bom blefe.',
+      category: 'cards',
+      players: '4',
+      active: props.trucoActive,
+      count: props.trucoPlayers,
+      open: props.onSelectTruco,
+    },
+    {
+      id: 'ito',
+      title: 'ITO',
+      subtitle: 'Entre 0 e 100',
+      description: 'Uma dica, muitos jeitos de interpretar.',
+      category: 'cooperative',
+      players: '2–8',
+      active: props.itoActive,
+      count: props.itoPlayers,
+      open: props.onSelectIto,
+    },
+    {
+      id: 'mind',
+      title: 'The Mind',
+      subtitle: 'No mesmo ritmo',
+      description: 'Joguem em ordem. Sem contar os números.',
+      category: 'cooperative',
+      players: '2–4',
+      active: props.mindActive,
+      count: props.mindPlayers,
+      open: props.onSelectMind,
+    },
+  ]
+  const filtered = catalog.filter(
+    (game) =>
+      (category === 'all' || category === game.category) &&
+      normalize(`${game.title} ${game.subtitle}`).includes(normalize(query.trim())),
+  )
+  const pages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE)),
+    currentPage = Math.min(page, pages - 1)
+  const visible = filtered.slice(currentPage * PAGE_SIZE, (currentPage + 1) * PAGE_SIZE)
+  return (
+    <section aria-label="Central de jogos da sala" className="room-games-hub">
+      <header className="room-games-hub__topbar">
+        <span>Central de jogos</span>
+        <button
+          aria-label="Voltar para a call"
+          className="game-icon-button"
+          onClick={props.onExit}
+          title="Voltar para a call"
+          type="button"
+        >
+          <Icon name="x" />
+        </button>
+      </header>
+      <div className="room-games-hub__content">
+        <div className="room-games-hub__heading">
+          <div>
+            <h1>Qual vai ser?</h1>
+            <p>Escolha um jogo e reúna a sala.</p>
+          </div>
+          <label className="room-games-hub__search">
+            <Icon name="search" />
+            <input
+              aria-label="Buscar jogo"
+              autoComplete="off"
+              onChange={(event) => {
+                setQuery(event.target.value)
+                setPage(0)
+              }}
+              placeholder="Buscar jogo"
+              type="search"
+              value={query}
+            />
+          </label>
+        </div>
+        <nav aria-label="Filtrar jogos" className="room-games-hub__filters">
+          {(
+            [
+              { id: 'all', title: 'Todos' },
+              { id: 'cards', title: 'Cartas' },
+              { id: 'cooperative', title: 'Cooperativos' },
+            ] as const
+          ).map((filter) => (
+            <button
+              aria-pressed={category === filter.id}
+              className={category === filter.id ? 'is-selected' : ''}
+              key={filter.id}
+              onClick={() => {
+                setCategory(filter.id)
+                setPage(0)
+              }}
+              type="button"
+            >
+              {filter.title}
+            </button>
+          ))}
+        </nav>
+        <div
+          aria-label="Jogos disponíveis"
+          className={`room-games-hub__grid ${visible.length <= 3 ? 'room-games-hub__grid--short' : ''}`}
+        >
+          {visible.map((game) => (
+            <button
+              className={`game-catalog-card game-catalog-card--${game.id} ${game.active ? 'is-active' : ''}`}
+              key={game.id}
+              onClick={game.open}
+              type="button"
+            >
+              <span className="game-catalog-card__visual">
+                <CatalogArt kind={game.id} />
+                {game.active && (
+                  <span className="game-catalog-card__live">
+                    <i />
+                    Em jogo
+                  </span>
+                )}
+              </span>
+              <span className="game-catalog-card__copy">
+                <small>{game.subtitle}</small>
+                <strong>{game.title}</strong>
+                <span>{game.description}</span>
+              </span>
+              <span className="game-catalog-card__footer">
+                <span>
+                  <Icon name="users" />
+                  {game.active ? `${game.count} na mesa` : `${game.players} pessoas`}
+                </span>
+                <b>
+                  {game.active ? 'Retomar' : 'Jogar'}
+                  <Icon name="chevron" />
+                </b>
+              </span>
+            </button>
+          ))}
+          {!visible.length && (
+            <div className="room-games-hub__empty">
+              <Icon name="search" />
+              <strong>Nenhum jogo encontrado</strong>
+              <button
+                onClick={() => {
+                  setQuery('')
+                  setCategory('all')
+                }}
+                type="button"
+              >
+                Limpar filtros
+              </button>
+            </div>
+          )}
+        </div>
+        <footer className="room-games-hub__footer">
+          <span>
+            {filtered.length} {filtered.length === 1 ? 'jogo' : 'jogos'}
+            {catalog.some((game) => game.active) && ' · Sua partida continua ativa'}
+          </span>
+          {pages > 1 && (
+            <nav aria-label="Páginas de jogos">
+              <button
+                aria-label="Página anterior"
+                disabled={!currentPage}
+                onClick={() => setPage(currentPage - 1)}
+                type="button"
+              >
+                <Icon name="chevron" />
+              </button>
+              <span>
+                {currentPage + 1} / {pages}
+              </span>
+              <button
+                aria-label="Próxima página"
+                disabled={currentPage === pages - 1}
+                onClick={() => setPage(currentPage + 1)}
+                type="button"
+              >
+                <Icon name="chevron" />
+              </button>
+            </nav>
+          )}
+        </footer>
+      </div>
+    </section>
+  )
+}

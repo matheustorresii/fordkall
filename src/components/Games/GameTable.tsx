@@ -73,12 +73,13 @@ export const GameError = ({ error, onClose }: { error: string; onClose: () => vo
   <div className="game-error" role="alert"><Icon name="warning" /><span>{error}</span><button aria-label="Fechar aviso" onClick={onClose} type="button"><Icon name="x" /></button></div>
 ) : null
 
-export const GameModal = ({ title, detail, children, onClose, wide = false }: {
+export const GameModal = ({ title, detail, children, onClose, wide = false, className = '' }: {
   title: string
   detail?: string
   children: ReactNode
   onClose: () => void
   wide?: boolean
+  className?: string
 }) => {
   const dialogRef = useRef<HTMLDialogElement>(null)
   const titleId = useId()
@@ -93,7 +94,7 @@ export const GameModal = ({ title, detail, children, onClose, wide = false }: {
     <dialog
       aria-labelledby={titleId}
       aria-describedby={detail ? detailId : undefined}
-      className={`game-modal ${wide ? 'game-modal--wide' : ''}`}
+      className={`game-modal ${wide ? 'game-modal--wide' : ''} ${className}`}
       onCancel={(event) => { event.preventDefault(); onClose() }}
       onClick={(event) => { if (event.target === event.currentTarget) onClose() }}
       ref={dialogRef}

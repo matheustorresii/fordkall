@@ -20,7 +20,8 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - volume da transmissão separado do volume do microfone de quem transmite;
 - seleção entre múltiplas transmissões simultâneas;
 - chat realtime de texto e imagens de até 4 MB durante a call;
-- central de jogos sincronizados na sala: ITO, Exploding Kiwi, Truco Mineiro em duplas e The Mind cooperativo;
+- central de jogos sincronizados na sala: Poker, ITO, Exploding Kiwi, Truco Mineiro em duplas e The Mind cooperativo, com busca, categorias e catálogo paginado;
+- Poker Texas Hold’em No Limit de 2–6 pessoas, fichas fictícias, blinds e tempo configuráveis, all-in, potes paralelos e showdown;
 - ITO com uma dica por carta, votação por pessoa para revelar, progressão em rodízio e regras configuráveis de derrota e objetivo;
 - Picture-in-Picture da transmissão selecionada;
 - janela separada, redimensionável e encaixável no desktop para a transmissão selecionada;
@@ -133,13 +134,23 @@ O build estático é gerado em `dist/`.
 
 ### Regressões dos jogos
 
-Com `npm run dev`, abra `/?game-preview=kiwi` (ou `ito`, `mind`, `truco`) para exercitar os componentes reais com cenários visuais determinísticos, sem precisar de conta ou usar a franquia do LiveKit. O menu de desenvolvimento troca o número de jogadores, a fase e as escolhas privadas. Esses cenários não fazem parte do build de produção.
+Com `npm run dev`, abra `/?game-preview=kiwi` (ou `ito`, `mind`, `truco`, `poker`, `hub`) para exercitar os componentes reais com cenários visuais determinísticos, sem precisar de conta ou usar a franquia do LiveKit. O menu de desenvolvimento troca o número de jogadores, a fase e as escolhas privadas. Esses cenários não fazem parte do build de produção.
 
 Em `/?game-preview=checks`, execute as verificações de integração do Kiwi: dois clientes reais do hook conversam por um transporte confiável em memória. Os testes cobrem privacidade e repetição do futuro, revisão de pacotes privados, reordenação do monte, Favor, regras de alvo, combos e distribuição inicial de defesas. Eles não substituem uma partida real pelo LiveKit.
 
 Para o ITO, `npm run test:ito` valida maioria, distribuição e progressão de 2–8 pessoas até a meta de 2–5 cartas. Em `/?game-preview=ito-checks`, cinco clientes reais do hook validam votos por pessoa, invalidação de votos quando a ordem muda, privacidade entre rodadas e as três consequências de derrota. A regra padrão mantém as mãos após perder; a vitória adiciona uma única carta, em rodízio, até a equipe vencer com duas por pessoa. Essa é uma variante configurável, não uma implementação declarada de todas as regras oficiais do ITO.
 
 O ITO usa o protocolo `ford-kall.ito.v2`; todos os participantes precisam estar na versão atualizada para compartilhar a mesma mesa.
+
+### Poker
+
+`npm run test:poker` valida o motor puro: ranking das mãos, heads-up, posição dos blinds, mínimo de aumento, reabertura após all-ins curtos, side pots, empate, fichas ímpares, apostas não cobertas e saídas. Verifica a distribuição das 2.598.960 combinações de cinco cartas, cem partidas de várias mãos e mil mãos aleatórias de 2–6 pessoas com conservação das fichas, ausência de cartas duplicadas e imutabilidade do estado anterior. `npm run test:games` executa também os testes do ITO.
+
+Em `/?game-preview=poker-checks`, seis instâncias reais do hook testam mesas de 2–6 assentos por transporte confiável em memória, cartas privadas, comandos atrasados, showdown, reconexão e encerramento após saída do controlador. Isso não substitui um teste com usuários pelo LiveKit.
+
+As regras de referência são [Texas Hold’em da PokerStars](https://www.pokerstars.com/poker/games/texas-holdem/) e [Poker TDA](https://www.pokertda.com/view-poker-tda-rules/), sem usar marca ou artes dessas organizações. O modo implementado usa fichas sem valor real, blinds fixos e não tem rake, dinheiro, compras, saque, torneios ou persistência de saldo. Quem entra depois do início pode assistir. A mesa reinicia com quem está na call ao iniciar uma nova partida.
+
+O controlador mantém o baralho em memória e envia as duas cartas privadas somente ao respectivo jogador; o estado público não carrega baralho ou mãos escondidas. Cada mão tem um identificador novo para descartar ações e cartas antigas. Não é uma arquitetura antitrapaça para apostas reais: o controlador é um cliente confiável e, se sair ou recarregar, a mesa é encerrada, sem tentar reconstruir cartas secretas. O protocolo é `ford-kall.poker.v1`; todos precisam usar uma versão que o suporte.
 
 ## Aplicativo Windows
 
