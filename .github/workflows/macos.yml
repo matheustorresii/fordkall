@@ -45,6 +45,9 @@ jobs:
       - name: Test Poker rules
         run: npm run test:poker
 
+      - name: Test Coup rules and private state
+        run: npm run test:coup
+
       - name: Test room music synchronization and playback
         run: npm run test:music
 

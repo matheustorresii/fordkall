@@ -20,7 +20,8 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - volume da transmissão separado do volume do microfone de quem transmite;
 - seleção entre múltiplas transmissões simultâneas;
 - chat realtime de texto e imagens de até 4 MB durante a call;
-- central de jogos sincronizados na sala: Poker, ITO, Exploding Kiwi, Truco Mineiro em duplas e The Mind cooperativo, com busca, categorias e catálogo paginado;
+- central de jogos sincronizados na sala: Coup, Poker, ITO, Exploding Kiwi, Truco Mineiro em duplas e The Mind cooperativo, com busca, categorias e catálogo paginado;
+- Coup · Corte Kiwi de 2–6 pessoas, cinco personagens com arte original, blefes, contestações, bloqueios, troca secreta, eliminação e relógio configurável para decisões;
 - Poker Texas Hold’em No Limit de 2–6 pessoas, fichas fictícias, blinds e tempo configuráveis, all-in, potes paralelos e showdown;
 - ITO com uma dica por carta, votação por pessoa para revelar, progressão em rodízio e regras configuráveis de derrota e objetivo;
 - Picture-in-Picture da transmissão selecionada;
@@ -120,6 +121,20 @@ npm run test:social:live -- --linked
 ```
 
 ## Rodando localmente
+
+### Coup · Corte Kiwi
+
+Adaptação não oficial das regras clássicas de Coup (Rikki Tahta / La Mame Games, Indie Boards & Cards), sem expansões. As artes são originais; prompts e referências em `src/components/Games/coup-art-prompts.md`. Partidas são apenas recreativas, sem dinheiro real.
+
+O distribuidor eleito mantém o baralho e envia cada mão por pacotes LiveKit direcionados. Snapshots públicos contêm apenas alegações, influências reveladas e moedas. É o mesmo modelo de confiança entre amigos dos outros jogos: o distribuidor conhece o baralho, não é um servidor anti-cheat. Quem sai da sala perde suas influências; se o distribuidor sai, a partida é encerrada sem transferir segredos. Pessoas que entram depois assistem até a próxima partida. Iniciar outro jogo encerra o anterior.
+
+Renda não pode ser contestada ou bloqueada; ajuda externa só permite bloqueio. Alegações de ação e de bloqueio têm janelas separadas. As decisões usam IDs para rejeitar comandos atrasados/duplicados. O tempo padrão para reações é 20s (opcional); provas, perdas e trocas têm ao menos 45s. Não há jogada automática durante o turno normal. Quando uma escolha privada expira, o jogo prova uma carta válida se houver, revela a primeira influência ou mantém as cartas originais na troca.
+
+```bash
+npm run test:coup
+```
+
+Prévias de desenvolvimento, sem conta/microfone: `?game-preview=coup` (mesa interativa), `?game-preview=hub` (catálogo) e `?game-preview=coup-checks` (seis hooks reais com transporte simulado e partidas completas de 2–6). Essas rotas não existem no build de produção.
 
 ```bash
 npm install

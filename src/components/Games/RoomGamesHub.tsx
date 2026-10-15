@@ -13,11 +13,14 @@ interface RoomGamesHubProps {
   mindPlayers: number
   pokerActive: boolean
   pokerPlayers: number
+  coupActive: boolean
+  coupPlayers: number
   onSelectIto: () => void
   onSelectKiwi: () => void
   onSelectTruco: () => void
   onSelectMind: () => void
   onSelectPoker: () => void
+  onSelectCoup: () => void
   onExit: () => void
 }
 type Category = 'all' | 'cards' | 'cooperative'
@@ -29,7 +32,9 @@ const normalize = (value: string) =>
     .toLowerCase()
 const CatalogArt = ({ kind }: { kind: string }) => (
   <span aria-hidden="true" className={`game-catalog-art game-catalog-art--${kind}`}>
-    {kind === 'kiwi' ? (
+    {kind === 'coup' ? (
+      <><img className="game-catalog-art__coup-side" alt="" src="/assets/coup/assassin.webp" /><img alt="" src="/assets/coup/duke.webp" /></>
+    ) : kind === 'kiwi' ? (
       <img alt="" src="/assets/exploding-kiwi/kiwi-burst.png" />
     ) : kind === 'poker' ? (
       <>
@@ -72,6 +77,17 @@ export const RoomGamesHub = (props: RoomGamesHubProps) => {
   const [page, setPage] = useState(0)
   // A catalog entry is all a new game needs here; pagination bounds the layout as it grows.
   const catalog = [
+    {
+      id: 'coup',
+      title: 'Coup',
+      subtitle: 'Corte Kiwi',
+      description: 'Duas influências. Um bom blefe. Uma coroa.',
+      category: 'cards',
+      players: '2–6',
+      active: props.coupActive,
+      count: props.coupPlayers,
+      open: props.onSelectCoup,
+    },
     {
       id: 'poker',
       title: 'Poker',

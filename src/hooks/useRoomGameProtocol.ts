@@ -23,6 +23,7 @@ interface RoomGameProtocolOptions<TState extends RoomGameBaseState, TCommand, TP
   parseCommand: (value: unknown) => TCommand | null
   parsePrivate: (value: unknown) => TPrivate | null
   emptyPrivate: TPrivate
+  strictAuthority?: boolean
   handleCommand: (
     command: TCommand,
     senderIdentity: string,
@@ -52,6 +53,7 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
   parseCommand,
   parsePrivate,
   emptyPrivate,
+  strictAuthority = false,
   handleCommand,
 }: RoomGameProtocolOptions<TState, TCommand, TPrivate>) => {
   const [state, setState] = useState<TState>(() => {
@@ -204,6 +206,7 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
         const candidate = parseState(message.state)
         if (!candidate || participant.identity !== candidate.controllerIdentity) return
         const current = stateRef.current
+        if (strictAuthority && participant.identity !== getControllerIdentity(current)) return
         if (candidate.controllerIdentity === current.controllerIdentity && candidate.revision <= current.revision) return
         applyState(candidate)
         if (candidate.gameId) void publish({ type: 'private-request', gameId: candidate.gameId }, participant.identity).catch(() => undefined)
@@ -271,7 +274,7 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
       room.off(RoomEvent.ParticipantConnected, onParticipantConnected)
       room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected)
     }
-  }, [applyState, ensureController, getControllerIdentity, parseCommand, parsePrivate, parseState, publish, room, sendCurrentState, topic, performCommand])
+  }, [applyState, ensureController, getControllerIdentity, parseCommand, parsePrivate, parseState, publish, room, sendCurrentState, topic, performCommand, strictAuthority])
 
   useEffect(() => () => {
     for (const timeout of pendingRef.current.values()) window.clearTimeout(timeout)

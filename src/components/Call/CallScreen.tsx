@@ -15,6 +15,7 @@ import { useRoomExplodingKiwi } from '../../hooks/useRoomExplodingKiwi'
 import { useRoomTruco } from '../../hooks/useRoomTruco'
 import { useRoomMind } from '../../hooks/useRoomMind'
 import { useRoomPoker } from '../../hooks/useRoomPoker'
+import { useRoomCoup } from '../../hooks/useRoomCoup'
 import { useRoomMusic } from '../../hooks/useRoomMusic'
 import { useScreenShare } from '../../hooks/useScreenShare'
 import { playCallSound, primeCallSounds } from '../../services/callSounds'
@@ -41,6 +42,7 @@ import { ExplodingKiwiStage } from '../Games/ExplodingKiwiStage'
 import { TrucoMineiroStage } from '../Games/TrucoMineiroStage'
 import { TheMindStage } from '../Games/TheMindStage'
 import { PokerStage } from '../Games/PokerStage'
+import { CoupStage } from '../Games/CoupStage'
 import { RoomGamesHub } from '../Games/RoomGamesHub'
 import { MusicPanel } from '../Music/MusicPanel'
 import { ParticipantAudioLayer } from '../Participants/ParticipantAudioLayer'
@@ -164,6 +166,7 @@ export const CallScreen = ({
   const trucoGame = useRoomTruco(room)
   const mindGame = useRoomMind(room)
   const pokerGame = useRoomPoker(room)
+  const coupGame = useRoomCoup(room)
   const music = useRoomMusic(room)
   const [deafened, setDeafened] = useState(false)
   const [callSoundsEnabled, setCallSoundsEnabled] = useState(getCallSoundsEnabled)
@@ -181,7 +184,7 @@ export const CallScreen = ({
   const [chatOpen, setChatOpen] = useState(false)
   const [musicOpen, setMusicOpen] = useState(false)
   const [gamesOpen, setGamesOpen] = useState(false)
-  const [gameMode, setGameMode] = useState<'hub' | 'ito' | 'kiwi' | 'truco' | 'mind' | 'poker'>('hub')
+  const [gameMode, setGameMode] = useState<'hub' | 'ito' | 'kiwi' | 'truco' | 'mind' | 'poker' | 'coup'>('hub')
   const [unreadMessages, setUnreadMessages] = useState(0)
   const lastSeenMessageId = useRef('')
   const [participantMenu, setParticipantMenu] = useState<{
@@ -252,6 +255,16 @@ export const CallScreen = ({
     setGameMode('poker')
     setGamesOpen(true)
   }, [pokerGame.state.matchId])
+
+  useEffect(() => {
+    if (!coupGame.state.gameId) return
+    setLayoutMenuPoint(null)
+    setParticipantsOpen(false)
+    setChatOpen(false)
+    setMusicOpen(false)
+    setGameMode('coup')
+    setGamesOpen(true)
+  }, [coupGame.state.gameId])
 
   useEffect(() => {
     const handleParticipantConnected = () => playCallSound('join')
@@ -439,12 +452,13 @@ export const CallScreen = ({
     ? snapshot.remoteVoices.find((voice) => voice.id === participantMenu.participantId)
     : undefined
 
-  const resetOtherGames = (selected: 'ito' | 'kiwi' | 'truco' | 'mind' | 'poker') => {
+  const resetOtherGames = (selected: 'ito' | 'kiwi' | 'truco' | 'mind' | 'poker' | 'coup') => {
     if (selected !== 'ito' && itoGame.state.gameId) void itoGame.reset()
     if (selected !== 'kiwi' && explodingKiwi.state.gameId) void explodingKiwi.reset()
     if (selected !== 'truco' && trucoGame.state.gameId) void trucoGame.reset()
     if (selected !== 'mind' && mindGame.state.gameId) void mindGame.reset()
     if (selected !== 'poker' && pokerGame.state.gameId) void pokerGame.reset()
+    if (selected !== 'coup' && coupGame.state.gameId) void coupGame.reset()
   }
 
   return (
@@ -530,7 +544,7 @@ export const CallScreen = ({
           </button>
           <button
             aria-label={`${gamesOpen ? 'Fechar jogos' : 'Abrir central de jogos'}`}
-            className={`participants-toggle games-toggle ${gamesOpen ? 'is-active' : ''} ${itoGame.state.gameId || explodingKiwi.state.gameId || trucoGame.state.gameId || mindGame.state.gameId || pokerGame.state.gameId ? 'has-game' : ''}`}
+            className={`participants-toggle games-toggle ${gamesOpen ? 'is-active' : ''} ${itoGame.state.gameId || explodingKiwi.state.gameId || trucoGame.state.gameId || mindGame.state.gameId || pokerGame.state.gameId || coupGame.state.gameId ? 'has-game' : ''}`}
             onClick={() => {
               setLayoutMenuPoint(null)
               setParticipantsOpen(false)
@@ -598,12 +612,25 @@ export const CallScreen = ({
               mindPlayers={mindGame.state.players.length}
               pokerActive={Boolean(pokerGame.state.gameId)}
               pokerPlayers={pokerGame.state.players.length}
+              coupActive={Boolean(coupGame.state.gameId)}
+              coupPlayers={coupGame.state.players.filter((p) => p.influence).length}
               onExit={() => setGamesOpen(false)}
               onSelectIto={() => setGameMode('ito')}
               onSelectKiwi={() => setGameMode('kiwi')}
               onSelectTruco={() => setGameMode('truco')}
               onSelectMind={() => setGameMode('mind')}
               onSelectPoker={() => setGameMode('poker')}
+              onSelectCoup={() => setGameMode('coup')}
+            />
+          ) : gameMode === 'coup' ? (
+            <CoupStage
+              game={{ ...coupGame, start: (...args) => {
+                resetOtherGames('coup')
+                return coupGame.start(...args)
+              } }}
+              onExit={() => setGamesOpen(false)}
+              onOpenGameHub={() => setGameMode('hub')}
+              participants={snapshot.participantMedia}
             />
           ) : gameMode === 'poker' ? (
             <PokerStage
