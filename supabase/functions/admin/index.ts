@@ -2,6 +2,9 @@ import { handleCors } from '../_shared/cors.ts'
 import { errorResponse, HttpError, json, readJson } from '../_shared/http.ts'
 import { requireAdmin } from '../_shared/supabase.ts'
 import { assertEmail, createInviteCode, normalizeEmail, sha256 } from '../_shared/validation.ts'
+import { RoomServiceClient } from 'npm:livekit-server-sdk@2'
+import { liveKitHttpUrl, loadLiveKitBackends } from '../_shared/livekit.ts'
+import { disconnectRoomParticipant, moderationBackendForRoute } from '../_shared/roomModeration.ts'
 
 type AdminBody = {
   action?: string
@@ -12,6 +15,8 @@ type AdminBody = {
   userId?: string
   status?: 'active' | 'suspended'
   role?: 'admin' | 'member'
+  roomCode?: string
+  participantSid?: string
 }
 
 const audit = async (
@@ -38,6 +43,27 @@ Deno.serve(async (request) => {
   try {
     const { admin, user, profile } = await requireAdmin(request)
     const body = await readJson<AdminBody>(request)
+
+    if (body.action === 'disconnect_participant') {
+      const result = await disconnectRoomParticipant(
+        { id: user.id, role: profile.role, status: profile.status }, body, {
+          getRoomService: async (roomName) => {
+            const { data: route, error } = await admin.from('livekit_room_routes')
+              .select('backend_id').eq('room_name', roomName).maybeSingle()
+            if (error) throw new HttpError(503, 'CALL_MODERATION_UNAVAILABLE')
+            const backend = moderationBackendForRoute(loadLiveKitBackends(), route?.backend_id ?? null)
+            return {
+              backendId: backend.id,
+              service: new RoomServiceClient(liveKitHttpUrl(backend.url), backend.apiKey, backend.apiSecret),
+            }
+          },
+          audit: ({ userId, roomName, participantSid, backendId }) => audit(admin, user.id, 'call.disconnect', {
+            userId, details: { roomName, participantSid, backendId },
+          }),
+        },
+      )
+      return json(result)
+    }
 
     if (body.action === 'dashboard') {
       const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()

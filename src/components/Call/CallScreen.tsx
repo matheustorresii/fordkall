@@ -21,6 +21,7 @@ import { useRoomMusic } from '../../hooks/useRoomMusic'
 import { useScreenShare } from '../../hooks/useScreenShare'
 import { playCallSound, primeCallSounds } from '../../services/callSounds'
 import { createRoomInviteUrl, streamQualityPresets } from '../../services/livekit'
+import { disconnectCallParticipant } from '../../services/moderation'
 import {
   getCallSoundsEnabled,
   getGameOverlayEnabled,
@@ -33,6 +34,7 @@ import {
 } from '../../storage/preferences'
 import type {
   ConnectionStatus,
+  AppRole,
   ContextMenuPoint,
   GalleryLayoutMode,
   StreamQualityId,
@@ -49,6 +51,7 @@ import { RoomGamesHub } from '../Games/RoomGamesHub'
 import { MusicPanel } from '../Music/MusicPanel'
 import { ParticipantAudioLayer } from '../Participants/ParticipantAudioLayer'
 import { ParticipantContextMenu } from '../Participants/ParticipantContextMenu'
+import { ParticipantDisconnectDialog } from '../Participants/ParticipantDisconnectDialog'
 import { GalleryLayoutMenu } from '../Participants/GalleryLayoutMenu'
 import { ParticipantList } from '../Participants/ParticipantList'
 import { ScreenShareStage } from '../ScreenShare/ScreenShareStage'
@@ -57,6 +60,7 @@ import { BrandMark } from '../ui/BrandMark'
 import { Icon, type IconName } from '../ui/Icon'
 
 interface CallScreenProps {
+  accountRole: AppRole
   room: Room
   roomCode: string
   status: ConnectionStatus
@@ -142,6 +146,7 @@ const connectionLabel: Record<ConnectionStatus, string> = {
 }
 
 export const CallScreen = ({
+  accountRole,
   room,
   roomCode,
   status,
@@ -194,11 +199,25 @@ export const CallScreen = ({
     participantId: string
     point: ContextMenuPoint
   } | null>(null)
+  const [disconnectTarget, setDisconnectTarget] = useState<{ identity: string; sid: string; name: string } | null>(null)
+  const [moderationNotice, setModerationNotice] = useState('')
   const screenShare = useScreenShare(room, quality)
   const updater = useAppUpdater()
   const micEnabled = room.localParticipant.isMicrophoneEnabled
   const cameraEnabled = room.localParticipant.isCameraEnabled
   useDesktopGameOverlay(room, gameOverlayEnabled)
+
+  useEffect(() => {
+    if (active) return
+    setParticipantMenu(null)
+    setDisconnectTarget(null)
+  }, [active])
+
+  useEffect(() => {
+    if (!moderationNotice) return
+    const timer = window.setTimeout(() => setModerationNotice(''), 5000)
+    return () => window.clearTimeout(timer)
+  }, [moderationNotice])
 
   useEffect(() => {
     if (!gamesOpen) return
@@ -759,9 +778,28 @@ export const CallScreen = ({
       {selectedParticipant && participantMenu && (
         <ParticipantContextMenu
           onClose={() => setParticipantMenu(null)}
+          onDisconnect={accountRole === 'owner' && !selectedParticipant.isLocal ? () => {
+            const target = room.remoteParticipants.get(selectedParticipant.id)
+            if (target?.sid) setDisconnectTarget({ identity: target.identity, sid: target.sid, name: selectedParticipant.name })
+            else setModerationNotice('Essa pessoa já saiu da call.')
+            setParticipantMenu(null)
+          } : undefined}
           participant={selectedParticipant}
           point={participantMenu.point}
           voice={selectedVoice}
+        />
+      )}
+
+      {disconnectTarget && accountRole === 'owner' && active && (
+        <ParticipantDisconnectDialog
+          name={disconnectTarget.name}
+          connected={room.remoteParticipants.get(disconnectTarget.identity)?.sid === disconnectTarget.sid}
+          onClose={() => setDisconnectTarget(null)}
+          onConfirm={async () => {
+            await disconnectCallParticipant(roomCode, disconnectTarget.identity, disconnectTarget.sid)
+            setDisconnectTarget(null)
+            setModerationNotice(`${disconnectTarget.name} foi desconectado da call.`)
+          }}
         />
       )}
 
@@ -790,6 +828,7 @@ export const CallScreen = ({
       )}
 
       <div className="call-notices" aria-live="polite">
+        {moderationNotice && <Notice onClose={() => setModerationNotice('')}>{moderationNotice}</Notice>}
         {microphoneError && (
           <Notice
             actionLabel={

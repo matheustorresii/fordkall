@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
   ConnectionState,
+  DisconnectReason,
   RoomEvent,
   Track,
   type LocalTrackPublication,
@@ -84,10 +85,16 @@ export const useLiveKitRoom = () => {
       const handleConnectionState = (state: ConnectionState) => {
         setStatus(toConnectionStatus(state))
       }
-      const handleDisconnected = () => {
-        if (!connectionAccepted) return
+      const handleDisconnected = (reason?: DisconnectReason) => {
+        if (!connectionAccepted || roomRef.current !== nextRoom) return
+        microphoneRequestRef.current += 1
+        stopRoomLocalTracks(nextRoom)
+        setMicrophoneStarting(false)
+        setMicrophoneError('')
         if (!leavingRef.current) {
-          setError('A conexão com a call foi encerrada. Entre novamente para continuar.')
+          setError(reason === DisconnectReason.PARTICIPANT_REMOVED
+            ? 'Você foi desconectado desta call pelo owner.'
+            : 'A conexão com a call foi encerrada. Entre novamente para continuar.')
         }
         if (roomRef.current === nextRoom) {
           roomRef.current = null

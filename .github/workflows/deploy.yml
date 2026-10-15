@@ -36,6 +36,9 @@ jobs:
       - name: Test ITO rules
         run: npm run test:ito
 
+      - name: Test owner call moderation
+        run: npm run test:moderation
+
       - name: Test Poker rules
         run: npm run test:poker
 

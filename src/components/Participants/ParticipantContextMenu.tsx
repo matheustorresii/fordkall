@@ -5,22 +5,25 @@ import { VolumeControl } from '../AudioControls/VolumeControl'
 import { Icon } from '../ui/Icon'
 import { ProfileAvatar } from '../ui/ProfileAvatar'
 import { ProfileName } from '../Profile/ProfileName'
+import './ParticipantModeration.css'
 
 export const ParticipantContextMenu = ({
   participant,
   voice,
   point,
   onClose,
+  onDisconnect,
 }: {
   participant: ParticipantMedia
   voice?: RemoteVoice
   point: ContextMenuPoint
   onClose: () => void
+  onDisconnect?: () => void
 }) => {
   const [volume, setVolume] = useParticipantVolume(participant.id, 'voice')
   const previousVolume = useRef(volume > 0 ? volume : 0.8)
   const menuWidth = 300
-  const menuHeight = participant.isLocal ? 132 : 208
+  const menuHeight = participant.isLocal ? 132 : onDisconnect ? 266 : 208
   const left = Math.max(8, Math.min(point.x, window.innerWidth - menuWidth - 8))
   const top = Math.max(8, Math.min(point.y, window.innerHeight - menuHeight - 8))
 
@@ -81,6 +84,11 @@ export const ParticipantContextMenu = ({
               onMuteToggle={toggleMute}
               value={volume}
             />
+          </div>
+        )}
+        {!participant.isLocal && onDisconnect && (
+          <div className="participant-context-menu__moderation">
+            <button onClick={onDisconnect} type="button"><Icon name="leave" />Desconectar da call</button>
           </div>
         )}
       </section>

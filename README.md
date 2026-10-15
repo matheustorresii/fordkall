@@ -104,6 +104,14 @@ https://<project-ref>.supabase.co/functions/v1/livekit-webhook
 
 A função `livekit-token` verifica sessão, status da conta e rate limit antes de emitir uma credencial de sala. Com `LIVEKIT_URL`, `LIVEKIT_API_KEY` e `LIVEKIT_API_SECRET`, ela gera um JWT próprio de validade curta. Enquanto essas credenciais não estiverem configuradas, `LIVEKIT_TOKEN_SERVER_ID` permite usar o Development Token Server atrás da mesma barreira autenticada, sem expor seu ID no frontend.
 
+### Desconectar participantes da call
+
+Somente a conta com papel `owner` ativo pode usar **Desconectar da call** no menu de outro participante (clique/toque ou botão direito). Há confirmação antes de remover. A pessoa removida volta à home com um aviso; sua conta não é suspensa e pode entrar novamente com uma nova credencial.
+
+A ação `disconnect_participant` da função `admin` valida a sessão e o papel no banco, exige que o owner esteja na mesma sala e confere a sessão do alvo (`participantSid`). Usa o backend salvo em `livekit_room_routes`, sem trocar a rota ou dar privilégios administrativos ao token do navegador. A remoção é feita pela API de servidor do LiveKit e registrada em `admin_audit_log`. Rotas sandbox sem credenciais de servidor não oferecem moderação.
+
+`npm run test:moderation` cobre permissões, rotação, sessões antigas e falhas. A prévia visual está em `/?moderation-preview` apenas no desenvolvimento. Para verificar a rejeição de sessões anônimas, falsas e de um member na API publicada, use `npm run test:moderation:live -- --linked` com o CLI autenticado. Esse teste cria e apaga somente um member temporário; não usa a sessão do owner nem desconecta pessoas reais.
+
 ### Validação das mensagens diretas
 
 A migration `20261015000000_fix_direct_message_permissions.sql` corrige a autorização de envio sem liberar a leitura de perfis privados. A política anterior consultava o destinatário sob a RLS de `profiles`, que permite ler apenas o próprio perfil, e recusava todas as DMs. Como a correção é no banco, também atende os aplicativos já instalados.

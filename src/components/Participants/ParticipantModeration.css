@@ -1,0 +1,121 @@
+.participant-context-menu__moderation {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-default);
+}
+.participant-context-menu__moderation > button {
+  display: flex;
+  width: 100%;
+  min-height: 40px;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--danger);
+  text-align: left;
+  font-size: 13px;
+  cursor: pointer;
+}
+.participant-context-menu__moderation > button:hover {
+  background: color-mix(in srgb, var(--danger) 14%, transparent);
+}
+.participant-context-menu__moderation svg {
+  width: 17px;
+  height: 17px;
+}
+.participant-disconnect-dialog {
+  width: min(430px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  margin: auto;
+  padding: 0;
+  overflow: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 18px;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  box-shadow: 0 24px 80px #0006;
+}
+.participant-disconnect-dialog::backdrop {
+  background: #0b1019b8;
+  backdrop-filter: blur(4px);
+}
+.participant-disconnect-dialog__content {
+  padding: 24px;
+}
+.participant-disconnect-dialog header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.participant-disconnect-dialog header svg {
+  width: 23px;
+  height: 23px;
+  color: var(--danger);
+  flex-shrink: 0;
+}
+.participant-disconnect-dialog h2 {
+  margin: 0;
+  font-size: 20px;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+}
+.participant-disconnect-dialog p {
+  margin: 15px 0;
+  color: var(--text-muted);
+  font-size: 14px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.participant-disconnect-dialog p strong {
+  color: var(--text-primary);
+}
+.participant-disconnect-dialog p.participant-disconnect-dialog__error {
+  color: var(--danger);
+}
+.participant-disconnect-dialog footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 24px;
+}
+.participant-disconnect-dialog button {
+  min-height: 42px;
+  padding: 0 15px;
+  border: 1px solid var(--border-default);
+  border-radius: 9px;
+  background: var(--surface-2);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.participant-disconnect-dialog button:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+.participant-disconnect-dialog button.is-danger {
+  border-color: transparent;
+  background: var(--danger);
+  color: #261b22;
+}
+.participant-disconnect-dialog button.is-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 80%, white);
+}
+.participant-disconnect-dialog button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.participant-disconnect-dialog button:focus-visible,
+.participant-context-menu__moderation > button:focus-visible {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 3px;
+}
+@media (max-width: 450px) {
+  .participant-disconnect-dialog__content {
+    padding: 20px;
+  }
+  .participant-disconnect-dialog footer > button {
+    flex: 1;
+  }
+}
