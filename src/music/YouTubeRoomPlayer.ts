@@ -70,6 +70,7 @@ export class YouTubeRoomPlayer {
   private blocked = false
   private pausedHere = false
   private desiredPlaying = false
+  private lastController = ''
   private timeout?: number
   private interval: number
 
@@ -227,6 +228,11 @@ export class YouTubeRoomPlayer {
 
   update(state: RoomMusicState, isDriver: boolean, volume: number) {
     const previousPlaying = this.state?.playing
+    if (state.controllerIdentity) {
+      // Handoffs can keep the same video/epoch. Re-anchor before reporting an offline playhead.
+      if (this.lastController && this.lastController !== state.controllerIdentity) this.loadedPlayback = ''
+      this.lastController = state.controllerIdentity
+    }
     this.state = state
     this.driver = isDriver
     if (this.volume !== volume) {

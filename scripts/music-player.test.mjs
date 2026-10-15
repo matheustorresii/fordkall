@@ -329,3 +329,20 @@ test('a lista precisa estabilizar antes de resolver; uma prévia parcial não vi
   f.adapter.sample()
   assert.deepEqual(f.resolutions[0][2], ids)
 })
+
+test('troca de coordenador realinha o mesmo vídeo antes de reportar um progresso offline', async (t) => {
+  const f = setup(t),
+    state = { ...start(), controllerIdentity: 'p0' }
+  f.adapter.update(state, true, 70)
+  await settled()
+  f.advance(5_000)
+  f.players[0].position = 100
+  f.adapter.update({ ...state, controllerIdentity: '', status: 'waiting' }, false, 70)
+  f.adapter.update(
+    { ...state, controllerIdentity: 'p1', status: 'waiting', positionSeconds: 20, updatedAt: 105_000 },
+    false,
+    70,
+  )
+  assert.equal(f.players[0].position, 20)
+  assert.equal(f.reports.at(-1).position, 20)
+})

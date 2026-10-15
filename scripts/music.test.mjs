@@ -497,3 +497,38 @@ test('reconectar a escuta não reutiliza um relatório antigo como se já estive
   n.advance(100)
   assert.equal(p0.state.driverIdentity, 'p1')
 })
+
+test('coordenador que retorna de uma queda aceita a autoridade viva, mesmo com revisões locais maiores', () => {
+  const n = mesh(2),
+    p0 = n.nodes.get('p0'),
+    p1 = n.nodes.get('p1')
+  p0.command({ type: 'add', source: video() })
+  n.advance(100)
+  // The old coordinator progressed locally while disconnected. The survivor became coordinator.
+  p0.state = { ...p0.state, revision: 50 }
+  p1.state = { ...p1.state, controllerIdentity: 'p1', revision: 11 }
+  p0.reconnect(['p1'])
+  n.advance(3_000)
+  assert.equal(p0.state.controllerIdentity, 'p1')
+  assert.equal(p0.ready, true)
+  assert.equal(p0.state.revision, p1.state.revision)
+  p0.command({ type: 'add', source: video(1) })
+  n.advance(100)
+  n.converge()
+  assert.equal(p1.state.queue.length, 2)
+})
+test('reconexão também aceita a fila vazia atual; não ressuscita uma fila apagada durante a queda', () => {
+  const n = mesh(2),
+    p0 = n.nodes.get('p0'),
+    p1 = n.nodes.get('p1')
+  p0.command({ type: 'add', source: video() })
+  n.advance(100)
+  p0.state = { ...p0.state, revision: 80 }
+  p1.state = { ...emptyMusicState(), controllerIdentity: 'p1', revision: 4 }
+  p0.reconnect(['p1'])
+  n.advance(3_000)
+  assert.equal(p0.state.controllerIdentity, 'p1')
+  assert.equal(p0.state.queue.length, 0)
+  assert.equal(p0.state.status, 'idle')
+  n.converge()
+})

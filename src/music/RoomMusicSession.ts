@@ -49,6 +49,7 @@ export class RoomMusicSession {
   private lastHello = 0
   private lastPing = 0
   private lastRequest = 0
+  private resyncing = false
   readonly transport: MusicTransport
   private changed: () => void
   private now: () => number
@@ -146,8 +147,10 @@ export class RoomMusicSession {
 
   reconnect(identities: string[]) {
     this.ready = false
+    this.resyncing = identities.some(id => id && id !== this.transport.identity)
     this.state = {
       ...this.state,
+      controllerIdentity: '',
       positionSeconds: roomMusicPosition(this.state, this.now()),
       updatedAt: this.now(),
       status: this.state.playing ? 'waiting' : this.state.status,
@@ -156,6 +159,7 @@ export class RoomMusicSession {
     this.clocks.clear()
     this.pings.clear()
     this.pending.clear()
+    for (const peer of this.peers.values()) peer.report = undefined
     this.startedAt = this.now()
     this.bootstrapUntil = this.now() + 2_000
     this.setPeers(identities)
@@ -431,14 +435,16 @@ export class RoomMusicSession {
       const next = readMusicState(raw.state)
       if (!next || next.controllerIdentity !== identity) return
       const currentController = this.state.controllerIdentity
-      const authorityKnown = this.ready && currentController && this.peerIdentities().includes(currentController)
+      const authorityKnown =
+        !this.resyncing && this.ready && currentController && this.peerIdentities().includes(currentController)
       const collision =
         this.now() < this.bootstrapUntil &&
         ((next.revision === this.state.revision && identity < currentController) ||
           (next.revision > this.state.revision && next.queue.length > 0 && !this.state.queue.length))
       if (authorityKnown && currentController !== identity && !collision) return
       if (currentController === identity && this.ready && !musicStateIsNewer(next, this.state)) return
-      if (!authorityKnown && next.revision < this.state.revision && this.state.queue.length) return
+      // Offline revisions are not authority: the surviving room may have cleared/replaced the queue.
+      if (!this.resyncing && !authorityKnown && next.revision < this.state.revision && this.state.queue.length) return
       const clock = this.clocks.get(identity)
       const transit = clock ? Math.min(2, Math.max(0, (this.now() + clock.offset - next.updatedAt) / 1_000)) : 0
       this.state = {
@@ -450,6 +456,7 @@ export class RoomMusicSession {
         updatedAt: this.now(),
       }
       this.ready = true
+      this.resyncing = false
       this.error = ''
       this.notify()
       return
@@ -518,7 +525,8 @@ export class RoomMusicSession {
   tick() {
     if (this.stopped) return
     const now = this.now()
-    if (!this.ready && now - this.startedAt > 450 && this.expectedController() === this.transport.identity) {
+    const electionDelay = this.resyncing && this.connected.size ? 2_000 : 450
+    if (!this.ready && now - this.startedAt > electionDelay && this.expectedController() === this.transport.identity) {
       this.ready = true
       this.state = {
         ...this.state,
@@ -533,7 +541,7 @@ export class RoomMusicSession {
       this.sendState()
       this.notify()
     }
-    if (!this.ready && now - this.lastRequest > 2_000) {
+    if ((!this.ready || this.resyncing) && now - this.lastRequest > 2_000) {
       this.hello()
       this.request()
     }
