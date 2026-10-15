@@ -1,630 +1,556 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
-import type { RoomMusicQueueItem, RoomMusicState } from '../../types'
+import type { RoomMusicController } from '../../hooks/useRoomMusic'
 import {
-  loadYouTubeApi,
+  MAX_ROOM_MUSIC_QUEUE,
+  MAX_ROOM_MUSIC_TRACKS,
+  currentMusicVideo,
   parseYouTubeSource,
-  type YouTubeApi,
-  type YouTubePlayer,
-} from '../../services/youtube'
-import { MAX_ROOM_MUSIC_QUEUE, roomMusicPosition } from '../../hooks/useRoomMusic'
-import { getRoomMusicVolume, saveRoomMusicVolume } from '../../storage/preferences'
+  roomMusicPosition,
+} from '../../music/model'
+import { YouTubeRoomPlayer, emptyLocalPlayer, type PlayerDependencies } from '../../music/YouTubeRoomPlayer'
+import {
+  getRoomMusicListening,
+  getRoomMusicVolume,
+  saveRoomMusicListening,
+  saveRoomMusicVolume,
+} from '../../storage/preferences'
 import { Icon } from '../ui/Icon'
+import './MusicPanel.css'
 
 interface MusicPanelProps {
   open: boolean
-  isController: boolean
-  state: RoomMusicState
-  currentItem?: RoomMusicQueueItem
-  error: string
-  onAdd: (source: NonNullable<ReturnType<typeof parseYouTubeSource>>) => boolean
-  onAdvance: (expectedItemId?: string) => void
-  onAdvancePlaylist: (
-    expectedItemId: string,
-    expectedPlaylistIndex: number,
-    nextPlaylistIndex: number,
-  ) => void
-  onClear: () => void
+  deafened?: boolean
+  music: RoomMusicController
   onClose: () => void
   onOpen: () => void
-  onErrorClose: () => void
-  onPlayItem: (itemId: string) => void
-  onRemove: (itemId: string) => void
-  onToggle: (positionSeconds?: number) => void
-  onProgress: (positionSeconds: number, playlistIndex?: number) => void
+  /** Only supplied by the development harness; production always uses the official iframe API. */
+  playerDependencies?: PlayerDependencies
+}
+export const formatMusicTime = (seconds: number) => {
+  const value = Math.max(0, Math.floor(seconds)),
+    hours = Math.floor(value / 3_600),
+    minutes = Math.floor((value % 3_600) / 60),
+    remainder = String(value % 60).padStart(2, '0')
+  return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${remainder}` : `${minutes}:${remainder}`
 }
 
-const playerStateName = (api: YouTubeApi | null, value: number) => {
-  if (!api) return ''
-  if (value === api.PlayerState.PLAYING) return 'playing'
-  if (value === api.PlayerState.PAUSED) return 'paused'
-  if (value === api.PlayerState.CUED) return 'cued'
-  return ''
-}
-
-const playerErrorMessage = (code: number) => {
-  if (code === 2) return 'O link do YouTube contém um vídeo ou playlist inválido.'
-  if (code === 5) return 'O player HTML5 do YouTube não conseguiu reproduzir este vídeo.'
-  if (code === 100) return 'Este vídeo foi removido, está privado ou não está disponível.'
-  if (code === 101 || code === 150) return 'O dono do vídeo não permite reprodução incorporada. Escolha outro vídeo.'
-  if (code === 153) return 'O YouTube não identificou a origem do player. Atualize o app ou abra o Ford Kall pelo site.'
-  return 'O YouTube não conseguiu reproduzir este item. Tente outro link.'
-}
-
-const youtubePlayerOrigin = () =>
-  window.location.protocol === 'https:' || window.location.protocol === 'http:'
-    ? window.location.origin
-    : 'https://fordkall.11a3.dev'
-
-const formatTime = (seconds: number) => {
-  const value = Math.max(0, Math.floor(seconds))
-  const hours = Math.floor(value / 3600)
-  const minutes = Math.floor((value % 3600) / 60)
-  const remainder = value % 60
-  return hours > 0
-    ? `${hours}:${String(minutes).padStart(2, '0')}:${String(remainder).padStart(2, '0')}`
-    : `${minutes}:${String(remainder).padStart(2, '0')}`
-}
-
-export const MusicPanel = ({
-  open,
-  isController,
-  state,
-  currentItem,
-  error,
-  onAdd,
-  onAdvance,
-  onAdvancePlaylist,
-  onClear,
-  onClose,
-  onOpen,
-  onErrorClose,
-  onPlayItem,
-  onRemove,
-  onToggle,
-  onProgress,
-}: MusicPanelProps) => {
-  const [input, setInput] = useState('')
-  const [inputError, setInputError] = useState('')
-  const [playerError, setPlayerError] = useState('')
-  const [ready, setReady] = useState(false)
-  const [needsLocalPlay, setNeedsLocalPlay] = useState(false)
-  const [nowPlayingTitle, setNowPlayingTitle] = useState('')
-  const [playbackTime, setPlaybackTime] = useState(0)
-  const [playbackDuration, setPlaybackDuration] = useState(0)
+export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, playerDependencies }: MusicPanelProps) => {
+  const { state, currentItem, identity, ready, command } = music
+  const [input, setInput] = useState(''),
+    [inputError, setInputError] = useState('')
+  const [sourceMode, setSourceMode] = useState<'auto' | 'video' | 'playlist'>('auto')
+  const [listening, setListening] = useState(getRoomMusicListening)
   const [volume, setVolume] = useState(getRoomMusicVolume)
-  const volumeRef = useRef(volume)
-  const hostRef = useRef<HTMLDivElement>(null)
-  const playerRef = useRef<YouTubePlayer | null>(null)
-  const apiRef = useRef<YouTubeApi | null>(null)
-  const stateRef = useRef(state)
-  const loadedKeyRef = useRef('')
-  const loadedItemIdRef = useRef('')
-  const loadedPlaylistSourceRef = useRef('')
-  const activePlaylistIndexRef = useRef<number | null>(null)
-  const endedTokenRef = useRef('')
-  const localPlaybackBlockedRef = useRef(false)
-  const callbacksRef = useRef({ onAdvance, onAdvancePlaylist, onProgress })
-  const isMini = !open && Boolean(currentItem && state.playing)
+  const [local, setLocal] = useState(emptyLocalPlayer)
+  const [position, setPosition] = useState(0),
+    [scrubbing, setScrubbing] = useState<number | null>(null)
+  const [expandedPlaylist, setExpandedPlaylist] = useState('')
+  const [confirmClear, setConfirmClear] = useState(false)
+  const hostRef = useRef<HTMLDivElement>(null),
+    playerRef = useRef<YouTubeRoomPlayer | null>(null)
+  const musicRef = useRef(music),
+    stateRef = useRef(state)
+  musicRef.current = music
   stateRef.current = state
-  volumeRef.current = volume
-  callbacksRef.current = { onAdvance, onAdvancePlaylist, onProgress }
-  const hasCurrentItem = Boolean(currentItem)
+  const enabled = listening && !deafened
+  const hasItem = Boolean(currentItem)
+  const mini = !open && enabled && hasItem
+  const visible = open || mini
 
   useEffect(() => {
-    const player = playerRef.current
-    if (player && typeof player.setVolume === 'function') player.setVolume(volume)
-  }, [volume])
-
+    music.setListening(enabled)
+  }, [enabled, music.setListening])
   useEffect(() => {
-    if (!hasCurrentItem || !hostRef.current) return
-    const initialItem = stateRef.current.queue[stateRef.current.currentIndex]
-    if (!initialItem) return
-    const host = hostRef.current
-    const target = document.createElement('iframe')
-    target.title = 'YouTube player da sala'
-    target.style.width = '100%'
-    target.style.height = '100%'
-    target.style.border = '0'
-    target.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'
-    target.allowFullscreen = true
-    target.referrerPolicy = 'strict-origin-when-cross-origin'
-    const embedUrl = new URL(
-      initialItem.kind === 'video'
-        ? `https://www.youtube.com/embed/${initialItem.sourceId}`
-        : 'https://www.youtube.com/embed/',
+    if (!enabled || !hasItem || !hostRef.current) {
+      setLocal(emptyLocalPlayer())
+      return
+    }
+    const player = new YouTubeRoomPlayer(
+      hostRef.current,
+      {
+        change: setLocal,
+        report: (report) => musicRef.current.report(report),
+        resolve: (playbackId, itemId, videoIds, offset, total) =>
+          musicRef.current.command({ type: 'resolve', playbackId, itemId, videoIds, offset, total }),
+      },
+      playerDependencies,
     )
-    embedUrl.searchParams.set('enablejsapi', '1')
-    embedUrl.searchParams.set('origin', youtubePlayerOrigin())
-    embedUrl.searchParams.set('controls', '0')
-    embedUrl.searchParams.set('playsinline', '1')
-    embedUrl.searchParams.set('rel', '0')
-    embedUrl.searchParams.set('widget_referrer', 'https://fordkall.11a3.dev/')
-    target.src = embedUrl.toString()
-    loadedKeyRef.current = initialItem.kind === 'video' ? `${initialItem.id}:0` : ''
-    loadedItemIdRef.current = initialItem.id
-    loadedPlaylistSourceRef.current = initialItem.kind === 'playlist' ? initialItem.sourceId : ''
-    host.replaceChildren(target)
-    let cancelled = false
-    let player: YouTubePlayer | null = null
-    const readyTimer = window.setTimeout(() => {
-      if (!cancelled) setPlayerError('O YouTube demorou para responder. Verifique bloqueadores e tente reabrir o player.')
-    }, 10_000)
-    setReady(false)
-    setPlayerError('')
-    localPlaybackBlockedRef.current = false
-
-    void loadYouTubeApi()
-      .then((api) => {
-        if (cancelled) return
-        apiRef.current = api
-        player = new api.Player(target, {
-          events: {
-            onReady: ({ target }) => {
-              if (cancelled) return
-              window.clearTimeout(readyTimer)
-              target.setVolume(volumeRef.current)
-              const iframe = target.getIframe()
-              iframe.allow = 'autoplay; encrypted-media; picture-in-picture; fullscreen'
-              iframe.allowFullscreen = true
-              setPlayerError('')
-              setReady(true)
-            },
-            onStateChange: ({ target, data }) => {
-              if (cancelled) return
-              const status = playerStateName(api, data)
-              if (status === 'playing') {
-                localPlaybackBlockedRef.current = false
-                setNeedsLocalPlay(false)
-                setPlayerError('')
-              }
-              const current = stateRef.current
-              const activeItem = current.queue[current.currentIndex]
-              if (activeItem?.kind === 'playlist' && (status === 'playing' || status === 'cued')) {
-                const activeIndex = target.getPlaylistIndex()
-                if (Number.isInteger(activeIndex) && activeIndex >= 0) {
-                  activePlaylistIndexRef.current = activeIndex
-                  if (
-                    status === 'playing' &&
-                    activeItem.id === loadedItemIdRef.current &&
-                    activeIndex > current.playlistIndex
-                  ) {
-                    // YouTube may have auto-advanced before its ENDED event
-                    // reaches every client. Report the actual playing index;
-                    // the controller applies it only if the old index is still
-                    // current, so concurrent reports cannot skip twice.
-                    callbacksRef.current.onAdvancePlaylist(
-                      activeItem.id,
-                      current.playlistIndex,
-                      activeIndex,
-                    )
-                  }
-                }
-              }
-              if (status === 'playing' || status === 'cued') {
-                const title = target.getVideoData().title?.trim()
-                if (title) setNowPlayingTitle(title.slice(0, 160))
-              }
-              if (data !== api.PlayerState.ENDED) return
-
-              const item = current.queue[current.currentIndex]
-              if (!item || item.id !== loadedItemIdRef.current) return
-
-              if (
-                item.kind === 'video' &&
-                target.getVideoData().video_id &&
-                target.getVideoData().video_id !== item.sourceId
-              ) return
-
-              const expectedPlaylistIndex = item.kind === 'playlist'
-                ? activePlaylistIndexRef.current ?? current.playlistIndex
-                : 0
-              // A delayed ENDED callback for the previous clip must not
-              // advance a playlist after another participant already moved
-              // the room to the next index.
-              if (item.kind === 'playlist' && expectedPlaylistIndex !== current.playlistIndex) return
-              const endedToken = `${item.id}:${expectedPlaylistIndex}`
-              if (endedTokenRef.current === endedToken) return
-              endedTokenRef.current = endedToken
-
-              if (item.kind !== 'playlist') {
-                callbacksRef.current.onAdvance(item.id)
-                return
-              }
-
-              const playlist = target.getPlaylist() ?? []
-              const actualPlaylistIndex = target.getPlaylistIndex()
-              const nextIndex = Number.isInteger(actualPlaylistIndex) && actualPlaylistIndex > expectedPlaylistIndex
-                ? actualPlaylistIndex
-                : expectedPlaylistIndex + 1
-              if (nextIndex < playlist.length) {
-                callbacksRef.current.onAdvancePlaylist(item.id, expectedPlaylistIndex, nextIndex)
-              } else {
-                callbacksRef.current.onAdvance(item.id)
-              }
-            },
-            onError: ({ data }) => {
-              if (cancelled) return
-              setPlayerError(playerErrorMessage(data))
-              setNeedsLocalPlay(false)
-            },
-            onAutoplayBlocked: () => {
-              if (cancelled) return
-              localPlaybackBlockedRef.current = true
-              setNeedsLocalPlay(true)
-            },
-          },
-        })
-        playerRef.current = player
-      })
-      .catch(() => {
-        if (!cancelled) setPlayerError('Não foi possível carregar o player do YouTube.')
-      })
-
+    playerRef.current = player
+    player.update(stateRef.current, stateRef.current.driverIdentity === musicRef.current.identity, getRoomMusicVolume())
     return () => {
-      cancelled = true
-      window.clearTimeout(readyTimer)
-      setReady(false)
-      loadedKeyRef.current = ''
-      loadedItemIdRef.current = ''
-      loadedPlaylistSourceRef.current = ''
-      activePlaylistIndexRef.current = null
-      endedTokenRef.current = ''
-      localPlaybackBlockedRef.current = false
-      playerRef.current = null
-      if (player && typeof player.destroy === 'function') player.destroy()
-      host.replaceChildren()
+      player.dispose()
+      if (playerRef.current === player) playerRef.current = null
     }
-  }, [hasCurrentItem])
-
+  }, [enabled, hasItem, playerDependencies])
   useEffect(() => {
-    if (!ready || !currentItem || !playerRef.current) return
-    const player = playerRef.current
-    const position = roomMusicPosition(state)
-    const loadedKey = `${currentItem.id}:${currentItem.kind === 'playlist' ? state.playlistIndex : 0}`
-
-    if (loadedKeyRef.current !== loadedKey) {
-      const playerAlreadyOnTargetPlaylist = currentItem.kind === 'playlist' &&
-        loadedItemIdRef.current === currentItem.id &&
-        loadedPlaylistSourceRef.current === currentItem.sourceId &&
-        player.getPlaylistIndex() === state.playlistIndex &&
-        Boolean(player.getPlaylist()?.length)
-
-      if (playerAlreadyOnTargetPlaylist) {
-        // YouTube advances its own playlist before/around ENDED. Keep that
-        // already-playing item instead of reloading it and replaying its intro.
-        loadedKeyRef.current = loadedKey
-      } else {
-        loadedKeyRef.current = loadedKey
-        loadedItemIdRef.current = currentItem.id
-        loadedPlaylistSourceRef.current = currentItem.kind === 'playlist' ? currentItem.sourceId : ''
-        activePlaylistIndexRef.current = null
-        endedTokenRef.current = ''
-        setPlayerError('')
-        setNowPlayingTitle('')
-        setNeedsLocalPlay(false)
-        localPlaybackBlockedRef.current = false
-        if (currentItem.kind === 'playlist') {
-          const options = {
-            list: currentItem.sourceId,
-            listType: 'playlist' as const,
-            index: state.playlistIndex,
-            startSeconds: position,
-          }
-          if (state.playing) player.loadPlaylist(options)
-          else player.cuePlaylist(options)
-        } else {
-          const options = { videoId: currentItem.sourceId, startSeconds: position }
-          if (state.playing) player.loadVideoById(options)
-          else player.cueVideoById(options)
-        }
-        return
-      }
-    }
-
-    const actualPosition = player.getCurrentTime()
-    if (Number.isFinite(actualPosition) && Math.abs(actualPosition - position) > 1.35) {
-      player.seekTo(position, true)
-    }
-    const api = apiRef.current
-    const playerState = api ? player.getPlayerState() : -1
-    if (state.playing) {
-      if (
-        !localPlaybackBlockedRef.current &&
-        playerState !== api?.PlayerState.PLAYING &&
-        playerState !== api?.PlayerState.BUFFERING &&
-        playerState !== api?.PlayerState.ENDED
-      ) player.playVideo()
-    } else if (
-      playerState === api?.PlayerState.PLAYING ||
-      playerState === api?.PlayerState.BUFFERING
-    ) {
-      player.pauseVideo()
-    }
-  }, [currentItem, ready, state])
-
+    playerRef.current?.update(state, state.driverIdentity === identity, volume)
+  }, [state, identity, volume])
   useEffect(() => {
-    if (!ready || !state.playing || !currentItem) return
-    const timer = window.setInterval(() => {
-      const player = playerRef.current
-      const api = apiRef.current
-      if (!player || !api) return
-      const current = stateRef.current
-      if (!current.playing || player.getPlayerState() !== api.PlayerState.PLAYING) return
-      const actualPosition = player.getCurrentTime()
-      if (!Number.isFinite(actualPosition)) return
-      const currentItem = current.queue[current.currentIndex]
-      const playlistIndex = currentItem?.kind === 'playlist'
-        ? player.getPlaylistIndex()
-        : undefined
-      callbacksRef.current.onProgress(
-        actualPosition,
-        Number.isInteger(playlistIndex) && Number(playlistIndex) >= 0 ? Number(playlistIndex) : undefined,
-      )
-      const expectedPosition = roomMusicPosition(current)
-      if (Math.abs(actualPosition - expectedPosition) > 1.8) player.seekTo(expectedPosition, true)
-    }, 2_000)
+    const update = () => setPosition(roomMusicPosition(stateRef.current))
+    update()
+    const timer = window.setInterval(update, 500)
     return () => window.clearInterval(timer)
-  }, [currentItem, ready, state.playing])
-
-  useEffect(() => {
-    if (!ready || !currentItem) {
-      setPlaybackTime(roomMusicPosition(state))
-      setPlaybackDuration(0)
-      return
-    }
-
-    const updateTimeline = () => {
-      const player = playerRef.current
-      if (!player) return
-      const time = player.getCurrentTime()
-      const duration = player.getDuration()
-      if (Number.isFinite(time)) setPlaybackTime(Math.max(0, time))
-      if (Number.isFinite(duration) && duration > 0) setPlaybackDuration(duration)
-    }
-
-    updateTimeline()
-    const timer = window.setInterval(updateTimeline, 1_000)
-    return () => window.clearInterval(timer)
-  }, [currentItem?.id, ready, state.playing, state.playlistIndex])
-
-  useEffect(() => {
-    const reconcilePlayback = () => {
-      if (document.visibilityState === 'hidden') return
-      const player = playerRef.current
-      const api = apiRef.current
-      const current = stateRef.current
-      if (!player || !api || !current.playing || localPlaybackBlockedRef.current) return
-
-      const currentItem = current.queue[current.currentIndex]
-      const playlistIndex = currentItem?.kind === 'playlist'
-        ? player.getPlaylistIndex()
-        : undefined
-      const actualPosition = player.getCurrentTime()
-      if (Number.isFinite(actualPosition)) {
-        callbacksRef.current.onProgress(
-          actualPosition,
-          Number.isInteger(playlistIndex) && Number(playlistIndex) >= 0
-            ? Number(playlistIndex)
-            : undefined,
-        )
-        const expectedPosition = roomMusicPosition(current)
-        if (Math.abs(actualPosition - expectedPosition) > 1.8) player.seekTo(expectedPosition, true)
-      }
-
-      const playerState = player.getPlayerState()
-      if (
-        playerState !== api.PlayerState.PLAYING &&
-        playerState !== api.PlayerState.BUFFERING &&
-        playerState !== api.PlayerState.ENDED
-      ) player.playVideo()
-    }
-
-    document.addEventListener('visibilitychange', reconcilePlayback)
-    window.addEventListener('focus', reconcilePlayback)
-    return () => {
-      document.removeEventListener('visibilitychange', reconcilePlayback)
-      window.removeEventListener('focus', reconcilePlayback)
-    }
   }, [])
+  useEffect(() => {
+    setScrubbing(null)
+    setPosition(roomMusicPosition(stateRef.current))
+  }, [state.playbackId])
+  useEffect(() => {
+    if (open) setConfirmClear(false)
+  }, [open])
 
-  const submit = (event: FormEvent) => {
+  const toggleListening = () => {
+    const next = !listening
+    if (!next) {
+      playerRef.current?.dispose()
+      playerRef.current = null
+      music.setListening(false)
+    }
+    setListening(next)
+    saveRoomMusicListening(next)
+  }
+  const source = parseYouTubeSource(input, sourceMode)
+  const bothSources = parseYouTubeSource(input, 'video') && parseYouTubeSource(input, 'playlist')
+  const add = (event: FormEvent) => {
     event.preventDefault()
-    const source = parseYouTubeSource(input)
     if (!source) {
-      setInputError('Cole um link válido de vídeo ou playlist do YouTube.')
+      setInputError('Use um link de vídeo ou playlist pública do YouTube ou YouTube Music.')
       return
     }
-    if (onAdd(source)) {
+    if (music.addSource(source)) {
       setInput('')
       setInputError('')
+      setSourceMode('auto')
     }
   }
-
-  const currentPosition = () => {
-    const player = playerRef.current
-    const value = player && typeof player.getCurrentTime === 'function'
-      ? player.getCurrentTime()
-      : undefined
-    return typeof value === 'number' && Number.isFinite(value)
-      ? value
-      : roomMusicPosition(state)
+  const seek = () => {
+    if (scrubbing !== null) {
+      command({ type: 'seek', playbackId: state.playbackId, position: scrubbing })
+      setScrubbing(null)
+    }
   }
+  const videoId = currentMusicVideo(state)
+  const title = state.metadata.title || local.title || currentItem?.label || 'Nenhuma música na fila'
+  const duration = state.metadata.duration || local.duration
+  const unavailable = state.status === 'unavailable'
+  const needsGesture = enabled && state.playing && (local.status === 'blocked' || local.status === 'paused')
+  const resolvingPlaylist =
+    enabled && currentItem?.kind === 'playlist' && !currentItem.videoIds.length && local.status === 'ready'
+  const localLabel = deafened
+    ? 'Som desativado pelo deafen'
+    : !listening
+      ? 'Você não está ouvindo'
+      : local.status === 'playing'
+        ? 'Você está ouvindo'
+        : local.status === 'blocked'
+          ? 'Clique para liberar o áudio'
+          : local.status === 'error'
+            ? 'Não reproduziu neste dispositivo'
+            : local.status === 'buffering' || local.status === 'loading'
+              ? 'Carregando neste dispositivo…'
+              : state.playing && !hasItem
+                ? 'Escolha uma música'
+                : state.playing
+                  ? 'Conectando ao player…'
+                  : 'Pronto para ouvir'
+  const roomLabel = !ready
+    ? 'Sincronizando sala…'
+    : state.status === 'playing'
+      ? `${state.listeners.length} ouvindo agora`
+      : state.status === 'waiting' || state.status === 'loading'
+        ? 'Aguardando reprodução'
+        : state.status === 'paused'
+          ? 'Pausado para todos'
+          : state.status === 'ended'
+            ? 'Fim da fila'
+            : unavailable
+              ? 'Faixa indisponível'
+              : 'Fila compartilhada'
 
   return (
     <aside
-      aria-hidden={!open && !isMini}
-      aria-label="Player da sala"
-      className={`music-panel ${open ? 'is-open' : ''} ${isMini ? 'is-mini' : ''}`}
+      aria-label="Música da sala"
+      aria-hidden={!visible}
+      className={`room-music ${open ? 'is-open' : ''} ${mini ? 'is-mini' : ''}`}
     >
-      <header>
-        <div className="music-panel__brand">
-          <span className="music-panel__brand-icon"><Icon name="music" /></span>
-          <span>
-            <strong>Ford Kall Music</strong>
-            <small><i />{isMini ? 'Tocando na sala' : isController ? 'Player da sala · ao vivo' : 'Sincronizado com a sala'}</small>
+      <header className="room-music__header">
+        <span className="room-music__symbol">
+          <Icon name="music" />
+        </span>
+        <div>
+          <strong>Música da sala</strong>
+          <span aria-live="polite">
+            <i className={state.status === 'playing' ? 'is-playing' : ''} />
+            {roomLabel}
           </span>
         </div>
         <button
-          aria-label={isMini ? 'Abrir controles do player' : 'Minimizar player'}
+          aria-label={mini ? 'Expandir player' : 'Minimizar player'}
           className="icon-button"
-          onClick={isMini ? onOpen : onClose}
+          onClick={mini ? onOpen : onClose}
           type="button"
         >
-          <Icon name={isMini ? 'expand' : 'x'} />
+          <Icon name={mini ? 'expand' : 'collapse'} />
         </button>
       </header>
 
-      <div className="music-panel__body">
-        <div className="music-deck">
-          <div className={`music-player ${currentItem ? 'has-track' : ''}`}>
-            <div className="music-player__host" ref={hostRef} />
-            {!currentItem && (
-              <div className="music-player__empty">
-                <span className="music-player__empty-art"><Icon name="music" /></span>
-                <strong>Sua próxima trilha começa aqui</strong>
-                <span>Adicione um vídeo ou playlist à sala.</span>
+      <div className="room-music__body">
+        <section className="room-music__deck" aria-label="Reprodução">
+          <div className={`room-music__video ${enabled && hasItem ? 'has-player' : ''}`}>
+            <div ref={hostRef} className="room-music__iframe" />
+            {(!enabled || !hasItem) && (
+              <div className="room-music__placeholder">
+                <div className="room-music__record">
+                  <Icon name={hasItem ? 'headphones' : 'music'} />
+                </div>
+                <strong>{hasItem ? 'A fila continua na sala' : 'O que vamos ouvir?'}</strong>
+                <span>{hasItem ? 'Entre na música quando quiser.' : 'YouTube e YouTube Music, juntos na call.'}</span>
               </div>
             )}
-            {currentItem && <span className="music-player__badge"><i />{state.playing ? 'AO VIVO NA SALA' : 'PAUSADO'}</span>}
-            {needsLocalPlay && currentItem && (
-              <button
-                className="music-player__resume"
-                onClick={() => {
-                  localPlaybackBlockedRef.current = false
-                  playerRef.current?.playVideo()
-                  setNeedsLocalPlay(false)
-                }}
-                type="button"
-              >
-                <Icon name="play" /> Ouvir neste dispositivo
-              </button>
+          </div>
+          <div className="room-music__track">
+            <span>
+              {currentItem?.kind === 'playlist'
+                ? `Playlist · faixa ${currentItem.playlistOffset + state.playlistIndex + 1} de ${currentItem.totalTracks || '…'}`
+                : currentItem?.provider === 'youtube-music'
+                  ? 'YouTube Music'
+                  : 'YouTube'}
+            </span>
+            <strong title={title}>{title}</strong>
+            {!mini && (
+              <small>
+                {currentItem
+                  ? `Adicionado por ${currentItem.addedBy}`
+                  : 'Adicione um link. Todos recebem a mesma fila.'}
+              </small>
             )}
           </div>
 
-          <div className="music-now-playing">
-            <div className="music-now-playing__eyebrow">
-              <span>{currentItem ? 'TOCANDO AGORA' : 'PLAYER DA SALA'}</span>
-              {currentItem && <small>{currentItem.kind === 'playlist' ? `PLAYLIST · ${state.playlistIndex + 1}` : 'VÍDEO'}</small>}
-            </div>
-            <strong title={nowPlayingTitle || currentItem?.label}>
-              {currentItem ? nowPlayingTitle || currentItem.label : 'Nenhuma faixa selecionada'}
-            </strong>
-            <small>{currentItem?.addedBy ? `Na fila por ${currentItem.addedBy}` : currentItem ? 'Fila compartilhada' : 'O que vamos ouvir?'}</small>
-          </div>
-
-          <div
-            aria-label="Progresso da faixa"
-            aria-valuemax={playbackDuration || 1}
-            aria-valuemin={0}
-            aria-valuenow={Math.min(playbackTime, playbackDuration || playbackTime)}
-            className="music-timeline"
-            role="progressbar"
-          >
-            <span><i style={{ width: `${playbackDuration > 0 ? Math.min(100, playbackTime / playbackDuration * 100) : 0}%` }} /></span>
-            <div><small>{formatTime(playbackTime)}</small><small>{playbackDuration ? formatTime(playbackDuration) : '--:--'}</small></div>
-          </div>
-
-          <div className="music-controls">
+          <div className="room-music__transport">
             <button
-              aria-label={state.playing ? 'Pausar para todos' : 'Tocar para todos'}
-              className="music-controls__play"
+              aria-label="Faixa anterior"
+              title="Faixa anterior para todos"
               disabled={!currentItem || !ready}
-              onClick={() => onToggle(currentPosition())}
+              onClick={() => command({ type: 'previous', playbackId: state.playbackId })}
+              type="button"
+            >
+              <Icon name="skip" className="room-music__previous" />
+            </button>
+            <button
+              className="room-music__play"
+              aria-label={state.playing ? 'Pausar para todos' : 'Tocar para todos'}
               title={state.playing ? 'Pausar para todos' : 'Tocar para todos'}
+              disabled={!currentItem || !ready}
+              onClick={() => command({ type: 'set-playing', playbackId: state.playbackId, playing: !state.playing })}
               type="button"
             >
               <Icon name={state.playing ? 'pause' : 'play'} />
             </button>
             <button
-              aria-label="Próximo item"
+              aria-label="Próxima faixa"
+              title="Próxima faixa para todos"
               disabled={!currentItem || !ready}
-              onClick={() => onAdvance(currentItem?.id)}
-              title="Próximo item"
+              onClick={() => command({ type: 'next', playbackId: state.playbackId })}
               type="button"
             >
               <Icon name="skip" />
             </button>
-            <label className="music-volume">
-              <Icon name={volume === 0 ? 'volumeOff' : 'audio'} />
-              <input
-                aria-label="Volume da música neste dispositivo"
-                max="100"
-                min="0"
-                onChange={(event) => {
-                  const next = Number(event.target.value)
-                  setVolume(next)
-                  saveRoomMusicVolume(next)
-                }}
-                type="range"
-                value={volume}
-              />
-              <output>{volume}%</output>
-            </label>
+            <select
+              aria-label="Repetição da fila"
+              value={state.repeat}
+              disabled={!ready}
+              onChange={(event) => command({ type: 'repeat', repeat: event.target.value as typeof state.repeat })}
+            >
+              <option value="off">Sem repetir</option>
+              <option value="all">Repetir fila</option>
+              <option value="one">Repetir faixa</option>
+            </select>
           </div>
-        </div>
+          <div className="room-music__timeline">
+            <input
+              aria-label="Posição da música para todos"
+              type="range"
+              min="0"
+              max={duration || 1}
+              step="1"
+              disabled={!duration || !videoId || !ready}
+              value={Math.min(duration || 1, scrubbing ?? position)}
+              onChange={(event) => setScrubbing(Number(event.target.value))}
+              onPointerUp={seek}
+              onKeyUp={(event) => {
+                if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) seek()
+              }}
+              onBlur={seek}
+            />
+            <span>
+              <time>{formatMusicTime(scrubbing ?? position)}</time>
+              <time>{duration ? formatMusicTime(duration) : '—:—'}</time>
+            </span>
+          </div>
 
-        <div className="music-library">
-          <form className="music-add" onSubmit={submit}>
-            <label htmlFor="music-queue-url">Adicionar à fila</label>
+          <div className={`room-music__local ${!listening || deafened ? 'is-off' : ''}`}>
+            <Icon name={enabled ? 'headphones' : 'volumeOff'} />
             <div>
-              <input
-                id="music-queue-url"
-                aria-label="Link de vídeo ou playlist do YouTube"
-                onChange={(event) => setInput(event.target.value)}
-                placeholder="Cole um link do YouTube"
-                spellCheck={false}
-                value={input}
-              />
-              <button aria-label="Adicionar à fila" disabled={!input.trim()} type="submit"><Icon name="send" /></button>
+              <strong>{localLabel}</strong>
+              <span>Só neste dispositivo</span>
             </div>
-          </form>
-          {inputError && <p className="music-inline-error">{inputError}</p>}
-          {playerError && <p className="music-inline-error">{playerError}</p>}
-          {error && (
-            <div className="music-sync-error">
-              <span>{error}</span>
-              <button aria-label="Fechar erro" onClick={onErrorClose} type="button"><Icon name="x" /></button>
+            <button
+              type="button"
+              disabled={deafened}
+              aria-label={listening ? 'Parar de ouvir aqui' : 'Ouvir aqui'}
+              onClick={toggleListening}
+            >
+              {listening ? 'Desconectar' : 'Ouvir aqui'}
+            </button>
+          </div>
+          {(needsGesture || resolvingPlaylist) && (
+            <button className="room-music__unlock" onClick={() => playerRef.current?.resume()} type="button">
+              <Icon name="play" />
+              {resolvingPlaylist
+                ? 'Carregar faixas da playlist'
+                : local.status === 'blocked'
+                  ? 'Liberar áudio neste dispositivo'
+                  : 'Voltar a ouvir a sala'}
+            </button>
+          )}
+          {enabled && local.error && (
+            <div className="room-music__notice" role="status">
+              <span>{local.error}</span>
+              <button
+                onClick={() => {
+                  if (unavailable) command({ type: 'retry', playbackId: state.playbackId })
+                  else playerRef.current?.retry()
+                }}
+                type="button"
+              >
+                Tentar novamente
+              </button>
             </div>
           )}
+          {!local.error && state.error && (
+            <div className="room-music__notice" role="status">
+              <span>{state.error}</span>
+              <button onClick={() => command({ type: 'retry', playbackId: state.playbackId })} type="button">
+                Tentar novamente
+              </button>
+            </div>
+          )}
+          <label className="room-music__volume">
+            <Icon name={volume ? 'audio' : 'volumeOff'} />
+            <input
+              aria-label="Volume da música neste dispositivo"
+              type="range"
+              min="0"
+              max="100"
+              value={volume}
+              onChange={(event) => {
+                const next = Number(event.target.value)
+                setVolume(next)
+                saveRoomMusicVolume(next)
+              }}
+            />
+            <output>{volume}%</output>
+          </label>
+          {currentItem && (
+            <a
+              className="room-music__external"
+              href={videoId ? `https://www.youtube.com/watch?v=${videoId}` : currentItem.url}
+              target="_blank"
+              rel="noopener"
+            >
+              Abrir no YouTube <Icon name="popout" />
+            </a>
+          )}
+        </section>
 
-          <section className="music-queue">
-            <header>
-              <span>A seguir</span>
-              <div>
-                <small>{state.queue.length} / {MAX_ROOM_MUSIC_QUEUE}</small>
-                {state.queue.length > 0 && <button onClick={onClear} type="button">Limpar</button>}
+        <section className="room-music__library" aria-label="Fila da sala">
+          <form className="room-music__add" onSubmit={add}>
+            <label htmlFor="room-music-url">Adicionar à fila</label>
+            <div>
+              <input
+                id="room-music-url"
+                aria-label="Link do YouTube ou YouTube Music"
+                placeholder="Cole uma música ou playlist"
+                value={input}
+                onChange={(event) => {
+                  setInput(event.target.value)
+                  setInputError('')
+                  setSourceMode('auto')
+                }}
+                autoComplete="off"
+                spellCheck={false}
+                type="text"
+              />
+              <button
+                aria-label="Adicionar à fila"
+                title="Adicionar à fila"
+                type="submit"
+                disabled={!input.trim() || !ready}
+              >
+                <Icon name="plus" />
+              </button>
+            </div>
+            {bothSources && (
+              <div className="room-music__source-options">
+                <button type="button" aria-pressed={source?.kind === 'video'} onClick={() => setSourceMode('video')}>
+                  Só esta faixa
+                </button>
+                <button
+                  type="button"
+                  aria-pressed={source?.kind === 'playlist'}
+                  onClick={() => setSourceMode('playlist')}
+                >
+                  Playlist inteira
+                </button>
               </div>
-            </header>
-            {state.queue.length === 0 ? (
-              <p>A fila está vazia. Adicione uma música para começar.</p>
-            ) : (
-              <ol>
-                {state.queue.map((item, index) => (
-                  <li className={index === state.currentIndex ? 'is-current' : ''} key={item.id}>
+            )}
+            {inputError && <p role="alert">{inputError}</p>}
+          </form>
+          {music.error && (
+            <div className="room-music__notice" role="alert">
+              <span>{music.error}</span>
+              <button aria-label="Fechar erro do player" onClick={music.clearError} type="button">
+                <Icon name="x" />
+              </button>
+            </div>
+          )}
+          <div className="room-music__queue-heading">
+            <h3>
+              Fila da sala <span>{state.queue.length}</span>
+            </h3>
+            {state.queue.length > 0 && (
+              <button type="button" onClick={() => setConfirmClear(!confirmClear)}>
+                Limpar
+              </button>
+            )}
+          </div>
+          {confirmClear && (
+            <div className="room-music__confirm">
+              <span>Parar a música e esvaziar a fila para todos?</span>
+              <button
+                type="button"
+                onClick={() => {
+                  command({ type: 'clear' })
+                  setConfirmClear(false)
+                }}
+              >
+                Esvaziar fila
+              </button>
+              <button type="button" onClick={() => setConfirmClear(false)}>
+                Cancelar
+              </button>
+            </div>
+          )}
+          {!state.queue.length ? (
+            <div className="room-music__empty-queue">
+              <Icon name="music" />
+              <span>Sem músicas por enquanto</span>
+              <small>Adicione o primeiro link acima.</small>
+            </div>
+          ) : (
+            <ol className="room-music__queue">
+              {state.queue.map((item, index) => (
+                <li key={item.id} className={index === state.currentIndex ? 'is-current' : ''}>
+                  <div className="room-music__queue-row">
                     <button
-                      aria-label={`Tocar ${item.label}`}
-                      className="music-queue__select"
-                      onClick={() => onPlayItem(item.id)}
+                      className="room-music__queue-select"
                       type="button"
+                      aria-label={`Tocar ${item.label}`}
+                      onClick={() => command({ type: 'play-item', itemId: item.id, trackIndex: 0 })}
+                      disabled={!ready}
                     >
-                      <span>{index === state.currentIndex && state.playing ? <Icon name="audio" /> : index + 1}</span>
-                      <span><strong>{item.label}</strong><small>{item.kind === 'playlist' ? 'Playlist' : 'Vídeo'} · {item.addedBy}</small></span>
+                      <span className="room-music__queue-index">
+                        {index === state.currentIndex && state.playing ? (
+                          <span className="room-music__equalizer">
+                            <i />
+                            <i />
+                            <i />
+                          </span>
+                        ) : (
+                          String(index + 1).padStart(2, '0')
+                        )}
+                      </span>
+                      <span>
+                        <strong>
+                          {index === state.currentIndex && state.metadata.title && item.kind === 'video'
+                            ? state.metadata.title
+                            : item.label}
+                        </strong>
+                        <small>
+                          {item.kind === 'playlist'
+                            ? item.videoIds.length
+                          ? `${item.videoIds.length} ${item.videoIds.length === 1 ? 'faixa' : 'faixas'}`
+                          : item.resolutionError ? 'Playlist indisponível' : 'Playlist · a carregar'
+                            : item.provider === 'youtube-music'
+                              ? 'YouTube Music'
+                              : 'YouTube'}{' '}
+                          · {item.addedBy}
+                        </small>
+                      </span>
                     </button>
                     <button
                       aria-label={`Remover ${item.label}`}
-                      className="music-queue__remove"
-                      onClick={() => onRemove(item.id)}
+                      className="room-music__remove"
                       title="Remover da fila"
+                      onClick={() => command({ type: 'remove', itemId: item.id })}
                       type="button"
                     >
-                      <Icon name="trash" />
+                      <Icon name="x" />
                     </button>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </section>
-        </div>
+                  </div>
+                  {item.kind === 'playlist' && item.videoIds.length > 0 && (
+                    <>
+                      <button
+                        className="room-music__playlist-toggle"
+                        aria-expanded={expandedPlaylist === item.id}
+                        type="button"
+                        onClick={() => setExpandedPlaylist(expandedPlaylist === item.id ? '' : item.id)}
+                      >
+                        {expandedPlaylist === item.id ? 'Fechar faixas' : 'Ver faixas'}
+                        <Icon name="chevron" />
+                      </button>
+                      {expandedPlaylist === item.id && (
+                        <ol className="room-music__playlist">
+                          {item.videoIds.map((id, track) => (
+                            <li key={`${track}-${id}`}>
+                              <button
+                                aria-current={
+                                  index === state.currentIndex && track === state.playlistIndex ? 'true' : undefined
+                                }
+                                type="button"
+                                onClick={() => command({ type: 'play-item', itemId: item.id, trackIndex: track })}
+                              >
+                                <span>{item.playlistOffset + track + 1}</span>
+                                <span>
+                                  {(index === state.currentIndex &&
+                                    track === state.playlistIndex &&
+                                    state.metadata.title) ||
+                                    `Faixa ${item.playlistOffset + track + 1}`}
+                                  <small>{id}</small>
+                                </span>
+                                <Icon name="play" />
+                              </button>
+                            </li>
+                          ))}
+                        </ol>
+                      )}
+                      {item.totalTracks > item.videoIds.length && (
+                        <p className="room-music__limit">
+                          Esta fila inclui as faixas {item.playlistOffset + 1}–
+                          {item.playlistOffset + item.videoIds.length} de {item.totalTracks}. Limite de{' '}
+                          {MAX_ROOM_MUSIC_TRACKS} faixas por sala.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ol>
+          )}
+          <p className="room-music__footnote">
+            Até {MAX_ROOM_MUSIC_QUEUE} links · Controles de reprodução alteram a sala. Volume e escuta são individuais.
+          </p>
+        </section>
       </div>
     </aside>
   )

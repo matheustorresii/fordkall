@@ -39,6 +39,9 @@ jobs:
       - name: Test Poker rules
         run: npm run test:poker
 
+      - name: Test room music synchronization and playback
+        run: npm run test:music
+
       - name: Build
         run: npm run build
         env:

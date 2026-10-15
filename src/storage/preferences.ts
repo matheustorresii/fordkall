@@ -22,6 +22,7 @@ const MICROPHONE_MONITOR_VOLUME_KEY = 'ford-kall:microphone-monitor-volume'
 const GAME_OVERLAY_KEY = 'ford-kall:game-overlay'
 const SHORTCUT_BINDINGS_KEY = 'ford-kall:shortcut-bindings'
 const ROOM_MUSIC_VOLUME_KEY = 'ford-kall:room-music-volume'
+const ROOM_MUSIC_LISTENING_KEY = 'ford-kall:room-music-listening'
 
 export const MAX_PARTICIPANT_VOLUME = 4
 export const PARTICIPANT_VOLUME_EVENT = 'ford-kall:participant-volume'
@@ -210,6 +211,9 @@ export const getRoomMusicVolume = () => {
   const stored = Number(raw)
   return Number.isFinite(stored) ? Math.min(100, Math.max(0, stored)) : 70
 }
+
+export const getRoomMusicListening = () => safeRead(ROOM_MUSIC_LISTENING_KEY) !== 'false'
+export const saveRoomMusicListening = (enabled: boolean) => safeWrite(ROOM_MUSIC_LISTENING_KEY, String(enabled))
 
 export const saveRoomMusicVolume = (volume: number) =>
   safeWrite(ROOM_MUSIC_VOLUME_KEY, String(Math.min(100, Math.max(0, volume))))

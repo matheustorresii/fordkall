@@ -362,7 +362,9 @@ const installSessionSecurity = () => {
       callback({
         requestHeaders: {
           ...details.requestHeaders,
-          Referer: PUBLIC_APP_URL,
+          // Installed-app identification required by YouTube (stable OS app ID).
+          // Do not claim the website's origin: the renderer uses a custom scheme.
+          Referer: 'https://dev.11a3.fordkall/',
         },
       })
     },

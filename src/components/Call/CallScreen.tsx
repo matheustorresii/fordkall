@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { RoomEvent, type Room } from 'livekit-client'
 import { useAudioDevices } from '../../hooks/useAudioDevices'
 import { useAppUpdater } from '../../hooks/useAppUpdater'
@@ -59,6 +60,8 @@ interface CallScreenProps {
   microphoneStarting: boolean
   onMicrophoneErrorChange: (message: string) => void
   onNavigateHome: () => void
+  active?: boolean
+  onNavigateCall?: () => void
   onLeave: () => Promise<void>
 }
 
@@ -142,6 +145,8 @@ export const CallScreen = ({
   microphoneStarting,
   onMicrophoneErrorChange,
   onNavigateHome,
+  active = true,
+  onNavigateCall,
   onLeave,
 }: CallScreenProps) => {
   const snapshot = useRoomSnapshot(room)
@@ -509,7 +514,7 @@ export const CallScreen = ({
           </button>
           <button
             aria-label={`Abrir player da sala${music.state.queue.length ? `, ${music.state.queue.length} na fila` : ''}`}
-            className={`participants-toggle music-toggle ${musicOpen ? 'is-active' : ''} ${music.state.playing ? 'is-playing' : ''}`}
+            className={`participants-toggle music-toggle ${musicOpen ? 'is-active' : ''} ${music.state.status === 'playing' ? 'is-playing' : ''}`}
             onClick={() => {
               setLayoutMenuPoint(null)
               setParticipantsOpen(false)
@@ -716,24 +721,19 @@ export const CallScreen = ({
         open={chatOpen}
       />
 
-      <MusicPanel
-        currentItem={music.currentItem}
-        error={music.error}
-        isController={music.isController}
-        onAdd={music.addSource}
-        onAdvance={music.advance}
-        onAdvancePlaylist={music.advancePlaylist}
-        onClear={music.clear}
-        onClose={() => setMusicOpen(false)}
-        onOpen={() => setMusicOpen(true)}
-        onErrorClose={music.clearError}
-        onPlayItem={music.playItem}
-        onProgress={music.reportProgress}
-        onRemove={music.remove}
-        onToggle={music.togglePlayback}
-        open={musicOpen}
-        state={music.state}
-      />
+      {createPortal(
+        <MusicPanel
+          music={music}
+          deafened={deafened}
+          onClose={() => setMusicOpen(false)}
+          onOpen={() => {
+            onNavigateCall?.()
+            setMusicOpen(true)
+          }}
+          open={musicOpen && active}
+        />,
+        document.body,
+      )}
 
       <div className="call-notices" aria-live="polite">
         {microphoneError && (

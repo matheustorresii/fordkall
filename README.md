@@ -193,6 +193,31 @@ Antes do primeiro deploy:
 
 O arquivo `public/CNAME` preserva o domínio customizado no artefato. A aplicação é uma SPA sem rotas reais e usa assets relativos para funcionar tanto no domínio quanto dentro do protocolo local seguro do Electron.
 
+## Música da sala
+
+O player usa a API oficial de iframe do YouTube, sem bot de extração de áudio, chave de Data API ou servidor adicional. Aceita links de vídeo, playlists públicas, álbuns/links públicos do YouTube Music e timestamps. Em links de música com rádio automático, o padrão é adicionar só a faixa; a interface também permite escolher a playlist inteira.
+
+- **Reprodução compartilhada:** play/pause, anterior/próxima, posição, repetição e fila valem para todos. Nenhum controle depende do iframe local estar carregado.
+- **Escuta individual:** **Desconectar** remove o iframe e interrompe o áudio/banda somente daquele dispositivo. Essa preferência é lembrada; novas músicas não a desfazem. Volume e deafen também são locais.
+- **Playlist única:** a primeira resolução válida congela a ordem dos IDs para a sala. Depois, cada iframe carrega um vídeo individual, sem o autoplay nativo da playlist. A fila aceita 20 links e até 200 faixas resolvidas; recortes de playlists maiores aparecem explicitamente na interface.
+- **Sincronização:** protocolo `ford-kall.music.v3` sobre os dados do LiveKit, eleição de coordenador, relógios estimados por ping/pong e um ouvinte responsável pelo progresso. Há passagem de responsabilidade quando ele sai, desconecta a escuta ou para de reproduzir. Um evento de fim antigo não avança outra faixa. Se ninguém reproduz, o relógio espera.
+- **Entrada/reconexão:** recebe a fila e o ponto atual. A saída de quem coordena não apaga a fila enquanto alguém permanece na sala. Os participantes precisam estar na versão nova; o protocolo v2 anterior não é compatível.
+- **Interface:** fila ao lado do player no desktop e layout vertical no celular. Minimizar preserva um vídeo visível. Ao navegar para a home durante uma call, ele continua como mini-player, com botão para parar de ouvir.
+
+O navegador ainda pode exigir **Liberar áudio neste dispositivo** na primeira vez. Conteúdo privado, bloqueado para incorporação, restrito por conta/região ou indisponível não é contornado; um link do YouTube Music não remove essas restrições. Anúncios e limitações do próprio YouTube podem afetar o alinhamento entre usuários. Não é reprodução de áudio pelo SFU nem sincronismo de amostra: cada participante usa seu próprio player oficial. Veja [eventos de autoplay/erros](https://developers.google.com/youtube/iframe_api_reference) e [requisitos do player](https://developers.google.com/youtube/terms/required-minimum-functionality).
+
+Validação local:
+
+```bash
+npm run test:music
+# Prévia isolada sem conta, convite ou sala real:
+npm run dev
+# /?music-preview=mock → dois participantes e iframe simulado
+# /?music-preview=real → API/iframe real do YouTube
+```
+
+As prévias só existem no modo de desenvolvimento. A suíte cobre o protocolo em seis clientes com latência/relógios diferentes, troca de coordenador, reconexão, fim atrasado, fila canônica, escuta desligada e ciclo de vida do iframe. Os três pipelines (web, Windows e macOS) executam essa suíte antes de publicar.
+
 ## Limitações conhecidas da V1
 
 - o código da sala identifica uma room, enquanto a autorização é determinada pela conta e pela Edge Function;

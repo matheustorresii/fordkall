@@ -139,28 +139,7 @@ export interface ChatMessage {
   status?: 'sending' | 'sent' | 'error'
 }
 
-export interface RoomMusicQueueItem {
-  id: string
-  kind: 'video' | 'playlist'
-  sourceId: string
-  url: string
-  label: string
-  addedBy: string
-  addedAt: number
-}
-
-export interface RoomMusicState {
-  version: 2
-  revision: number
-  syncSequence: number
-  controllerIdentity: string
-  queue: RoomMusicQueueItem[]
-  currentIndex: number
-  playlistIndex: number
-  playing: boolean
-  positionSeconds: number
-  updatedAt: number
-}
+export type { RoomMusicQueueItem, RoomMusicState } from '../music/model'
 
 export interface ContextMenuPoint {
   x: number

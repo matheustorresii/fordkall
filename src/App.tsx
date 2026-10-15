@@ -90,6 +90,8 @@ function App() {
           className={`app-route ${activeView === 'call' && !adminOpen ? '' : 'app-route--hidden'}`}
         >
           <CallScreen
+            active={activeView === 'call' && !adminOpen}
+            onNavigateCall={() => setActiveView('call')}
             microphoneError={liveKit.microphoneError}
             microphoneStarting={liveKit.microphoneStarting}
             onLeave={leaveCall}
