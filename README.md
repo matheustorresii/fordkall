@@ -130,6 +130,12 @@ npm run preview
 
 O build estático é gerado em `dist/`.
 
+### Regressões dos jogos
+
+Com `npm run dev`, abra `/?game-preview=kiwi` (ou `ito`, `mind`, `truco`) para exercitar os componentes reais com cenários visuais determinísticos, sem precisar de conta ou usar a franquia do LiveKit. O menu de desenvolvimento troca o número de jogadores, a fase e as escolhas privadas. Esses cenários não fazem parte do build de produção.
+
+Em `/?game-preview=checks`, execute as verificações de integração do Kiwi: dois clientes reais do hook conversam por um transporte confiável em memória. Os testes cobrem privacidade e repetição do futuro, revisão de pacotes privados, reordenação do monte, Favor, regras de alvo, combos e distribuição inicial de defesas. Eles não substituem uma partida real pelo LiveKit.
+
 ## Aplicativo Windows
 
 Para testar o Electron durante o desenvolvimento:

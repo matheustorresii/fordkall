@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { RoomEvent, type RemoteParticipant, type Room } from 'livekit-client'
+import { getKiwiCombo, getKiwiPlayTarget, kiwiCardTitle } from '../games/kiwiCards'
 
 const TOPIC = 'ford-kall.exploding-kiwi.v1'
 const MAX_PLAYERS = 5
@@ -90,7 +91,7 @@ type KiwiMessage =
   | { type: 'state'; state: KiwiRoomState }
   | { type: 'command'; commandId: string; command: KiwiCommand }
   | { type: 'command-result'; commandId: string; error: string }
-  | { type: 'private'; gameId: string; hand: KiwiCard[]; peek: KiwiCard[]; stash: KiwiCard[] }
+  | { type: 'private'; gameId: string; revision?: number; hand: KiwiCard[]; peek: KiwiCard[]; peekId?: string; stash: KiwiCard[] }
 
 const EXPANSIONS: KiwiExpansion[] = ['imploding', 'streaking', 'barking', 'zombie']
 const cardTypes: KiwiCardType[] = [
@@ -116,17 +117,7 @@ const shuffle = <T,>(items: T[]) => {
 const makeCard = (type: KiwiCardType, extra: Partial<KiwiCard> = {}): KiwiCard => ({ id: crypto.randomUUID(), type, ...extra })
 const isCat = (type: KiwiCardType) => type.startsWith('kiwi-cat-') || type === 'feral-kiwi'
 const isNowCard = (type: KiwiCardType) => ['alter-future-now', 'clairvoyance', 'feed-dead', 'shuffle-now'].includes(type)
-const cardTitle = (type: KiwiCardType) => ({
-  'kiwi-burst': 'Kiwi Explosivo', 'leaf-helmet': 'Folha-Segura', attack: 'Ataque', favor: 'Favor', nope: 'Não!', shuffle: 'Embaralhar', skip: 'Pular',
-  'see-future-3': 'Ver o Futuro · 3', 'alter-future-3': 'Mudar o Futuro · 3', 'kiwi-cat-a': 'Kiwi A', 'kiwi-cat-b': 'Kiwi B',
-  'kiwi-cat-c': 'Kiwi C', 'kiwi-cat-d': 'Kiwi D', 'kiwi-cat-e': 'Kiwi E', imploding: 'Kiwi Implosivo', 'feral-kiwi': 'Kiwi Selvagem',
-  'targeted-attack': 'Ataque Direcionado', reverse: 'Reverter', 'draw-bottom': 'Comprar por Baixo', streaking: 'Kiwi Persistente', 'catomic-bomb': 'Kiwi Atômico',
-  mark: 'Marcar', curse: 'Maldição do Bumbum', 'super-skip': 'Super Pulo', 'see-future-5': 'Ver o Futuro · 5', 'alter-future-5': 'Mudar o Futuro · 5',
-  'swap-top-bottom': 'Trocar Topo e Fundo', 'garbage-collection': 'Coleta de Descartes', barking: 'Kiwi Latidor', 'alter-future-now': 'Mudar o Futuro · Agora',
-  'tower-of-power': 'Torre do Poder', 'take-that': 'Eu Fico com Essa', potluck: 'Cada Um Dá um', bury: 'Enterrar', 'personal-attack': 'Ataque Pessoal',
-  'share-future': 'Compartilhar o Futuro', zombie: 'Kiwi Zumbi', 'attack-of-dead': 'Ataque dos Mortos', 'grave-robber': 'Ladrão de Túmulos',
-  'feed-dead': 'Alimentar os Mortos', 'dig-deeper': 'Cavar Mais Fundo', clone: 'Clone', clairvoyance: 'Clarividência', 'shuffle-now': 'Embaralhar · Agora',
-} satisfies Record<KiwiCardType, string>)[type]
+const cardTitle = kiwiCardTitle
 
 const emptyState = (controllerIdentity: string, revision = 0): KiwiRoomState => ({
   gameId: '', controllerIdentity, revision, phase: 'lobby', expansions: [], excludedCards: [], players: [], currentPlayerIdentity: '', turnsRemaining: 1,
@@ -259,11 +250,14 @@ export const useRoomExplodingKiwi = (room: Room) => {
   const [state, setState] = useState<KiwiRoomState>(() => emptyState(identitiesInRoom(room).sort()[0] || room.localParticipant.identity))
   const [hand, setHand] = useState<KiwiCard[]>([])
   const [peek, setPeek] = useState<KiwiCard[]>([])
+  const [peekId, setPeekId] = useState('')
   const [stash, setStash] = useState<KiwiCard[]>([])
   const [error, setError] = useState('')
   const stateRef = useRef(state)
   const handsRef = useRef<Record<string, KiwiCard[]>>({})
   const peeksRef = useRef<Record<string, KiwiCard[]>>({})
+  const peekIdsRef = useRef<Record<string, string>>({})
+  const privateRevisionRef = useRef(-1)
   const stashesRef = useRef<Record<string, KiwiCard[]>>({})
   const deckRef = useRef<KiwiCard[]>([])
   const discardRef = useRef<KiwiCard[]>([])
@@ -281,11 +275,18 @@ export const useRoomExplodingKiwi = (room: Room) => {
     if (candidate.gameId && candidate.controllerIdentity && connected.includes(candidate.controllerIdentity)) return candidate.controllerIdentity
     return connected.sort()[0] || room.localParticipant.identity
   }, [room])
+  const setPrivatePeek = useCallback((identity: string, cards: KiwiCard[]) => {
+    peeksRef.current[identity] = cards
+    // A second look at the same cards is a new reveal, not an already-dismissed one.
+    const id = cards.length ? crypto.randomUUID() : ''
+    peekIdsRef.current[identity] = id
+    if (identity === room.localParticipant.identity) { setPeek(cards); setPeekId(id) }
+  }, [room])
   const sendPrivateTo = useCallback((identity: string) => {
     const current = stateRef.current
-    const privateData = { type: 'private' as const, gameId: current.gameId, hand: handsRef.current[identity] ?? [],
-      peek: peeksRef.current[identity] ?? [], stash: stashesRef.current[identity] ?? [] }
-    if (identity === room.localParticipant.identity) { setHand(privateData.hand); setPeek(privateData.peek); setStash(privateData.stash); return }
+    const privateData = { type: 'private' as const, gameId: current.gameId, revision: current.revision, hand: handsRef.current[identity] ?? [],
+      peek: peeksRef.current[identity] ?? [], peekId: peekIdsRef.current[identity] ?? '', stash: stashesRef.current[identity] ?? [] }
+    if (identity === room.localParticipant.identity) { setHand(privateData.hand); setPeek(privateData.peek); setPeekId(privateData.peekId); setStash(privateData.stash); return }
     void publish(privateData, identity).catch(() => undefined)
   }, [publish, room])
   const sendCurrentState = useCallback((identity: string) => {
@@ -322,6 +323,7 @@ export const useRoomExplodingKiwi = (room: Room) => {
       return undefined
     }
     const update = (extra: Partial<KiwiRoomState> = {}) => commit((latest) => ({ ...latest, ...extra }))
+    const clearKnownFutures = () => Object.keys(peeksRef.current).forEach((identity) => setPrivatePeek(identity, []))
     const removeFromHand = (identity: string, cardId: string): KiwiCard | null => {
       const cards = getHand(identity)
       const card = cards.find((item) => item.id === cardId)
@@ -411,10 +413,10 @@ export const useRoomExplodingKiwi = (room: Room) => {
     const drawFrom = (identity: string, fromBottom = false, keep = true) => {
       const card = fromBottom ? deckRef.current.shift() : deckRef.current.pop()
       if (!card) return null
+      clearKnownFutures()
       if (card.type === 'imploding' && !card.faceUp) {
         const exposed = { ...card, faceUp: true }
-        peeksRef.current[identity] = [exposed]
-        if (identity === room.localParticipant.identity) setPeek([exposed])
+        setPrivatePeek(identity, [exposed])
         startPrompt({ kind: 'insert', actorIdentity: identity, targetIdentity: '', queue: [], label: 'O Kiwi Implosivo volta aberto ao monte. Escolha onde colocá-lo.', count: 1, endTurnAfter: true }, `${playerName(identity)} revelou o Kiwi Implosivo.`)
         return { card, wasImplodingReveal: true }
       }
@@ -469,8 +471,8 @@ export const useRoomExplodingKiwi = (room: Room) => {
         actions = shuffle([...preparedForTower, towerCard!])
       } else towerStashRef.current = []
       // Each player gets one Defuse, with exactly one more in the draw pile.
-      let defuses = expansions.includes('zombie') ? [] : Array.from({ length: players.length + 1 }, () => makeCard('leaf-helmet'))
-      let zombies = expansions.includes('zombie') ? Array.from({ length: 5 }, () => makeCard('zombie')) : []
+      const defuses = expansions.includes('zombie') ? [] : Array.from({ length: players.length + 1 }, () => makeCard('leaf-helmet'))
+      const zombies = expansions.includes('zombie') ? Array.from({ length: 5 }, () => makeCard('zombie')) : []
       let imploding = actions.filter((card) => card.type === 'imploding')
       actions = actions.filter((card) => card.type !== 'imploding' && card.type !== 'kiwi-burst')
       const playersCount = players.length
@@ -486,17 +488,16 @@ export const useRoomExplodingKiwi = (room: Room) => {
         if (extraZombies.length !== playersCount) return 'O pacote Zombie não tem Kiwis Zumbi suficientes.'
         players.forEach((item, index) => hands[item.identity].push(extraZombies[index]!))
       }
-      const dealPool = shuffle([...actions, ...defuses, ...zombies])
+      // Extra defensive cards belong to the draw pile, never to the initial seven action cards.
+      const dealPool = shuffle(actions)
       for (const item of players) for (let count = 0; count < 7; count += 1) {
         const card = dealPool.pop()
         if (!card) return 'Não foi possível montar as mãos com essa combinação de expansões.'
         hands[item.identity].push(card)
       }
-      // Zombie Kittens' four-player setup puts the spare Zombie Kitten back in the draw pile.
-      const spareZombie = expansions.includes('zombie') && playersCount === 4 ? zombies.shift() : undefined
-      handsRef.current = hands; peeksRef.current = {}; stashesRef.current = {}; takenRef.current = {}
-      deckRef.current = shuffle([...dealPool, ...imploding, ...Array.from({ length: explosionCount }, () => makeCard('kiwi-burst')), ...(spareZombie ? [spareZombie] : [])])
-      discardRef.current = []; setPeek([]); setStash([])
+      handsRef.current = hands; peeksRef.current = {}; peekIdsRef.current = {}; stashesRef.current = {}; takenRef.current = {}
+      deckRef.current = shuffle([...dealPool, ...defuses, ...zombies, ...imploding, ...Array.from({ length: explosionCount }, () => makeCard('kiwi-burst'))])
+      discardRef.current = []; setPeek([]); setPeekId(''); setStash([])
       const first = shuffle(players)[0]
       setHand(hands[room.localParticipant.identity] ?? [])
       const gameId = crypto.randomUUID()
@@ -506,8 +507,8 @@ export const useRoomExplodingKiwi = (room: Room) => {
       return null
     }
     if (command.type === 'reset') {
-      handsRef.current = {}; peeksRef.current = {}; stashesRef.current = {}; takenRef.current = {}; towerStashRef.current = []; deckRef.current = []; discardRef.current = []
-      setHand([]); setPeek([]); setStash([]); commit((latest) => emptyState(room.localParticipant.identity, latest.revision)); return null
+      handsRef.current = {}; peeksRef.current = {}; peekIdsRef.current = {}; stashesRef.current = {}; takenRef.current = {}; towerStashRef.current = []; deckRef.current = []; discardRef.current = []
+      setHand([]); setPeek([]); setPeekId(''); setStash([]); commit((latest) => emptyState(room.localParticipant.identity, latest.revision)); return null
     }
     if (!current.gameId || current.phase !== 'playing') return 'Não há uma partida ativa.'
 
@@ -558,18 +559,17 @@ export const useRoomExplodingKiwi = (room: Room) => {
         if (current.players.find((item) => item.identity === target)?.tower) { update({ lastAction: 'A Torre do Poder protegeu a mão do Favor.' }); return null }
         startPrompt({ kind: 'favor', actorIdentity: actor, targetIdentity: target, queue: [], label: 'Escolha uma carta para entregar.', count: 1 }, `${playerName(target)} deve entregar uma carta a ${playerName(actor)}.`); return null
       }
-      if (title === 'shuffle' || title === 'shuffle-now') { deckRef.current = shuffle(deckRef.current); update({ lastAction: `${playerName(actor)} embaralhou o monte.` }); return null }
+      if (title === 'shuffle' || title === 'shuffle-now') { clearKnownFutures(); deckRef.current = shuffle(deckRef.current); update({ lastAction: `${playerName(actor)} embaralhou o monte.` }); return null }
       if (title === 'see-future-3' || title === 'see-future-5' || title === 'clairvoyance') {
         const count = title === 'see-future-5' ? 5 : title === 'clairvoyance' ? 1 : 3; const cards = deckRef.current.slice(-count).reverse()
-        peeksRef.current[actor] = cards; if (actor === room.localParticipant.identity) setPeek(cards)
+        setPrivatePeek(actor, cards)
         update({ lastAction: `${playerName(actor)} viu o topo do monte em segredo.` }); return null
       }
       if (title === 'alter-future-3' || title === 'alter-future-5' || title === 'alter-future-now' || title === 'share-future') {
         const next = nextAlive(actor)
         const count = title === 'alter-future-5' ? 5 : 3
-        const cards = deckRef.current.slice(-count).reverse(); peeksRef.current[actor] = cards
-        if (actor === room.localParticipant.identity) setPeek(cards)
-        if (title === 'share-future' && next) { peeksRef.current[next.identity] = cards; sendPrivateTo(next.identity) }
+        const cards = deckRef.current.slice(-count).reverse(); setPrivatePeek(actor, cards)
+        if (title === 'share-future' && next) { setPrivatePeek(next.identity, cards); sendPrivateTo(next.identity) }
         startPrompt({ kind: 'reorder', actorIdentity: actor, targetIdentity: title === 'share-future' ? next?.identity ?? '' : actor, queue: [], label: 'Reordene as cartas do topo; a primeira fica no topo.', count: cards.length }, 'O topo do monte foi revelado em segredo.')
         return null
       }
@@ -587,17 +587,19 @@ export const useRoomExplodingKiwi = (room: Room) => {
         const result = drawFrom(actor, false, false)
         if (result?.wasExplosion || result?.wasImplodingReveal) return null
         if (result?.card) {
-          peeksRef.current[actor] = [result.card]; if (actor === room.localParticipant.identity) setPeek([result.card])
+          setPrivatePeek(actor, [result.card])
           startPrompt({ kind: 'reveal', actorIdentity: actor, targetIdentity: '', queue: [], label: 'Decida se fica com esta carta. Se não, compre a próxima.', count: 1 }, 'Cavou uma carta do topo.')
         } else endTurn(actor)
         return null
       }
       if (title === 'catomic-bomb') {
+        clearKnownFutures()
         const bombs = deckRef.current.filter((card) => card.type === 'kiwi-burst')
         deckRef.current = [...shuffle(deckRef.current.filter((card) => card.type !== 'kiwi-burst')), ...bombs.reverse()]
         endTurn(actor); return null
       }
       if (title === 'swap-top-bottom') {
+        clearKnownFutures()
         if (deckRef.current.length > 1) [deckRef.current[0], deckRef.current[deckRef.current.length - 1]] = [deckRef.current[deckRef.current.length - 1], deckRef.current[0]]
         update(); return null
       }
@@ -653,7 +655,7 @@ export const useRoomExplodingKiwi = (room: Room) => {
         const result = drawFrom(actor, false, false)
         if (result?.wasExplosion || result?.wasImplodingReveal) return null
         if (result?.card) {
-          peeksRef.current[actor] = [result.card]; if (actor === room.localParticipant.identity) setPeek([result.card])
+          setPrivatePeek(actor, [result.card])
           startPrompt({ kind: 'bury', actorIdentity: actor, targetIdentity: '', queue: [], label: 'Insira a carta comprada em qualquer ponto do monte.', count: 1, endTurnAfter: true }, 'Escolha em que ponto do monte devolver a carta.')
         } else endTurn(actor)
         return null
@@ -665,7 +667,7 @@ export const useRoomExplodingKiwi = (room: Room) => {
           if (top.type === 'skip' || top.type === 'super-skip') endTurn(actor, top.type === 'super-skip')
           else if (top.type === 'attack') { const next = nextAlive(actor); if (next) update({ currentPlayerIdentity: next.identity, turnsRemaining: current.turnsRemaining + 2 }) }
           else if (top.type === 'shuffle') deckRef.current = shuffle(deckRef.current)
-          else if (top.type === 'see-future-3') { const cards = deckRef.current.slice(-3).reverse(); peeksRef.current[actor] = cards; setPeek(actor === room.localParticipant.identity ? cards : peek) }
+          else if (top.type === 'see-future-3' || top.type === 'see-future-5') { setPrivatePeek(actor, deckRef.current.slice(top.type === 'see-future-5' ? -5 : -3).reverse()); update({ lastAction: `${playerName(actor)} viu o topo do monte em segredo.` }) }
           else if (top.type === 'zombie') { putHand(actor, [...getHand(actor), virtual]); update() }
           else update({ lastAction: `${playerName(actor)} clonou ${cardTitle(top.type)}.` })
         }
@@ -698,6 +700,7 @@ export const useRoomExplodingKiwi = (room: Room) => {
       const revivedPlayer = deadPlayers.find((item) => item.identity === revivedIdentity)
       if (wasZombie && deadPlayers.length && !revivedPlayer) return 'Escolha uma pessoa morta para trazer de volta antes de confirmar.'
       discardFromHand(senderIdentity, [defensive.id])
+      clearKnownFutures()
       if (!isBarking && explosion) deckRef.current.splice(Math.max(0, Math.min(command.position, deckRef.current.length)), 0,
         explosion.type === 'imploding' ? { ...explosion, faceUp: true } : explosion)
       if (wasZombie && revivedPlayer?.explosionCard) {
@@ -744,7 +747,7 @@ export const useRoomExplodingKiwi = (room: Room) => {
         const position = Math.max(0, Math.min(command.position ?? 0, deckRef.current.length))
         const card = peeksRef.current[prompt.actorIdentity]?.[0]
         if (!card) return 'A carta privada não está disponível; peça sincronização antes de continuar.'
-        deckRef.current.splice(position, 0, card); peeksRef.current[prompt.actorIdentity] = []; setPeek([])
+        clearKnownFutures(); deckRef.current.splice(position, 0, card)
         update({ prompt: null, pendingDefenseIdentity: '', lastAction: `${playerName(prompt.actorIdentity)} inseriu uma carta no monte.` })
         if (prompt.endTurnAfter) endTurn(prompt.actorIdentity)
         return null
@@ -755,8 +758,10 @@ export const useRoomExplodingKiwi = (room: Room) => {
         if (!ids.length || ids.length !== available.length || new Set(ids).size !== available.length) return 'Reordene todas as cartas reveladas.'
         const ordered = ids.map((id) => available.find((card) => card.id === id)).filter((card): card is KiwiCard => Boolean(card))
         if (ordered.length !== available.length) return 'A ordem enviada não corresponde às cartas reveladas.'
-        deckRef.current.splice(Math.max(0, deckRef.current.length - ordered.length), ordered.length, ...ordered.reverse())
-        peeksRef.current[senderIdentity] = []; setPeek([]); update({ prompt: null, lastAction: `${playerName(senderIdentity)} reorganizou o topo do monte.` }); return null
+        deckRef.current.splice(Math.max(0, deckRef.current.length - ordered.length), ordered.length, ...[...ordered].reverse())
+        clearKnownFutures()
+        if (prompt.targetIdentity && prompt.targetIdentity !== senderIdentity) setPrivatePeek(prompt.targetIdentity, ordered)
+        update({ prompt: null, lastAction: `${playerName(senderIdentity)} reorganizou o topo do monte.` }); return null
       }
       if (prompt.kind === 'give') {
         const card = getHand(senderIdentity).find((item) => item.id === command.cardId)
@@ -780,14 +785,14 @@ export const useRoomExplodingKiwi = (room: Room) => {
         const drawn = peeksRef.current[prompt.actorIdentity]?.[0]
         if (!drawn) return 'Não há carta revelada.'
         if (command.cardId === drawn.id) {
-          peeksRef.current[prompt.actorIdentity] = []; setPeek([]); update({ prompt: null })
+          setPrivatePeek(prompt.actorIdentity, []); update({ prompt: null })
           if (drawn.type === 'kiwi-burst' || (drawn.type === 'imploding' && drawn.faceUp)) loseLife(prompt.actorIdentity, drawn)
           else { putHand(prompt.actorIdentity, [...getHand(prompt.actorIdentity), drawn]); endTurn(prompt.actorIdentity) }
         } else {
           const second = drawFrom(prompt.actorIdentity)
           deckRef.current.push(drawn)
           if (second?.wasImplodingReveal) return null
-          peeksRef.current[prompt.actorIdentity] = []; setPeek([]); update({ prompt: null })
+          setPrivatePeek(prompt.actorIdentity, []); update({ prompt: null })
           if (!second?.wasExplosion) endTurn(prompt.actorIdentity)
         }
         return null
@@ -819,19 +824,14 @@ export const useRoomExplodingKiwi = (room: Room) => {
       const primary = selected[0]!
       if (player?.blind && selected.length > 1) return 'Com a mão amaldiçoada, jogue uma carta por vez.'
       if (selected.length > 1) {
-        const zombieRules = current.expansions.includes('zombie')
-        const sameTitle = selected.every((item) => item.type === primary.type)
-        const catSet = selected.every((item) => isCat(item.type))
-        const hasWildCat = catSet && selected.some((item) => item.type === 'feral-kiwi')
-        const validPair = selected.length === 2 && ((sameTitle && (zombieRules || isCat(primary.type))) || hasWildCat)
-        const validTriple = selected.length === 3 && ((sameTitle && (zombieRules || isCat(primary.type))) || hasWildCat)
-        const validFive = selected.length === 5 && new Set(selected.map((item) => item.type)).size === 5
-        if (!validPair && !validTriple && !validFive) return 'Essa combinação não é válida pelas regras desta partida.'
+        const combo = getKiwiCombo(selected, current.expansions.includes('zombie'))
+        if (!combo) return 'Essa combinação não é válida pelas regras desta partida.'
         const target = current.players.find((item) => item.identity === command.targetIdentity && item.alive && item.identity !== senderIdentity)
-        if (!validFive && !target) return 'Escolha outra pessoa viva para o combo.'
+        if (combo !== 'five' && !target) return 'Escolha outra pessoa viva para o combo.'
+        if ((combo === 'triple' || combo === 'five') && !command.namedCardType) return 'Escolha a carta desejada para este combo.'
         const taken = discardFromHand(senderIdentity, selected.map((item) => item.id))
         if (!taken) return 'Não consegui remover as cartas do combo.'
-        const comboType = validFive ? 'combo-five' : validTriple ? 'combo-triple' : 'combo-pair'
+        const comboType = combo === 'five' ? 'combo-five' : combo === 'triple' ? 'combo-triple' : 'combo-pair'
         openAction(senderIdentity, comboType, selected.map((item) => item.id), command.targetIdentity, command.namedCardType)
         return null
       }
@@ -841,12 +841,13 @@ export const useRoomExplodingKiwi = (room: Room) => {
       }
       if (primary.type === 'nope') return 'Use Não! durante a janela de resposta.'
       if (isCat(primary.type)) return 'Cartas de Kiwi só podem ser jogadas em combos.'
-      const randomTarget = player?.blind ? shuffle(current.players.filter((item) => item.alive && item.identity !== senderIdentity))[0]?.identity : ''
+      const targetRule = getKiwiPlayTarget([primary])
+      const randomTarget = player?.blind ? shuffle(current.players.filter((item) => targetRule === 'dead' ? !item.alive : item.alive && (targetRule === 'living' || item.identity !== senderIdentity)))[0]?.identity : ''
       const targetIdentity = player?.blind ? randomTarget ?? '' : command.targetIdentity
-      const targeted = ['favor', 'targeted-attack', 'curse', 'mark', 'take-that', 'feed-dead'].includes(primary.type)
+      const targeted = targetRule !== 'none'
       const target = targeted ? current.players.find((item) => item.identity === targetIdentity &&
         (primary.type === 'feed-dead' ? !item.alive : item.alive && (primary.type === 'targeted-attack' || item.identity !== senderIdentity))) : undefined
-      if (targeted && !target) return 'Selecione outra pessoa viva como alvo.'
+      if (targeted && !target) return targetRule === 'dead' ? 'Escolha uma pessoa eliminada como alvo.' : 'Escolha uma pessoa válida como alvo.'
       if (primary.type === 'take-that' && target?.takeThatCard) return 'Essa pessoa já tem uma carta Eu Fico com Essa pendente.'
       if (primary.type === 'feed-dead' && !current.players.some((item) => !item.alive)) return 'Não há pessoas mortas para alimentar.'
       if (primary.type === 'grave-robber' && !current.players.some((item) => !item.alive && getHand(item.identity).length)) return 'Não há mãos de pessoas mortas para saquear.'
@@ -871,7 +872,6 @@ export const useRoomExplodingKiwi = (room: Room) => {
       discardFromHand(senderIdentity, [primary.id])
       if (primary.type === 'alter-future-now' || primary.type === 'clairvoyance' || primary.type === 'feed-dead') {
         // “Now” cards resolve outside the ordinary turn and are not subject to Nope.
-        discardRef.current.push(primary)
         const actionType: KiwiPendingAction['cardType'] = primary.type
         openAction(senderIdentity, actionType, [primary.id], targetIdentity)
         return null
@@ -890,17 +890,17 @@ export const useRoomExplodingKiwi = (room: Room) => {
       }
       if (result.wasImplodingReveal) return null
       if (player.blind) update({ players: current.players.map((item) => item.identity === senderIdentity ? { ...item, blind: false } : item), lastAction: `${playerName(senderIdentity)} conseguiu comprar e encerrou a maldição.` })
-      peeksRef.current[senderIdentity] = []; setPeek([]); endTurn(senderIdentity); return null
+      clearKnownFutures(); endTurn(senderIdentity); return null
     }
     return null
-  }, [commit, peek, room, sendPrivateTo])
+  }, [commit, room, sendPrivateTo, setPrivatePeek])
 
   const ensureController = useCallback(() => {
     if (getControllerIdentity() !== room.localParticipant.identity) return false
     if (stateRef.current.controllerIdentity === room.localParticipant.identity) return true
     const wasActive = Boolean(stateRef.current.gameId)
-    handsRef.current = {}; peeksRef.current = {}; stashesRef.current = {}; deckRef.current = []; discardRef.current = []; takenRef.current = {}
-    setHand([]); setPeek([]); setStash([])
+    handsRef.current = {}; peeksRef.current = {}; peekIdsRef.current = {}; stashesRef.current = {}; deckRef.current = []; discardRef.current = []; takenRef.current = {}
+    setHand([]); setPeek([]); setPeekId(''); setStash([])
     const next = emptyState(room.localParticipant.identity, stateRef.current.revision + 1); applyState(next)
     if (wasActive) setError('Quem controlava a partida saiu. A rodada foi encerrada para proteger as mãos privadas.')
     void publish({ type: 'state', state: next }).catch(() => undefined)
@@ -939,15 +939,19 @@ export const useRoomExplodingKiwi = (room: Room) => {
         const current = stateRef.current
         if (candidate.controllerIdentity === current.controllerIdentity && candidate.revision <= current.revision) return
         applyState(candidate)
-        if (!candidate.gameId || candidate.gameId !== current.gameId) { setHand([]); setPeek([]); setStash([]) }
+        if (!candidate.gameId || candidate.gameId !== current.gameId) { setHand([]); setPeek([]); setPeekId(''); setStash([]); privateRevisionRef.current = -1 }
         if (candidate.gameId && candidate.players.some((item) => item.identity === room.localParticipant.identity)) void publish({ type: 'request' }, candidate.controllerIdentity).catch(() => undefined)
         return
       }
       if (message.type === 'private') {
         const current = stateRef.current
         if (participant.identity !== current.controllerIdentity || message.gameId !== current.gameId || !current.players.some((item) => item.identity === room.localParticipant.identity)) return
+        const revision = typeof message.revision === 'number' ? message.revision : current.revision
+        if (revision < privateRevisionRef.current) return
+        privateRevisionRef.current = revision
         setHand(Array.isArray(message.hand) ? message.hand.flatMap((card) => { const parsed = parseCard(card); return parsed ? [parsed] : [] }) : [])
         setPeek(Array.isArray(message.peek) ? message.peek.flatMap((card) => { const parsed = parseCard(card); return parsed ? [parsed] : [] }) : [])
+        setPeekId(typeof message.peekId === 'string' ? cleanText(message.peekId, 80) : `${message.gameId}:${revision}`)
         setStash(Array.isArray(message.stash) ? message.stash.flatMap((card) => { const parsed = parseCard(card); return parsed ? [parsed] : [] }) : [])
         return
       }
@@ -995,7 +999,7 @@ export const useRoomExplodingKiwi = (room: Room) => {
   const controllerIdentity = getControllerIdentity(state)
   void participantRevision
   return {
-    state, hand, peek, stash, error, clearError,
+    state, hand, peek, peekId, stash, error, clearError,
     isController: controllerIdentity === room.localParticipant.identity,
     isPlaying: state.players.some((item) => item.identity === room.localParticipant.identity),
     isMyTurn: state.currentPlayerIdentity === room.localParticipant.identity,

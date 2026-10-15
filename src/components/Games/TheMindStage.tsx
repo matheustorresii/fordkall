@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import type { ParticipantMedia } from '../../types'
 import type { MindRoomState } from '../../hooks/useRoomMind'
 import { Icon } from '../ui/Icon'
+import { arrangeSeats, GameError, GameHud, GameLobby, GameModal, GameSeat, NumberCard } from './GameTable'
 import './TheMindStage.css'
 
 interface MindGame {
@@ -15,146 +17,43 @@ interface MindGame {
   nextLevel: () => boolean
   reset: () => boolean
 }
-
-interface TheMindStageProps {
-  game: MindGame
-  participants: ParticipantMedia[]
-  onExit: () => void
-  onOpenGameHub: () => void
-}
-
-const avatarLetters = (name: string) => name.trim().split(/\s+/).slice(0, 2).map((part) => part[0]).join('').toUpperCase() || '?'
+interface TheMindStageProps { game: MindGame; participants: ParticipantMedia[]; onExit: () => void; onOpenGameHub: () => void }
 
 export const TheMindStage = ({ game, participants, onExit, onOpenGameHub }: TheMindStageProps) => {
-  const localIdentity = participants.find((participant) => participant.isLocal)?.id ?? ''
+  const [modal, setModal] = useState<'rules' | 'sequence' | 'end' | null>(null)
+  const [dismissedResult, setDismissedResult] = useState('')
+  const localIdentity = participants.find((person) => person.isLocal)?.id ?? ''
   const localPlayer = game.state.players.find((player) => player.identity === localIdentity)
+  const seats = arrangeSeats(game.state.players, localIdentity)
   const hasVoted = game.state.shurikenVotes.includes(localIdentity)
-  const lobbyPlayers = participants
+  const resultKey = `${game.state.gameId}:${game.state.level}:${game.state.phase}`
+  const hasResult = ['level-result', 'won', 'lost'].includes(game.state.phase)
+  const showResult = hasResult && dismissedResult !== resultKey && !modal
+  const lastCard = game.state.played.at(-1)
+  const lastPlayer = game.state.lastMistake?.identity ? game.state.players.find((player) => player.identity === game.state.lastMistake?.identity)?.name : undefined
 
-  return (
-    <section className="mind-stage" aria-label="The Mind">
-      <header className="mind-stage__topbar">
-        <div className="mind-stage__brand">
-          <span className="mind-stage__mark"><b>1</b><i>···</i><b>100</b></span>
-          <div><small>JOGOS DA SALA</small><strong>The Mind</strong></div>
-        </div>
-        <button className="mind-stage__hub-button" onClick={onOpenGameHub} type="button"><Icon name="gamepad" />Trocar jogo</button>
-        <div className="mind-stage__topbar-actions">
-          {game.state.gameId && <span className="mind-stage__status"><i />{game.state.players.length} em equipe</span>}
-          <button aria-label="Voltar para a call" className="icon-button" onClick={onExit} title="Voltar para a call" type="button"><Icon name="x" /></button>
-        </div>
-      </header>
-
-      {game.error && (
-        <div className="mind-stage__error" role="alert">
-          <Icon name="warning" /><span>{game.error}</span>
-          <button aria-label="Fechar aviso" onClick={game.clearError} type="button"><Icon name="x" /></button>
-        </div>
-      )}
-
-      {game.state.phase === 'lobby' && (
-        <div className="mind-lobby">
-          <div className="mind-lobby__intro">
-            <span className="mind-eyebrow">COOPERATIVO · SILÊNCIO E INTUIÇÃO</span>
-            <h2>Uma equipe.<br />Uma sequência.</h2>
-            <p>Joguem os números em ordem crescente. Sem combinar, sem falar — só tentem sentir o momento certo.</p>
-          </div>
-          <div className="mind-lobby__steps">
-            <div><i>01</i><span><strong>Guarde</strong> seu número secreto.</span></div>
-            <div><i>02</i><span><strong>Espere</strong> sentir que é sua vez.</span></div>
-            <div><i>03</i><span><strong>Joguem</strong> juntos do menor ao maior.</span></div>
-            <p>Uma carta fora da ordem custa uma vida. Usem o shuriken para revelar a menor carta de cada pessoa.</p>
-          </div>
-          <div className="mind-lobby__footer">
-            <div>
-              <small>NA SALA · {game.participantCount} DE 4</small>
-              <div className="mind-roster">
-                {lobbyPlayers.map((player) => (
-                  <span className="mind-roster__person" key={player.id}>
-                    <i>{player.avatarDataUrl ? <img alt="" src={player.avatarDataUrl} /> : avatarLetters(player.name)}</i>
-                    <span>{player.name}{player.isLocal ? ' · você' : ''}</span>
-                  </span>
-                ))}
-              </div>
-            </div>
-            <button className="mind-button mind-button--primary" disabled={game.participantCount < 2 || game.participantCount > 4} onClick={game.start} type="button"><Icon name="play" />Começar partida</button>
-          </div>
-          {game.participantCount < 2 && <small className="mind-lobby__hint">Chamem pelo menos mais uma pessoa para começar.</small>}
-          {game.participantCount > 4 && <small className="mind-lobby__hint">The Mind aceita de 2 a 4 pessoas.</small>}
-        </div>
-      )}
-
-      {game.state.phase !== 'lobby' && (
-        <div className="mind-table">
-          <div className="mind-table__heading">
-            <div>
-              <span className="mind-eyebrow">{game.state.phase === 'playing' ? `NÍVEL ${game.state.level} DE ${game.state.maxLevel}` : game.state.phase === 'level-result' ? 'NÍVEL CONCLUÍDO' : game.state.phase === 'won' ? 'PARTIDA PERFEITA' : 'FIM DE JOGO'}</span>
-              <h2>{game.state.phase === 'playing' ? 'O menor número começa.' : game.state.phase === 'level-result' ? 'Todos chegaram ao fim.' : game.state.phase === 'won' ? 'Vocês venceram juntos.' : 'As vidas acabaram.'}</h2>
-              <p>{game.state.phase === 'playing' ? 'Não contem seus números. Quando sentir, jogue a carta.' : game.state.phase === 'level-result' ? 'Recuperem o fôlego. O próximo nível traz mais cartas.' : game.state.phase === 'won' ? 'Vocês completaram todos os níveis.' : 'Tentem outra vez e confiem mais no ritmo do grupo.'}</p>
-            </div>
-            <div className="mind-resources" aria-label={`${game.state.lives} vidas e ${game.state.shurikens} shurikens`}>
-              <span><small>VIDAS</small><strong>{Array.from({ length: game.state.maxLives }, (_, index) => <i className={index < game.state.lives ? 'is-full' : ''} key={index}>●</i>)}</strong></span>
-              <span><small>SHURIKEN</small><strong>{Array.from({ length: game.state.shurikens }, (_, index) => <i className="mind-shuriken" key={index}>✦</i>)}{game.state.shurikens === 0 && <em>0</em>}</strong></span>
-            </div>
-          </div>
-
-          <div className="mind-table__players">
-            {game.state.players.map((player) => {
-              const participant = participants.find((person) => person.id === player.identity)
-              const voted = game.state.shurikenVotes.includes(player.identity)
-              return (
-                <div className={`mind-player ${player.identity === localIdentity ? 'is-local' : ''}`} key={player.identity}>
-                  <i className="mind-player__avatar">{participant?.avatarDataUrl ? <img alt="" src={participant.avatarDataUrl} /> : avatarLetters(player.name)}</i>
-                  <span><strong>{player.name}{player.identity === localIdentity ? ' · você' : ''}</strong><small>{player.cardsRemaining} {player.cardsRemaining === 1 ? 'carta' : 'cartas'} restantes</small></span>
-                  {voted && <em>SHURIKEN ✓</em>}
-                </div>
-              )
-            })}
-          </div>
-
-          <div className="mind-sequence" aria-label="Cartas jogadas nesta rodada">
-            <div className="mind-sequence__heading"><strong>Sequência</strong><small>{game.state.played.length} jogadas</small></div>
-            <div className="mind-sequence__cards">
-              {game.state.played.length
-                ? game.state.played.map((card, index) => <span key={`${card}-${index}`}>{String(card).padStart(2, '0')}</span>)
-                : <small>As cartas jogadas aparecem aqui.</small>}
-            </div>
-          </div>
-
-          {game.state.lastMistake && (
-            <div className="mind-mistake" role="status">
-              <strong>Uma carta menor ainda estava na mão:</strong>
-              <span>{game.state.lastMistake.playedCard} foi jogada antes de {game.state.lastMistake.lowerCards.map((card) => card.value).join(', ')}. Vocês perderam uma vida.</span>
-            </div>
-          )}
-          {!game.state.lastMistake && game.state.lastEvent && <p className="mind-table__event">{game.state.lastEvent}</p>}
-
-          {game.state.phase === 'playing' && (
-            <div className="mind-hand">
-              <div className="mind-hand__heading">
-                <div><strong>Sua mão</strong><small>{localPlayer ? `${game.hand.length} cartas privadas` : 'Você está acompanhando esta partida'}</small></div>
-                {game.state.shurikens > 0 && localPlayer && <button className="mind-button mind-button--shuriken" disabled={hasVoted} onClick={game.voteShuriken} type="button">✦ {hasVoted ? `Votou · ${game.state.shurikenVotes.length}/${game.state.players.length}` : `Votar para usar shuriken · ${game.state.shurikenVotes.length}/${game.state.players.length}`}</button>}
-              </div>
-              {localPlayer ? (
-                <div className="mind-hand__cards">
-                  {game.hand.map((card) => (
-                    <button aria-label={`Jogar carta ${card}`} className="mind-card" key={card} onClick={() => game.play(card)} title={`Jogar ${card}`} type="button">
-                      <span className="mind-card__corner">{card}</span>
-                      <strong>{String(card).padStart(2, '0')}</strong>
-                      <span className="mind-card__sigil" aria-hidden="true">✦</span>
-                      <span className="mind-card__corner mind-card__corner--bottom" aria-hidden="true">{card}</span>
-                    </button>
-                  ))}
-                  {!game.hand.length && <span className="mind-hand__waiting">Aguardando a equipe…</span>}
-                </div>
-              ) : <p className="mind-hand__waiting">Só você vê suas cartas. Continue em silêncio e acompanhe a equipe.</p>}
-            </div>
-          )}
-
-          {game.state.phase === 'level-result' && <div className="mind-result-actions"><button className="mind-button mind-button--primary" onClick={game.nextLevel} type="button"><Icon name="play" />Começar nível {game.state.level + 1}</button><button className="mind-button mind-button--subtle" onClick={game.reset} type="button">Encerrar partida</button></div>}
-          {(game.state.phase === 'won' || game.state.phase === 'lost') && <div className="mind-result-actions"><button className="mind-button mind-button--primary" onClick={game.start} type="button"><Icon name="refresh" />Jogar de novo</button><button className="mind-button mind-button--subtle" onClick={onOpenGameHub} type="button">Escolher outro jogo</button></div>}
-        </div>
-      )}
-    </section>
-  )
+  return <section aria-label="The Mind" className={`mind-stage ${game.state.phase === 'lobby' ? 'mind-stage--lobby' : 'game-match'}`}>
+    <GameHud onExit={onExit} onOpenGameHub={onOpenGameHub} subtitle={game.state.phase === 'lobby' ? '2–4 jogadores' : `Nível ${game.state.level}/${game.state.maxLevel}`} title="The Mind"><button aria-label="Regras de The Mind" className="game-icon-button" onClick={() => setModal('rules')} type="button">?</button></GameHud>
+    <GameError error={game.error} onClose={game.clearError} />
+    {game.state.phase === 'lobby' ? <GameLobby art={<><NumberCard value={17} /><NumberCard value={68} /></>} description="Joguem em ordem crescente sem contar seus números. Uma equipe, um ritmo — sintam a hora de jogar." disabled={game.participantCount < 2 || game.participantCount > 4} eyebrow="2–4 JOGADORES · COOPERATIVO" note={game.participantCount < 2 ? 'Entre com mais uma pessoa para jogar.' : 'Confiem na intuição da equipe.'} onRules={() => setModal('rules')} onStart={game.start} participants={participants} title={<>The<br />Mind</>} /> : <>
+      <div className="game-arena mind-arena">
+        <div className="game-table-felt" />
+        <div className="mind-match-resources" aria-label={`Nível ${game.state.level}, ${game.state.lives} vidas, ${game.state.shurikens} shurikens`}><span>NÍVEL <b>{game.state.level}</b></span><span className="mind-lives">♥ <b>{game.state.lives}</b></span><span>✦ <b>{game.state.shurikens}</b></span></div>
+        {seats.map((player, index) => <GameSeat active={player.identity === localIdentity && player.cardsRemaining > 0} avatar={participants.find((person) => person.id === player.identity)?.avatarDataUrl} cards={player.cardsRemaining} index={index} key={player.identity} local={player.identity === localIdentity} name={player.name} status={game.state.shurikenVotes.includes(player.identity) ? '✦ Votou' : player.cardsRemaining === 0 ? 'Sem cartas' : undefined} total={seats.length} />)}
+        <button aria-label={`Ver sequência, ${game.state.played.length} cartas jogadas`} className={`mind-pile ${game.state.lastMistake ? 'mind-pile--mistake' : ''}`} onClick={() => setModal('sequence')} type="button">
+          {game.state.played.slice(-3, -1).map((card) => <span className="mind-pile__previous" key={card}><NumberCard value={card} /></span>)}
+          <span className="mind-pile__top" key={`${game.state.level}-${lastCard ?? 'empty'}`}>{lastCard !== undefined ? <NumberCard value={lastCard} /> : <span className="mind-pile__empty"><i>✦</i><strong>Confie no tempo.</strong><small>O menor número começa.</small></span>}</span>
+          <span className="mind-pile__caption">{game.state.played.length ? `${game.state.played.length} cartas jogadas` : 'A mesa está pronta'}<Icon name="eye" /></span>
+        </button>
+        {game.state.lastMistake ? <p className="game-table-note mind-mistake" key={`${game.state.lastMistake.playedCard}`} role="status">−1 vida · {lastPlayer ?? 'Alguém'} jogou {game.state.lastMistake.playedCard} antes de {game.state.lastMistake.lowerCards.map((card) => card.value).join(', ')}.</p> : <p className="game-table-note" key={game.state.lastEvent} role="status">{game.state.lastEvent || 'Respirem. A menor carta abre a rodada.'}</p>}
+      </div>
+      <div className="game-hand mind-hand"><div className="game-hand__toolbar"><div className="game-hand__label"><strong>Sua mão</strong><small>{game.hand.length} cartas</small></div><div className="game-hand__actions">{hasResult ? <button className="game-action game-action--primary" onClick={() => setDismissedResult('')} type="button">{game.state.phase === 'level-result' ? 'Próximo nível' : 'Resultado'}</button> : game.state.shurikens > 0 && localPlayer && <button className={`game-action ${hasVoted ? 'is-selected' : ''}`} disabled={hasVoted} onClick={game.voteShuriken} type="button">✦ {hasVoted ? 'Votou' : 'Usar shuriken'} · {game.state.shurikenVotes.length}/{game.state.players.length}</button>}<button aria-label="Encerrar partida" className="game-icon-button" onClick={() => setModal('end')} type="button"><Icon name="menu" /></button></div></div>
+        <div className="game-hand__rail">{game.state.phase === 'playing' && localPlayer ? game.hand.map((card) => <button aria-label={`Jogar carta ${card}`} className="mind-hand-card" key={card} onClick={() => game.play(card)} type="button"><NumberCard value={card} /></button>) : null}{(!localPlayer || !game.hand.length || hasResult) && <span className="mind-hand-empty">{hasResult ? 'A equipe chegou ao fim deste nível.' : localPlayer ? 'Acompanhe o tempo da equipe…' : 'Você está assistindo à partida.'}</span>}</div>
+      </div>
+    </>}
+    {modal === 'sequence' ? <GameModal detail="Números jogados nesta rodada, na ordem em que chegaram à mesa." onClose={() => setModal(null)} title="Sequência da equipe" wide><div className="mind-sequence-history">{game.state.played.map((card) => <NumberCard key={card} value={card} />)}</div>{!game.state.played.length && <p className="game-modal__hint">A primeira carta ainda não foi jogada.</p>}</GameModal>
+      : modal === 'rules' ? <GameModal onClose={() => setModal(null)} title="Como jogar The Mind"><div className="game-rules"><p>Joguem suas cartas em ordem crescente, de 1 a 100. Vocês podem falar, mas não podem contar seus números nem combinar uma ordem.</p><p>Quando sentir que sua carta é a menor, jogue. Uma carta fora de ordem custa uma vida e as cartas menores que ficaram nas mãos são descartadas.</p><p>Se todo mundo votar em usar um <strong>shuriken</strong>, cada pessoa descarta sua menor carta. Os níveis avançam com mais cartas por pessoa.</p><p>A equipe vence ao completar todos os níveis antes que acabem as vidas.</p></div></GameModal>
+        : modal === 'end' ? <GameModal detail="A partida termina para toda a equipe." onClose={() => setModal(null)} title="Encerrar The Mind?"><div className="game-modal__actions"><button className="game-action" onClick={() => setModal(null)} type="button">Continuar</button><button className="game-action game-action--danger" onClick={() => { if (game.reset()) setModal(null) }} type="button">Encerrar</button></div></GameModal> : null}
+    {showResult && <GameModal detail={game.state.phase === 'level-result' ? `Preparem-se: o nível ${game.state.level + 1} traz mais cartas.` : game.state.phase === 'won' ? 'Vocês completaram todos os níveis juntos.' : 'As vidas acabaram. Uma nova partida traz outro ritmo.'} onClose={() => setDismissedResult(resultKey)} title={game.state.phase === 'level-result' ? `Nível ${game.state.level} completo!` : game.state.phase === 'won' ? 'Uma mente só. Vocês venceram!' : 'Fim de partida'}><div className="mind-result-art">{game.state.phase === 'lost' ? '♡' : '✦'}</div><div className="game-modal__actions"><button className="game-action" onClick={onOpenGameHub} type="button">Escolher jogo</button><button className="game-action game-action--primary" onClick={game.state.phase === 'level-result' ? game.nextLevel : game.start} type="button">{game.state.phase === 'level-result' ? `Jogar nível ${game.state.level + 1}` : 'Jogar de novo'}</button></div></GameModal>}
+  </section>
 }

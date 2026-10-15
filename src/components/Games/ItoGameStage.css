@@ -1,612 +1,85 @@
-.ito-stage {
-  position: relative;
-  display: flex;
-  width: 100%;
-  height: 100%;
-  min-height: 0;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid var(--line, #29312e);
-  border-radius: 22px;
-  background:
-    radial-gradient(ellipse at 50% 10%, rgba(67, 111, 125, 0.12), transparent 42%),
-    linear-gradient(145deg, #101715 0%, #0b100e 54%, #0b0f11 100%);
-  color: var(--text, #e7ece9);
-}
-
-.ito-stage__topbar {
-  z-index: 1;
-  display: flex;
-  min-height: 70px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 12px 20px;
-  border-bottom: 1px solid rgba(129, 149, 142, 0.15);
-  background: rgba(8, 12, 11, 0.54);
-}
-
-.ito-stage__brand,
-.ito-stage__topbar-actions,
-.ito-stage__status,
-.ito-stage__switcher {
-  display: flex;
-  align-items: center;
-}
-
-.ito-stage__brand { gap: 12px; }
-.ito-stage__topbar-actions { gap: 12px; }
-.ito-stage__hub-button { display: inline-flex; min-height: 36px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 8px; padding: 0 12px; border: 1px solid rgba(129, 149, 142, 0.2); border-radius: 10px; background: rgba(26, 34, 30, 0.68); color: #c0cbc4; cursor: pointer; font: inherit; font-size: 12px; transition: border-color 140ms ease, background 140ms ease, color 140ms ease; }
-.ito-stage__hub-button:hover { border-color: rgba(141, 201, 213, 0.42); background: rgba(77, 137, 155, 0.14); color: #e5ece7; }
-.ito-stage__hub-button svg { width: 16px; height: 16px; }
-
-.ito-stage__mark {
-  display: grid;
-  width: 42px;
-  height: 42px;
-  place-items: center;
-  border: 1px solid rgba(117, 189, 208, 0.3);
-  border-radius: 13px;
-  background: rgba(77, 137, 155, 0.13);
-  color: #8dc9d5;
-}
-
-.ito-stage__mark svg { width: 20px; height: 20px; }
-.ito-stage__brand small,
-.ito-eyebrow {
-  color: #88bdc6;
-  font: 700 10px/1.4 var(--font-mono, ui-monospace, monospace);
-  letter-spacing: 0.12em;
-}
-
-.ito-stage__brand strong {
-  display: block;
-  margin-top: 3px;
-  font-size: 16px;
-  letter-spacing: 0.035em;
-}
-
-.ito-stage__brand strong span {
-  color: var(--muted, #929e99);
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 0;
-}
-
-.ito-stage__status {
-  gap: 8px;
-  color: #bac5bf;
-  font-size: 12px;
-}
-
-.ito-stage__status i {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: #80c8b0;
-  box-shadow: 0 0 10px rgba(128, 200, 176, 0.45);
-}
-
-.ito-stage__error {
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin: 12px 18px 0;
-  padding: 10px 12px;
-  border: 1px solid rgba(238, 164, 111, 0.3);
-  border-radius: 11px;
-  background: rgba(63, 40, 28, 0.72);
-  color: #f4c4a3;
-  font-size: 13px;
-}
-
-.ito-stage__error > span { flex: 1; }
-.ito-stage__error svg { width: 17px; height: 17px; flex: 0 0 auto; }
-.ito-stage__error button { display: grid; width: 28px; height: 28px; place-items: center; border: 0; background: none; color: inherit; cursor: pointer; }
-.ito-stage__error button svg { width: 16px; height: 16px; }
-
-.ito-lobby,
-.ito-round {
-  width: min(1040px, 100%);
-  min-height: 0;
-  margin: auto;
-  padding: clamp(22px, 5vw, 56px);
-}
-
-.ito-lobby {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 28px;
-  overflow: auto;
-}
-
-.ito-lobby__intro { max-width: 670px; }
-.ito-lobby__intro h2,
-.ito-round__heading h2 {
-  margin: 12px 0 10px;
-  color: #f0f3f0;
-  font-size: clamp(26px, 3.5vw, 42px);
-  font-weight: 650;
-  line-height: 1.12;
-  letter-spacing: -0.035em;
-}
-
-.ito-lobby__intro p,
-.ito-round__heading > div > p {
-  max-width: 600px;
-  margin: 0;
-  color: #a9b5af;
-  font-size: 15px;
-  line-height: 1.7;
-}
-
-.ito-lobby__steps {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.ito-lobby__steps > div {
-  display: flex;
-  min-height: 76px;
-  align-items: flex-start;
-  gap: 12px;
-  padding: 15px;
-  border: 1px solid rgba(130, 151, 142, 0.15);
-  border-radius: 13px;
-  background: rgba(28, 38, 34, 0.5);
-}
-
-.ito-lobby__steps > div > span {
-  color: #8dc9d5;
-  font: 600 11px/1.5 var(--font-mono, ui-monospace, monospace);
-}
-
-.ito-lobby__steps p { margin: 0; color: #aeb9b3; font-size: 13px; line-height: 1.55; }
-.ito-lobby__steps strong { color: #e4ebe7; font-weight: 650; }
-
-.ito-lobby__footer {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 18px;
-  padding-top: 6px;
-}
-
-.ito-lobby__footer > div > small {
-  display: block;
-  margin-bottom: 10px;
-  color: #84928b;
-  font: 600 10px/1.4 var(--font-mono, ui-monospace, monospace);
-  letter-spacing: 0.08em;
-}
-
-.ito-roster { display: flex; flex-wrap: wrap; gap: 8px; }
-.ito-roster__person {
-  display: flex;
-  max-width: 180px;
-  align-items: center;
-  gap: 7px;
-  padding: 5px 9px 5px 5px;
-  border: 1px solid rgba(123, 143, 134, 0.18);
-  border-radius: 999px;
-  background: rgba(22, 30, 27, 0.78);
-  color: #d1dad5;
-  font-size: 12px;
-}
-
-.ito-roster__person > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ito-roster__person > svg { width: 13px; height: 13px; color: #e58b8b; }
-.ito-roster__avatar {
-  display: grid;
-  width: 26px;
-  height: 26px;
-  flex: 0 0 auto;
-  overflow: hidden;
-  place-items: center;
-  border: 1px solid rgba(134, 184, 179, 0.25);
-  border-radius: 50%;
-  background: linear-gradient(145deg, #263b38, #1c2928);
-  color: #a7d2ca;
-  font: 700 10px/1 var(--font-mono, ui-monospace, monospace);
-}
-
-.ito-roster__avatar img,
-.ito-player-card__avatar img { width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
-
-.ito-button {
-  display: inline-flex;
-  min-height: 44px;
-  align-items: center;
-  justify-content: center;
-  gap: 9px;
-  padding: 0 16px;
-  border: 1px solid transparent;
-  border-radius: 12px;
-  cursor: pointer;
-  font: inherit;
-  font-size: 13px;
-  font-weight: 650;
-  transition: background 140ms ease, border-color 140ms ease, transform 140ms ease;
-}
-
-.ito-button:hover:not(:disabled) { transform: translateY(-1px); }
-.ito-button:disabled { cursor: not-allowed; opacity: 0.42; }
-.ito-button svg { width: 17px; height: 17px; }
-.ito-button--primary { border-color: rgba(110, 175, 190, 0.35); background: #9dd0d2; color: #13201f; }
-.ito-button--primary:hover:not(:disabled) { background: #b0dede; }
-.ito-button--primary svg { fill: currentColor; }
-.ito-lobby__hint { margin: -17px 0 0 auto; color: #a8b4ae; font-size: 12px; }
-
-.ito-round {
-  display: flex;
-  flex-direction: column;
-  gap: 22px;
-  overflow: auto;
-}
-
-.ito-round__heading {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.ito-round__heading h2 { margin: 8px 0; font-size: clamp(24px, 3vw, 34px); }
-.ito-round__topic { color: #c0d9d5 !important; font-weight: 550; }
-
-.ito-secret-row {
-  display: grid;
-  grid-template-columns: minmax(200px, 0.72fr) minmax(0, 1.6fr);
-  gap: 14px;
-}
-
-.ito-number-card {
-  display: flex;
-  min-height: 150px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(120, 182, 193, 0.26);
-  border-radius: 16px;
-  background: radial-gradient(ellipse at center, rgba(66, 124, 137, 0.18), rgba(18, 28, 27, 0.7) 70%);
-}
-
-.ito-number-card small,
-.ito-submitted-note small { color: #91bdbf; font: 650 10px/1.4 var(--font-mono, ui-monospace, monospace); letter-spacing: 0.1em; }
-.ito-number-card > strong { margin: 4px 0 0; color: #bce9df; font: 750 clamp(40px, 5vw, 58px)/1 var(--font-mono, ui-monospace, monospace); }
-.ito-number-card__waiting { animation: ito-pulse 1.2s ease-in-out infinite alternate; }
-.ito-number-card > span { margin-top: 7px; color: #899791; font-size: 12px; }
-@keyframes ito-pulse { to { opacity: 0.35; } }
-
-.ito-clue-form {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
-  padding: 18px 20px;
-  border: 1px solid rgba(124, 143, 135, 0.18);
-  border-radius: 16px;
-  background: rgba(21, 29, 26, 0.62);
-}
-
-.ito-clue-form label { color: #dce4df; font-size: 14px; font-weight: 600; }
-.ito-clue-form__input { display: flex; gap: 8px; }
-.ito-clue-form__input input {
-  width: 100%;
-  min-width: 0;
-  height: 44px;
-  padding: 0 13px;
-  border: 1px solid rgba(125, 147, 137, 0.27);
-  border-radius: 10px;
-  outline: none;
-  background: rgba(6, 11, 10, 0.64);
-  color: #edf2ee;
-  font: inherit;
-  font-size: 13px;
-}
-.ito-clue-form__input input:focus { border-color: #7cb8c0; box-shadow: 0 0 0 3px rgba(124, 184, 192, 0.11); }
-.ito-clue-form__input input::placeholder { color: #74817b; }
-.ito-clue-form__input button {
-  display: grid;
-  width: 46px;
-  height: 44px;
-  flex: 0 0 auto;
-  place-items: center;
-  border: 1px solid rgba(110, 175, 190, 0.35);
-  border-radius: 10px;
-  background: #9dd0d2;
-  color: #13201f;
-  cursor: pointer;
-}
-.ito-clue-form__input button:disabled { cursor: not-allowed; opacity: 0.4; }
-.ito-clue-form__input button svg { width: 17px; height: 17px; }
-.ito-clue-form > small { color: #83918a; font-size: 11px; }
-
-.ito-submitted-note { display: flex; align-items: center; gap: 12px; }
-.ito-submitted-note > div { display: flex; flex-direction: column; gap: 7px; }
-.ito-submitted-note strong { color: #edf1ed; font-size: 15px; }
-.ito-check { display: grid; width: 34px; height: 34px; place-items: center; border-radius: 50%; background: rgba(125, 198, 169, 0.14); color: #9ed7bd; }
-
-.ito-player-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 9px; }
-.ito-player-card {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
-  border: 1px solid rgba(125, 144, 136, 0.15);
-  border-radius: 13px;
-  background: rgba(19, 27, 24, 0.65);
-}
-.ito-player-card.is-ready { border-color: rgba(128, 195, 167, 0.26); background: rgba(23, 40, 34, 0.65); }
-.ito-player-card__avatar {
-  display: grid;
-  width: 34px;
-  height: 34px;
-  flex: 0 0 auto;
-  overflow: hidden;
-  place-items: center;
-  border: 1px solid rgba(135, 179, 172, 0.24);
-  border-radius: 50%;
-  background: #243431;
-  color: #afd3c9;
-  font: 700 11px/1 var(--font-mono, ui-monospace, monospace);
-}
-.ito-player-card__copy { display: flex; min-width: 0; flex: 1; flex-direction: column; gap: 3px; }
-.ito-player-card__copy strong { overflow: hidden; color: #e3e9e5; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.ito-player-card__copy small { overflow: hidden; color: #91a099; font-size: 11px; text-overflow: ellipsis; white-space: nowrap; }
-.ito-player-card__status { display: grid; width: 24px; height: 24px; flex: 0 0 auto; place-items: center; color: #98d2b5; font-size: 14px; }
-.ito-player-card__status > span { width: 6px; height: 6px; border-radius: 50%; background: #86938d; }
-
-.ito-order-list { display: flex; flex-direction: column; gap: 7px; }
-.ito-order-row {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr) auto;
-  min-height: 62px;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 11px;
-  border: 1px solid rgba(125, 144, 136, 0.16);
-  border-radius: 13px;
-  background: rgba(17, 25, 22, 0.72);
-}
-.ito-order-row__position { color: #8ac5ca; font: 700 12px/1 var(--font-mono, ui-monospace, monospace); text-align: center; }
-.ito-order-row__person { display: flex; min-width: 0; align-items: center; gap: 10px; }
-.ito-order-row__person > span:last-child { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
-.ito-order-row__person strong { overflow: hidden; color: #e6ece8; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.ito-order-row__person small { overflow: hidden; color: #a1aea7; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
-.ito-order-row__controls { display: flex; gap: 5px; }
-.ito-order-row__controls button {
-  width: 31px;
-  height: 31px;
-  border: 1px solid rgba(126, 149, 140, 0.23);
-  border-radius: 9px;
-  background: #18211e;
-  color: #c5d1cb;
-  cursor: pointer;
-  font-size: 17px;
-}
-.ito-order-row__controls button:hover:not(:disabled) { border-color: #80bbc1; color: #b4e0dc; }
-.ito-order-row__controls button:disabled { cursor: not-allowed; opacity: 0.35; }
-.ito-order-row__number { min-width: 44px; color: #bce9df; font: 750 18px/1 var(--font-mono, ui-monospace, monospace); text-align: center; }
-.ito-result { flex: 0 0 auto; padding: 8px 11px; border: 1px solid rgba(125, 144, 136, 0.2); border-radius: 999px; color: #c0cbc5; font-size: 12px; }
-.ito-result--success { border-color: rgba(124, 194, 165, 0.35); background: rgba(52, 100, 78, 0.2); color: #a5d8bd; }
-.ito-result--retry { border-color: rgba(221, 170, 112, 0.3); background: rgba(94, 66, 35, 0.2); color: #e2bc91; }
-.ito-round__footer { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding-top: 5px; color: #98a69f; font-size: 12px; }
-
-@media (max-width: 760px) {
-  .ito-stage { border-radius: 15px; }
-  .ito-stage__topbar { min-height: 58px; padding: 9px 12px; }
-  .ito-stage__hub-button { min-height: 32px; gap: 6px; padding: 0 8px; font-size: 10px; }
-  .ito-stage__mark { width: 36px; height: 36px; border-radius: 11px; }
-  .ito-stage__status { font-size: 11px; }
-  .ito-lobby,
-  .ito-round { gap: 18px; padding: 22px 16px; }
-  .ito-lobby__intro h2 { font-size: clamp(25px, 7vw, 35px); }
-  .ito-lobby__intro p { font-size: 13px; }
-  .ito-lobby__steps { grid-template-columns: 1fr; gap: 7px; }
-  .ito-lobby__steps > div { min-height: 0; align-items: center; padding: 10px 12px; }
-  .ito-lobby__footer { align-items: stretch; flex-direction: column; }
-  .ito-lobby__footer .ito-button { width: 100%; }
-  .ito-lobby__hint { margin: -10px 0 0; }
-  .ito-round__heading { align-items: flex-start; flex-direction: column; gap: 4px; }
-  .ito-round__heading h2 { font-size: 25px; }
-  .ito-round__heading > div > p { font-size: 13px; }
-  .ito-secret-row { grid-template-columns: minmax(0, 1fr); }
-  .ito-number-card { min-height: 130px; }
-  .ito-clue-form { padding: 14px; }
-  .ito-round__footer { align-items: stretch; flex-direction: column; }
-  .ito-round__footer .ito-button { width: 100%; }
-  .ito-order-row { grid-template-columns: 32px minmax(0, 1fr) auto; gap: 7px; padding: 8px; }
-  .ito-order-row__person { gap: 7px; }
-  .ito-order-row__person small { font-size: 11px; }
-  .ito-order-row__controls { gap: 3px; }
-  .ito-order-row__controls button { width: 28px; height: 29px; }
-  .ito-result { padding: 6px 9px; font-size: 11px; }
-}
-
-.ito-stage { animation: ito-scene-enter 420ms cubic-bezier(.2,.75,.25,1) both; }
-.ito-lobby, .ito-round { animation: ito-content-enter 520ms cubic-bezier(.2,.75,.25,1) both; }
-.ito-lobby__steps > div { transition: transform 220ms ease, border-color 220ms ease, background 220ms ease; }
-.ito-lobby__steps > div:hover { transform: translateY(-2px); border-color: rgba(141, 201, 213, .3); background: rgba(32, 49, 46, .68); }
-.ito-lobby__steps > div:nth-child(2) { transition-delay: 35ms; }
-.ito-lobby__steps > div:nth-child(3) { transition-delay: 70ms; }
-.ito-player-card {
-  position: relative;
-  overflow: hidden;
-  box-shadow: 0 5px 18px rgba(0, 0, 0, .12), inset 0 1px rgba(255,255,255,.025);
-  animation: ito-card-deal 420ms cubic-bezier(.18,.8,.24,1) backwards;
-  transition: transform 220ms cubic-bezier(.2,.8,.2,1), border-color 220ms ease, background 220ms ease, box-shadow 220ms ease;
-}
-.ito-player-card::after {
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 2px;
-  background: linear-gradient(180deg, transparent, #8dc9d5, transparent);
-  content: '';
-  opacity: 0;
-  transition: opacity 180ms ease;
-}
-.ito-player-card:hover { transform: translateY(-2px); border-color: rgba(141, 201, 213, .32); box-shadow: 0 9px 24px rgba(0,0,0,.2); }
-.ito-player-card.is-ready::after { opacity: .8; }
-.ito-player-card:nth-child(2) { animation-delay: 45ms; }
-.ito-player-card:nth-child(3) { animation-delay: 90ms; }
-.ito-player-card:nth-child(4) { animation-delay: 135ms; }
-.ito-player-card:nth-child(5) { animation-delay: 180ms; }
-.ito-player-card:nth-child(6) { animation-delay: 225ms; }
-.ito-player-card:nth-child(7) { animation-delay: 270ms; }
-.ito-player-card:nth-child(8) { animation-delay: 315ms; }
-.ito-number-card {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  box-shadow: 0 18px 40px rgba(0,0,0,.18), inset 0 1px rgba(255,255,255,.035);
-  animation: ito-card-deal 560ms cubic-bezier(.18,.8,.24,1) both;
-}
-.ito-number-card::before {
-  position: absolute;
-  z-index: -1;
-  inset: 8px;
-  border: 1px solid rgba(141, 201, 213, .13);
-  border-radius: 11px;
-  background: linear-gradient(135deg, rgba(141,201,213,.035), transparent 48%, rgba(141,201,213,.025));
-  content: '';
-}
-.ito-number-card::after {
-  position: absolute;
-  z-index: -1;
-  top: -54px;
-  right: -30px;
-  width: 145px;
-  height: 145px;
-  border: 1px solid rgba(141, 201, 213, .1);
-  border-radius: 50%;
-  box-shadow: 0 0 0 13px rgba(141, 201, 213, .025), 0 0 0 26px rgba(141, 201, 213, .02);
-  content: '';
-}
-.ito-number-card > strong:not(.ito-number-card__waiting) { text-shadow: 0 5px 22px rgba(141, 201, 213, .22); animation: ito-number-reveal 650ms cubic-bezier(.2,.8,.2,1) both; }
-.ito-number-card > small, .ito-number-card > strong, .ito-number-card > span { position: relative; }
-.ito-order-row {
-  box-shadow: 0 6px 18px rgba(0,0,0,.11), inset 0 1px rgba(255,255,255,.02);
-  transition: transform 220ms cubic-bezier(.2,.8,.2,1), border-color 220ms ease, background 220ms ease;
-}
-.ito-order-row:hover { transform: translateX(3px); border-color: rgba(125, 190, 194, .27); background: rgba(22, 33, 30, .9); }
-.ito-round--revealed .ito-order-row { animation: ito-card-deal 420ms cubic-bezier(.18,.8,.24,1) backwards; }
-.ito-round--revealed .ito-order-row:nth-child(2) { animation-delay: 90ms; }
-.ito-round--revealed .ito-order-row:nth-child(3) { animation-delay: 180ms; }
-.ito-round--revealed .ito-order-row:nth-child(4) { animation-delay: 270ms; }
-.ito-round--revealed .ito-order-row:nth-child(5) { animation-delay: 360ms; }
-.ito-round--revealed .ito-order-row:nth-child(6) { animation-delay: 450ms; }
-.ito-round--revealed .ito-order-row:nth-child(7) { animation-delay: 540ms; }
-.ito-round--revealed .ito-order-row:nth-child(8) { animation-delay: 630ms; }
-.ito-order-row__number {
-  position: relative;
-  display: grid;
-  width: 54px;
-  height: 43px;
-  place-items: center;
-  border: 1px solid rgba(141, 201, 213, .3);
-  border-radius: 9px;
-  background: linear-gradient(145deg, #e4f0e9, #bfd5d0);
-  color: #173034;
-  box-shadow: 0 6px 13px rgba(0,0,0,.23), inset 0 0 0 3px rgba(255,255,255,.4);
-  font-size: 17px;
-  animation: ito-number-reveal 600ms cubic-bezier(.18,.8,.24,1) both;
-}
-.ito-order-row__number::after { position: absolute; right: 5px; bottom: 3px; color: rgba(23,48,52,.48); content: 'ITO'; font: 700 6px/1 var(--font-mono, ui-monospace, monospace); letter-spacing: .08em; }
-
-/* The order phase is a table of clue cards laid out on a visible 0–100 rail. */
-.ito-number-track { display: grid; min-width: 0; gap: 3px; }
-.ito-number-track__ends { display: grid; grid-template-columns: auto minmax(24px, 1fr) auto; align-items: center; gap: 12px; padding-inline: 5px; }
-.ito-number-track__ends > span { display: grid; gap: 2px; }
-.ito-number-track__ends > span:last-child { text-align: right; }
-.ito-number-track__ends strong { color: #d7e7e1; font: 750 15px/1 var(--font-mono, ui-monospace, monospace); }
-.ito-number-track__ends small { color: #88bdc6; font: 700 8px/1.2 var(--font-mono, ui-monospace, monospace); letter-spacing: .12em; }
-.ito-number-track__ends i { height: 1px; background: linear-gradient(90deg, rgba(136,189,198,.1), rgba(136,189,198,.58), rgba(136,189,198,.1)); }
-.ito-order-list { position: relative; display: flex; align-items: stretch; gap: 13px; overflow-x: auto; overflow-y: hidden; padding: 24px 7px 18px; scrollbar-color: rgba(136,189,198,.32) transparent; scroll-snap-type: x proximity; }
-.ito-order-list::before { position: absolute; z-index: 0; top: 53%; right: 16px; left: 16px; border-top: 1px dashed rgba(136,189,198,.14); content: ''; pointer-events: none; }
-.ito-order-row { position: relative; z-index: 1; display: grid; width: clamp(166px, 18vw, 210px); min-width: clamp(166px, 18vw, 210px); min-height: 238px; grid-template-rows: auto auto minmax(68px, 1fr) auto; justify-items: stretch; gap: 8px; padding: 11px; border-color: rgba(136,189,198,.24); border-radius: 17px; background: linear-gradient(150deg, #253333, #172321 70%); box-shadow: 0 12px 25px rgba(0,0,0,.26), inset 0 1px rgba(255,255,255,.06); scroll-snap-align: center; }
-.ito-order-row:hover { transform: translateY(-3px) rotate(0); border-color: rgba(136,189,198,.5); background: linear-gradient(150deg, #2a3c3b, #182725 72%); }
-.ito-order-row__position { color: #8dc9d5; font: 700 9px/1 var(--font-mono, ui-monospace, monospace); text-align: left; }
-.ito-order-row__number { width: 66px; min-width: 66px; height: 79px; min-height: 79px; justify-self: center; margin: 0; border-color: rgba(141,201,213,.48); border-radius: 13px; background: radial-gradient(ellipse at 50% 20%, #f5fcf7, #bfd5d0 75%); box-shadow: 0 9px 17px rgba(0,0,0,.25), inset 0 0 0 4px rgba(255,255,255,.42); color: #173034; font-size: 31px; }
-.ito-order-row__number::after { right: 7px; bottom: 6px; }
-.ito-order-row__person { min-width: 0; align-items: center; gap: 7px; }
-.ito-order-row__person > span:last-child { min-width: 0; text-align: center; }
-.ito-order-row__person strong { font-size: 11px; }
-.ito-order-row__person small { display: -webkit-box; overflow: hidden; color: #bdcbc5; font-size: 11px; line-height: 1.35; text-overflow: ellipsis; white-space: normal; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
-.ito-order-row__controls { justify-content: center; gap: 8px; }
-.ito-order-row__controls button { width: 40px; height: 32px; border-radius: 10px; background: rgba(7,14,13,.5); font-size: 18px; }
-.ito-order-row__controls button:hover:not(:disabled) { transform: translateY(-1px); border-color: #8dc9d5; background: rgba(77,137,155,.2); }
-
-@keyframes ito-scene-enter { from { opacity: 0; } to { opacity: 1; } }
-@keyframes ito-content-enter { from { opacity: 0; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes ito-card-deal { from { opacity: 0; transform: translateY(13px) rotateX(8deg) scale(.97); } to { opacity: 1; transform: translateY(0) rotateX(0) scale(1); } }
-@keyframes ito-number-reveal { 0% { opacity: 0; transform: perspective(360px) rotateY(76deg) scale(.9); } 70% { transform: perspective(360px) rotateY(-7deg) scale(1.025); } 100% { opacity: 1; transform: perspective(360px) rotateY(0) scale(1); } }
-
-@media (prefers-reduced-motion: reduce) {
-  .ito-stage, .ito-lobby, .ito-round, .ito-player-card, .ito-number-card,
-  .ito-number-card > strong, .ito-order-row, .ito-order-row__number,
-  .ito-lobby__steps > div {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-
-/* ITO is a shared card table, not a narrow settings panel. */
-.call-shell--games-open .ito-stage {
-  border: 0;
-  border-radius: 0;
-  background:
-    radial-gradient(ellipse at 50% 58%, rgba(57, 112, 113, .16), transparent 55%),
-    radial-gradient(ellipse at 50% 0%, rgba(101, 147, 146, .12), transparent 52%),
-    linear-gradient(145deg, #101715, #090d0c 68%, #0d1111);
-}
-.call-shell--games-open .ito-stage__topbar { display: none; }
-.call-shell--games-open .ito-lobby,
-.call-shell--games-open .ito-round {
-  width: 100%;
-  max-width: none;
-  height: 100%;
-  margin: 0;
-  padding: 82px clamp(18px, 4vw, 64px) 112px;
-}
-.call-shell--games-open .ito-round { gap: clamp(14px, 2.1vh, 24px); }
-.call-shell--games-open .ito-round__heading h2 { font-size: clamp(28px, 3.4vw, 46px); }
-.call-shell--games-open .ito-secret-row { grid-template-columns: minmax(220px, .58fr) minmax(0, 1.42fr); gap: clamp(16px, 2vw, 28px); }
-.call-shell--games-open .ito-number-card { min-height: 190px; border-radius: 22px; box-shadow: 0 24px 70px rgba(0, 0, 0, .25), inset 0 1px rgba(255,255,255,.05); }
-.call-shell--games-open .ito-number-card > strong { font-size: clamp(52px, 6vw, 76px); }
-.call-shell--games-open .ito-player-grid { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; }
-.call-shell--games-open .ito-player-card { min-height: 72px; padding: 12px 14px; border-radius: 16px; background: linear-gradient(145deg, rgba(30, 42, 39, .78), rgba(14, 22, 20, .72)); }
-.call-shell--games-open .ito-number-track { width: 100%; padding: 2px 0; }
-.call-shell--games-open .ito-order-list {
-  display: flex;
-  width: 100%;
-  min-width: 0;
-  flex-direction: row;
-  flex-wrap: nowrap;
-  align-items: stretch;
-  gap: clamp(12px, 1.5vw, 22px);
-  overflow-x: auto;
-  overflow-y: visible;
-  padding: 26px 10px 24px;
-  overscroll-behavior-inline: contain;
-  scrollbar-width: thin;
-}
-.call-shell--games-open .ito-order-row { width: clamp(180px, 17vw, 246px); min-width: clamp(180px, 17vw, 246px); min-height: 265px; }
-.call-shell--games-open .ito-order-row__number { width: 82px; min-width: 82px; height: 100px; font-size: 38px; }
-.call-shell--games-open .ito-round__footer { padding: 4px 2px 0; }
-
-@media (max-width: 760px) {
-  .call-shell--games-open .ito-lobby,
-  .call-shell--games-open .ito-round { padding: 68px 14px 96px; }
-  .call-shell--games-open .ito-round { gap: 14px; }
-  .call-shell--games-open .ito-secret-row { grid-template-columns: 1fr; }
-  .call-shell--games-open .ito-number-card { min-height: 145px; }
-  .call-shell--games-open .ito-order-list { gap: 10px; padding: 20px 6px 18px; }
-  .call-shell--games-open .ito-order-row { width: 164px; min-width: 164px; min-height: 224px; }
-  .call-shell--games-open .ito-order-row__number { width: 68px; min-width: 68px; height: 78px; font-size: 31px; }
+.ito-stage { --game-accent: #a8d7cf; position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; color: #e8f0e6; background: radial-gradient(ellipse at 50% 40%, #30534c, #1b3631 55%, #10241f); }
+.ito-stage--lobby { display: flex; flex-direction: column; padding-bottom: 88px; }
+.ito-stage.game-match { --game-hand-height: clamp(138px, 22vh, 190px); background: radial-gradient(ellipse at 50% 42%, #34574f, #1a3731 49%, #10251f); }
+.ito-stage .game-table-felt { border-color: #658477; background: radial-gradient(ellipse at 50% 38%, #5f9984, #3d7d69 60%, #2d5d4b); box-shadow: 0 0 0 2px #c9e7cf30, inset 0 0 0 3px #d1e5c324, inset 0 0 60px #0a281d6b, 0 25px 60px #0005; }
+.ito-stage .game-seat__portrait { border-color: #7ca69a; background: linear-gradient(145deg,#4c7c70,#254b40); }
+.ito-round-step { position: absolute; top: 2px; left: 14px; max-width: 30%; color: #bad9c7; font-size: 11px; line-height: 1.4; }
+.ito-topic-card { position: absolute; top: 48%; left: 50%; display: flex; width: min(420px, 54%); min-height: 170px; align-items: center; justify-content: center; flex-direction: column; gap: 13px; padding: 24px; border: 1px solid #d0dcc280; border-radius: 16px; background: linear-gradient(145deg, #f3f1da, #d8e1c7); box-shadow: 0 16px 40px #0004, inset 0 0 0 5px #fff4; color: #304f40; transform: translate(-50%, -50%) rotate(-1deg); text-align: center; }
+.ito-topic-card > small { color: #728a65; font-size: 9px; font-weight: 750; letter-spacing: .1em; }
+.ito-topic-card h2 { margin: 0; font-size: clamp(17px, 2.1vw, 27px); font-weight: 750; line-height: 1.25; letter-spacing: -.02em; }
+.ito-topic-card > span { color: #6a8060; font-size: 10px; line-height: 1.5; }
+.ito-order-table { position: absolute; inset: 25% 18% 22%; display: grid; min-height: 0; grid-template-rows: auto 24px minmax(0, 1fr); gap: 7px; }
+.ito-order-table > p { margin: 0; color: #e1edd8; font-size: 13px; font-weight: 650; text-align: center; }
+.ito-scale { display: flex; align-items: center; gap: 10px; color: #d5e6ce; font-size: 8px; font-weight: 700; }
+.ito-scale span { white-space: nowrap; }
+.ito-scale b { margin: 0 4px; color: #e5efdc; font-size: 15px; }
+.ito-scale i { min-width: 0; flex: 1; height: 1px; background: linear-gradient(90deg,#c3dfc159,#d2e8c8a8); }
+.ito-order-rail { display: flex; min-width: 0; min-height: 0; flex-direction: row; flex-wrap: nowrap; align-items: stretch; justify-content: safe center; gap: 10px; overflow-x: auto; overflow-y: hidden; padding: 5px 5px 9px; scrollbar-color: #d9edc33b transparent; scrollbar-width: thin; overscroll-behavior-inline: contain; }
+.ito-clue-token { display: grid; width: clamp(108px, 11vw, 145px); min-width: clamp(108px, 11vw, 145px); min-height: 0; flex: 0 0 auto; grid-template-rows: minmax(0, 1fr) auto; gap: 6px; }
+.ito-clue-face { position: relative; display: flex; min-height: 0; align-items: center; justify-content: center; flex-direction: column; gap: 10px; padding: 30px 11px 11px; border: 1px solid #d7e6c0; border-radius: 12px; background: linear-gradient(145deg,#f4f2d9,#dbe3ca); box-shadow: 0 6px 15px #0004,inset 0 0 0 4px #fff6; color: #35513a; text-align: center; }
+.ito-clue-face > small { position: absolute; top: 11px; left: 11px; color: #8b9d76; font-size: 9px; }
+.ito-clue-face__number { position: absolute; top: 9px; right: 11px; color: #5d866b; font-size: 22px; font-weight: 850; line-height: 1; }
+.ito-clue-face blockquote { margin: auto 0; color: #3c553c; font-size: clamp(11px, 1.1vw, 15px); font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
+.ito-clue-face > strong { width: 100%; color: #7c8b67; font-size: 9px; font-weight: 600; line-height: 1.25; overflow-wrap: anywhere; }
+.ito-clue-face.is-revealed .ito-clue-face__number { color: #356d4d; }
+.ito-clue-controls { display: flex; justify-content: center; gap: 7px; }
+.ito-clue-controls .game-action { min-height: 25px; padding: 0 12px; background: #173c2c8c; font-size: 16px; }
+.ito-private-zone { display: flex; min-width: 0; min-height: 0; align-items: center; justify-content: center; gap: clamp(17px, 3vw, 40px); padding: 12px 22px; background: linear-gradient(180deg,transparent,#0a1c1442); }
+.ito-private-number { display: flex; height: 100%; align-items: center; flex-direction: column; gap: 7px; }
+.ito-private-number > small { color: #b6d5bd; font-size: 9px; font-weight: 650; letter-spacing: .06em; }
+.ito-private-number > div { height: calc(100% - 19px); aspect-ratio: .69; }
+.ito-clue-form { display: grid; width: min(520px, 63%); gap: 9px; }
+.ito-clue-form > label { color: #d5e8d4; font-size: 13px; font-weight: 650; }
+.ito-clue-form > div { display: flex; gap: 7px; }
+.ito-clue-form input { width: 100%; min-width: 0; min-height: 44px; padding: 0 13px; border: 1px solid #b1d1bc40; border-radius: 11px; outline: none; background: #102d2380; color: #e4f0df; font: 14px system-ui,sans-serif; }
+.ito-clue-form input:focus { border-color: #b4dbba; }
+.ito-clue-form > small { color: #90ae92; font-size: 10px; }
+.ito-submitted { display: grid; width: min(520px, 63%); gap: 8px; }
+.ito-submitted small { color: #a0c09f; font-size: 9px; font-weight: 700; letter-spacing: .08em; }
+.ito-submitted strong { color: #dfebcf; font-size: 20px; line-height: 1.3; overflow-wrap: anywhere; }
+.ito-submitted > span { color: #94b68f; font-size: 11px; }
+.ito-private-actions { display: grid; gap: 13px; }
+.ito-private-actions > p { max-width: 340px; margin: 0; color: #bed8ba; font-size: 13px; line-height: 1.5; }
+.ito-private-actions > div { display: flex; align-items: center; gap: 9px; }
+.ito-result-mark { padding: 20px; color: #bfd990; font-size: 85px; line-height: 1; text-align: center; }
+@media (max-width: 720px) {
+  .ito-stage--lobby { padding-bottom: 72px; }
+  .ito-stage.game-match { --game-hand-height: 160px; }
+  .ito-round-step { left: 9px; max-width: 40%; font-size: 9px; }
+  .ito-topic-card { width: 54%; min-height: 145px; gap: 9px; padding: 16px; }
+  .ito-topic-card h2 { font-size: 15px; }
+  .ito-topic-card > small { font-size: 7px; }
+  .ito-topic-card > span { font-size: 8px; }
+  .ito-order-table { inset: 24% 6% 8%; gap: 6px; }
+  .ito-order-table > p { font-size: 10px; }
+  .ito-scale { gap: 3px; font-size: 6px; }
+  .ito-scale b { margin: 0 2px; font-size: 13px; }
+  .ito-order-rail { justify-content: flex-start; gap: 7px; scroll-snap-type: x mandatory; }
+  .ito-clue-token { width: auto; min-width: 0; flex: 0 0 calc((100% - 7px) / 2); scroll-snap-align: start; }
+  .ito-clue-face { padding: 27px 8px 8px; }
+  .ito-clue-face blockquote { font-size: 11px; }
+  .ito-private-zone { gap: 14px; padding: 10px 13px; }
+  .ito-private-number > small { font-size: 7px; }
+  .ito-clue-form { width: 67%; gap: 7px; }
+  .ito-clue-form > label { font-size: 11px; }
+  .ito-clue-form input { min-height: 42px; padding-inline: 9px; font-size: 16px; }
+  .ito-submitted strong { font-size: 15px; }
+  .ito-private-actions > p { font-size: 11px; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat { --seat-size: 33px; --seat-width: 80px; top: 9%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat.is-local { display: none; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat__name { font-size: 9px; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="1"] { left: 12.5%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="2"] { left: 37.5%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="3"] { left: 62.5%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="4"] { left: 87.5%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="5"] { top: 28%; left: 25%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="6"] { top: 28%; left: 50%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="7"] { top: 28%; left: 75%; }
+  .ito-stage:is([data-player-count="6"], [data-player-count="7"], [data-player-count="8"]) .ito-order-table { top: 41%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"])[data-player-count="2"] .game-seat[data-seat-index="1"] { left: 50%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"])[data-player-count="3"] .game-seat[data-seat-index="1"] { left: 25%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"])[data-player-count="3"] .game-seat[data-seat-index="2"] { left: 75%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"])[data-player-count="4"] .game-seat[data-seat-index="1"] { left: 16%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"])[data-player-count="4"] .game-seat[data-seat-index="2"] { left: 50%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"])[data-player-count="4"] .game-seat[data-seat-index="3"] { left: 84%; }
 }
