@@ -36,7 +36,7 @@ export const GameSeat = ({ name, avatar, index, total, cards, active, local, eli
   return (
     <div
       className={`game-seat ${active ? 'is-active' : ''} ${local ? 'is-local' : ''} ${eliminated ? 'is-eliminated' : ''}`}
-      style={{ '--seat-x': `${x}%`, '--seat-y': `${y}%` } as CSSProperties}
+      style={{ '--seat-x': `${x}%`, '--seat-y': `${y}%`, '--seat-index': index, '--seat-total': total } as CSSProperties}
       aria-label={`${name}${local ? ', você' : ''}${cards === undefined ? '' : `, ${cards} cartas`}${status ? `, ${status}` : ''}`}
       title={name}
       data-seat-index={index}
@@ -114,7 +114,7 @@ export const NumberCard = ({ value, hidden = false }: { value: number | string; 
   </span>
 )
 
-export const GameLobby = ({ title, eyebrow, description, art, participants, disabled, onStart, onRules, note }: {
+export const GameLobby = ({ title, eyebrow, description, art, participants, disabled, onStart, onRules, onSettings, note }: {
   title: ReactNode
   eyebrow: string
   description: string
@@ -123,13 +123,14 @@ export const GameLobby = ({ title, eyebrow, description, art, participants, disa
   disabled: boolean
   onStart: () => void
   onRules: () => void
+  onSettings?: () => void
   note: string
 }) => (
   <div className="game-lobby">
     <div className="game-lobby__art" aria-hidden="true">{art}</div>
     <div className="game-lobby__copy"><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p>
       <div className="game-lobby__guests">{participants.map((person) => <span key={person.id} title={person.name}>{person.avatarDataUrl ? <img alt={person.name} src={person.avatarDataUrl} /> : person.name.slice(0, 1).toUpperCase()}</span>)}</div>
-      <div className="game-lobby__actions"><button className="game-action" onClick={onRules} type="button">Como jogar</button><button className="game-action game-action--primary" disabled={disabled} onClick={onStart} type="button"><Icon name="play" />Jogar</button></div><small>{note}</small>
+      <div className="game-lobby__actions">{onSettings && <button className="game-action" onClick={onSettings} type="button"><Icon name="controls" />Configurar</button>}<button className="game-action" onClick={onRules} type="button">Como jogar</button><button className="game-action game-action--primary" disabled={disabled} onClick={onStart} type="button"><Icon name="play" />Jogar</button></div><small>{note}</small>
     </div>
   </div>
 )

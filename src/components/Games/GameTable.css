@@ -99,7 +99,7 @@
 .game-lobby__guests { display: flex; margin: 24px 0; padding-left: 3px; }
 .game-lobby__guests > span { display: grid; width: 43px; height: 43px; place-items: center; overflow: hidden; margin-left: -3px; border: 3px solid #1f2a27; border-radius: 50%; background: #40564d; color: #e1ebda; font-size: 13px; }
 .game-lobby__guests img { width: 100%; height: 100%; object-fit: cover; }
-.game-lobby__actions { display: flex; gap: 8px; margin-bottom: 13px; }
+.game-lobby__actions { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 13px; }
 .game-lobby__actions .game-action { min-height: 43px; padding-inline: 18px; font-size: 13px; }
 .game-lobby__copy > small { color: #8da89b; font-size: 12px; line-height: 1.5; }
 .game-rules p { margin: 0 0 15px; color: #bdceb4; font-size: 14px; line-height: 1.65; }

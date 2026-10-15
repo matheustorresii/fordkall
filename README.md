@@ -21,6 +21,7 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - seleção entre múltiplas transmissões simultâneas;
 - chat realtime de texto e imagens de até 4 MB durante a call;
 - central de jogos sincronizados na sala: ITO, Exploding Kiwi, Truco Mineiro em duplas e The Mind cooperativo;
+- ITO com uma dica por carta, votação por pessoa para revelar, progressão em rodízio e regras configuráveis de derrota e objetivo;
 - Picture-in-Picture da transmissão selecionada;
 - janela separada, redimensionável e encaixável no desktop para a transmissão selecionada;
 - seleção persistente de microfone e webcam, além de saídas separadas para voz/live quando `setSinkId` é suportado;
@@ -135,6 +136,10 @@ O build estático é gerado em `dist/`.
 Com `npm run dev`, abra `/?game-preview=kiwi` (ou `ito`, `mind`, `truco`) para exercitar os componentes reais com cenários visuais determinísticos, sem precisar de conta ou usar a franquia do LiveKit. O menu de desenvolvimento troca o número de jogadores, a fase e as escolhas privadas. Esses cenários não fazem parte do build de produção.
 
 Em `/?game-preview=checks`, execute as verificações de integração do Kiwi: dois clientes reais do hook conversam por um transporte confiável em memória. Os testes cobrem privacidade e repetição do futuro, revisão de pacotes privados, reordenação do monte, Favor, regras de alvo, combos e distribuição inicial de defesas. Eles não substituem uma partida real pelo LiveKit.
+
+Para o ITO, `npm run test:ito` valida maioria, distribuição e progressão de 2–8 pessoas até a meta de 2–5 cartas. Em `/?game-preview=ito-checks`, cinco clientes reais do hook validam votos por pessoa, invalidação de votos quando a ordem muda, privacidade entre rodadas e as três consequências de derrota. A regra padrão mantém as mãos após perder; a vitória adiciona uma única carta, em rodízio, até a equipe vencer com duas por pessoa. Essa é uma variante configurável, não uma implementação declarada de todas as regras oficiais do ITO.
+
+O ITO usa o protocolo `ford-kall.ito.v2`; todos os participantes precisam estar na versão atualizada para compartilhar a mesma mesa.
 
 ## Aplicativo Windows
 

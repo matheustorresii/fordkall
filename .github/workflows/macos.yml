@@ -39,6 +39,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Test ITO rules
+        run: npm run test:ito
+
       - name: Resolve release tag
         id: release
         shell: bash

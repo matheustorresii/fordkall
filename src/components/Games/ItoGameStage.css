@@ -1,9 +1,11 @@
 .ito-stage { --game-accent: #a8d7cf; position: relative; width: 100%; height: 100%; min-height: 0; overflow: hidden; color: #e8f0e6; background: radial-gradient(ellipse at 50% 40%, #30534c, #1b3631 55%, #10241f); }
 .ito-stage--lobby { display: flex; flex-direction: column; padding-bottom: 88px; }
-.ito-stage.game-match { --game-hand-height: clamp(138px, 22vh, 190px); background: radial-gradient(ellipse at 50% 42%, #34574f, #1a3731 49%, #10251f); }
+.ito-stage.game-match { --game-hand-height: clamp(170px, 25vh, 210px); background: radial-gradient(ellipse at 50% 42%, #34574f, #1a3731 49%, #10251f); }
 .ito-stage .game-table-felt { border-color: #658477; background: radial-gradient(ellipse at 50% 38%, #5f9984, #3d7d69 60%, #2d5d4b); box-shadow: 0 0 0 2px #c9e7cf30, inset 0 0 0 3px #d1e5c324, inset 0 0 60px #0a281d6b, 0 25px 60px #0005; }
 .ito-stage .game-seat__portrait { border-color: #7ca69a; background: linear-gradient(145deg,#4c7c70,#254b40); }
 .ito-round-step { position: absolute; top: 2px; left: 14px; max-width: 30%; color: #bad9c7; font-size: 11px; line-height: 1.4; }
+.ito-round-step > strong, .ito-round-step > span { display: block; }
+.ito-round-step > strong { color: #d7e9d4; }
 .ito-topic-card { position: absolute; top: 48%; left: 50%; display: flex; width: min(420px, 54%); min-height: 170px; align-items: center; justify-content: center; flex-direction: column; gap: 13px; padding: 24px; border: 1px solid #d0dcc280; border-radius: 16px; background: linear-gradient(145deg, #f3f1da, #d8e1c7); box-shadow: 0 16px 40px #0004, inset 0 0 0 5px #fff4; color: #304f40; transform: translate(-50%, -50%) rotate(-1deg); text-align: center; }
 .ito-topic-card > small { color: #728a65; font-size: 9px; font-weight: 750; letter-spacing: .1em; }
 .ito-topic-card h2 { margin: 0; font-size: clamp(17px, 2.1vw, 27px); font-weight: 750; line-height: 1.25; letter-spacing: -.02em; }
@@ -14,8 +16,12 @@
 .ito-scale span { white-space: nowrap; }
 .ito-scale b { margin: 0 4px; color: #e5efdc; font-size: 15px; }
 .ito-scale i { min-width: 0; flex: 1; height: 1px; background: linear-gradient(90deg,#c3dfc159,#d2e8c8a8); }
-.ito-order-rail { display: flex; min-width: 0; min-height: 0; flex-direction: row; flex-wrap: nowrap; align-items: stretch; justify-content: safe center; gap: 10px; overflow-x: auto; overflow-y: hidden; padding: 5px 5px 9px; scrollbar-color: #d9edc33b transparent; scrollbar-width: thin; overscroll-behavior-inline: contain; }
-.ito-clue-token { display: grid; width: clamp(108px, 11vw, 145px); min-width: clamp(108px, 11vw, 145px); min-height: 0; flex: 0 0 auto; grid-template-rows: minmax(0, 1fr) auto; gap: 6px; }
+.ito-order-rail { display: flex; min-width: 0; min-height: 0; flex-direction: row; flex-wrap: nowrap; align-items: stretch; justify-content: safe center; gap: 8px; overflow-x: auto; overflow-y: hidden; padding: 5px 5px 9px; scrollbar-color: #d9edc33b transparent; scrollbar-width: thin; overscroll-behavior-inline: contain; }
+.ito-clue-token { display: grid; width: clamp(105px, calc((100% - (var(--ito-card-count) - 1) * 8px) / var(--ito-card-count)), 145px); min-width: 105px; min-height: 0; flex: 0 0 auto; grid-template-rows: minmax(0, 1fr) auto; gap: 6px; }
+.ito-order-table.is-scrollable { grid-template-rows: auto 24px minmax(0, 1fr) 22px; }
+.ito-table-pan { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.ito-table-pan span { color: #adc8b3; font-size: 10px; }
+.ito-table-pan .game-action { min-height: 22px; padding-inline: 9px; }
 .ito-clue-face { position: relative; display: flex; min-height: 0; align-items: center; justify-content: center; flex-direction: column; gap: 10px; padding: 30px 11px 11px; border: 1px solid #d7e6c0; border-radius: 12px; background: linear-gradient(145deg,#f4f2d9,#dbe3ca); box-shadow: 0 6px 15px #0004,inset 0 0 0 4px #fff6; color: #35513a; text-align: center; }
 .ito-clue-face > small { position: absolute; top: 11px; left: 11px; color: #8b9d76; font-size: 9px; }
 .ito-clue-face__number { position: absolute; top: 9px; right: 11px; color: #5d866b; font-size: 22px; font-weight: 850; line-height: 1; }
@@ -24,12 +30,17 @@
 .ito-clue-face.is-revealed .ito-clue-face__number { color: #356d4d; }
 .ito-clue-controls { display: flex; justify-content: center; gap: 7px; }
 .ito-clue-controls .game-action { min-height: 25px; padding: 0 12px; background: #173c2c8c; font-size: 16px; }
-.ito-private-zone { display: flex; min-width: 0; min-height: 0; align-items: center; justify-content: center; gap: clamp(17px, 3vw, 40px); padding: 12px 22px; background: linear-gradient(180deg,transparent,#0a1c1442); }
-.ito-private-number { display: flex; height: 100%; align-items: center; flex-direction: column; gap: 7px; }
-.ito-private-number > small { color: #b6d5bd; font-size: 9px; font-weight: 650; letter-spacing: .06em; }
-.ito-private-number > div { height: calc(100% - 19px); aspect-ratio: .69; }
-.ito-clue-form { display: grid; width: min(520px, 63%); gap: 9px; }
+.ito-private-zone { display: grid; width: min(100%, 1040px); min-width: 0; min-height: 0; grid-template-columns: minmax(100px, 1fr) minmax(260px, 1.25fr); align-items: center; justify-self: center; gap: 24px; padding: 9px 22px; background: linear-gradient(180deg,transparent,#0a1c1442); }
+.ito-private-hand { display: grid; min-width: 0; height: 100%; min-height: 0; grid-template-rows: 14px minmax(0, 1fr); }
+.ito-private-hand > small { color: #b6d5bd; font-size: 9px; font-weight: 650; letter-spacing: .06em; text-align: center; }
+.ito-private-hand__rail { display: flex; min-width: 0; min-height: 0; align-items: stretch; justify-content: safe center; gap: 9px; overflow-x: auto; padding: 7px 6px 12px; scrollbar-width: thin; scrollbar-color: #d9edc33b transparent; }
+.ito-private-card { position: relative; height: 100%; flex: 0 0 auto; aspect-ratio: .69; padding: 0; border: 0; border-radius: 11px; background: transparent; cursor: pointer; transition: transform 180ms ease; }
+.ito-private-card.is-selected { transform: translateY(-3px); }
+.ito-private-card.is-selected .game-number-card { outline: 2px solid #b8e5c6; outline-offset: 1px; }
+.ito-private-card > span:last-child:not(.game-number-card) { position: absolute; right: -3px; bottom: -3px; display: grid; width: 21px; height: 21px; place-items: center; border: 2px solid #3f6b51; border-radius: 50%; background: #dbe9cb; color: #31563f; font: 750 10px system-ui,sans-serif; }
+.ito-clue-form { display: grid; min-width: 0; gap: 8px; }
 .ito-clue-form > label { color: #d5e8d4; font-size: 13px; font-weight: 650; }
+.ito-clue-form > label small { margin-left: 7px; color: #9ebd9f; font-size: 10px; font-weight: 400; }
 .ito-clue-form > div { display: flex; gap: 7px; }
 .ito-clue-form input { width: 100%; min-width: 0; min-height: 44px; padding: 0 13px; border: 1px solid #b1d1bc40; border-radius: 11px; outline: none; background: #102d2380; color: #e4f0df; font: 14px system-ui,sans-serif; }
 .ito-clue-form input:focus { border-color: #b4dbba; }
@@ -38,19 +49,28 @@
 .ito-submitted small { color: #a0c09f; font-size: 9px; font-weight: 700; letter-spacing: .08em; }
 .ito-submitted strong { color: #dfebcf; font-size: 20px; line-height: 1.3; overflow-wrap: anywhere; }
 .ito-submitted > span { color: #94b68f; font-size: 11px; }
-.ito-private-actions { display: grid; gap: 13px; }
+.ito-private-actions { display: grid; min-width: 0; gap: 10px; }
 .ito-private-actions > p { max-width: 340px; margin: 0; color: #bed8ba; font-size: 13px; line-height: 1.5; }
-.ito-private-actions > div { display: flex; align-items: center; gap: 9px; }
+.ito-private-actions > div { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; }
+.ito-private-actions .game-action b { padding-left: 5px; opacity: .75; }
+.ito-vote-hint, .ito-spectator-note { margin: 0; color: #8fb298; font-size: 11px; line-height: 1.4; }
+.ito-settings { display: grid; gap: 23px; }
+.ito-settings label { display: grid; gap: 9px; }
+.ito-settings strong { color: #e0ebdb; font-size: 14px; }
+.ito-settings small { color: #aac0a6; font-size: 12px; line-height: 1.5; }
+.ito-settings select { width: 100%; min-width: 0; min-height: 43px; padding: 0 11px; border: 1px solid #b1d1bc40; border-radius: 10px; background: #213d31; color: #e7efdf; font: 14px system-ui,sans-serif; }
+.ito-settings select:disabled { opacity: .8; }
 .ito-result-mark { padding: 20px; color: #bfd990; font-size: 85px; line-height: 1; text-align: center; }
 @media (max-width: 720px) {
   .ito-stage--lobby { padding-bottom: 72px; }
-  .ito-stage.game-match { --game-hand-height: 160px; }
+  .ito-stage.game-match { --game-hand-height: 190px; }
   .ito-round-step { left: 9px; max-width: 40%; font-size: 9px; }
-  .ito-topic-card { width: 54%; min-height: 145px; gap: 9px; padding: 16px; }
+  .ito-topic-card { width: 48%; min-height: 145px; gap: 9px; padding: 13px; }
   .ito-topic-card h2 { font-size: 15px; }
   .ito-topic-card > small { font-size: 7px; }
   .ito-topic-card > span { font-size: 8px; }
   .ito-order-table { inset: 24% 6% 8%; gap: 6px; }
+  .ito-order-table.is-scrollable { grid-template-rows: auto 20px minmax(0, 1fr) 22px; }
   .ito-order-table > p { font-size: 10px; }
   .ito-scale { gap: 3px; font-size: 6px; }
   .ito-scale b { margin: 0 2px; font-size: 13px; }
@@ -58,23 +78,29 @@
   .ito-clue-token { width: auto; min-width: 0; flex: 0 0 calc((100% - 7px) / 2); scroll-snap-align: start; }
   .ito-clue-face { padding: 27px 8px 8px; }
   .ito-clue-face blockquote { font-size: 11px; }
-  .ito-private-zone { gap: 14px; padding: 10px 13px; }
-  .ito-private-number > small { font-size: 7px; }
-  .ito-clue-form { width: 67%; gap: 7px; }
+  .ito-table-pan span { font-size: 9px; }
+  .ito-private-zone { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 11px; padding: 9px 12px; }
+  .ito-private-hand > small { font-size: 8px; }
+  .ito-private-hand__rail { gap: 7px; padding-inline: 4px; }
+  .ito-private-card { width: calc((100% - 7px) / 2); height: auto; min-width: 60px; align-self: center; }
+  .ito-clue-form { gap: 7px; }
   .ito-clue-form > label { font-size: 11px; }
   .ito-clue-form input { min-height: 42px; padding-inline: 9px; font-size: 16px; }
   .ito-submitted strong { font-size: 15px; }
   .ito-private-actions > p { font-size: 11px; }
-  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat { --seat-size: 33px; --seat-width: 80px; top: 9%; }
+  .ito-private-actions > div { gap: 5px; }
+  .ito-vote-hint { font-size: 9px; }
+  .ito-settings select { font-size: 16px; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat { --seat-size: 33px; --seat-width: 80px; top: 14%; }
   .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat.is-local { display: none; }
   .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat__name { font-size: 9px; }
   .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="1"] { left: 12.5%; }
   .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="2"] { left: 37.5%; }
   .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="3"] { left: 62.5%; }
   .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="4"] { left: 87.5%; }
-  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="5"] { top: 28%; left: 25%; }
-  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="6"] { top: 28%; left: 50%; }
-  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="7"] { top: 28%; left: 75%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="5"] { top: 33%; left: 25%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="6"] { top: 33%; left: 50%; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index="7"] { top: 33%; left: 75%; }
   .ito-stage:is([data-player-count="6"], [data-player-count="7"], [data-player-count="8"]) .ito-order-table { top: 41%; }
   .ito-stage:is([data-phase="order"], [data-phase="revealed"])[data-player-count="2"] .game-seat[data-seat-index="1"] { left: 50%; }
   .ito-stage:is([data-phase="order"], [data-phase="revealed"])[data-player-count="3"] .game-seat[data-seat-index="1"] { left: 25%; }
@@ -82,4 +108,32 @@
   .ito-stage:is([data-phase="order"], [data-phase="revealed"])[data-player-count="4"] .game-seat[data-seat-index="1"] { left: 16%; }
   .ito-stage:is([data-phase="order"], [data-phase="revealed"])[data-player-count="4"] .game-seat[data-seat-index="2"] { left: 50%; }
   .ito-stage:is([data-phase="order"], [data-phase="revealed"])[data-player-count="4"] .game-seat[data-seat-index="3"] { left: 84%; }
+}
+/* Short displays trade the duplicate local seat for readable cards, not shorter card faces. */
+@media (min-width: 721px) and (max-height: 800px) {
+  .ito-stage.game-match:is([data-phase="order"], [data-phase="revealed"]) { --game-hand-height: 145px; }
+  .ito-round-step { max-width: 100%; }
+  .ito-round-step > strong { display: inline; margin-right: 8px; }
+  .ito-round-step > span { display: inline; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat { --seat-size: 36px; --seat-width: 125px; top: 13%; left: calc((100% / (var(--seat-total) - 1)) * (var(--seat-index) - .5)); }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat.is-local { display: none; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat__name { margin-top: 4px; font-size: 10px; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat__status { font-size: 9px; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat__cards { transform: scale(.7); transform-origin: left center; }
+  .ito-order-table { inset: 27% 14% 1%; }
+  .ito-clue-token { width: 128px; min-width: 128px; }
+  .ito-clue-face blockquote { font-size: 11px; line-height: 1.3; }
+}
+@media (max-width: 720px) and (max-height: 740px) {
+  .ito-stage.game-match:is([data-phase="order"], [data-phase="revealed"]) { --game-hand-height: 150px; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat[data-seat-index] { --seat-size: 28px; --seat-width: 35px; top: 9%; left: calc((100% / (var(--seat-total) - 1)) * (var(--seat-index) - .5)); }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat__name,
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat__status,
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat__cards { display: none; }
+  .ito-stage:is([data-phase="order"], [data-phase="revealed"]) .game-seat__count { min-width: 16px; height: 16px; font-size: 8px; }
+  .ito-stage:is([data-player-count]) .ito-order-table { inset: 19% 6% 1%; }
+  .ito-round-step { max-width: 100%; }
+  .ito-round-step > strong { display: inline; margin-right: 6px; }
+  .ito-round-step > span { display: inline; }
+  .ito-clue-face blockquote { font-size: 11px; line-height: 1.3; }
 }

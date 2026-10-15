@@ -5,6 +5,7 @@ export type IconName =
   | 'camera'
   | 'cameraOff'
   | 'chat'
+  | 'check'
   | 'chevron'
   | 'collapse'
   | 'copy'
@@ -47,6 +48,7 @@ interface IconProps extends SVGProps<SVGSVGElement> {
 }
 
 const paths: Record<IconName, React.ReactNode> = {
+  check: <path d="m5 12 4 4L19 6" />,
   audio: (
     <>
       <path d="M11 5 6 9H3v6h3l5 4V5Z" />

@@ -2,7 +2,7 @@
   "name": "ford-kall",
   "productName": "Ford Kall",
   "private": true,
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Call privada de voz, camera e compartilhamento de tela entre amigos.",
   "author": "Matheus Torres",
   "homepage": "https://fordkall.11a3.dev/",
@@ -23,7 +23,8 @@
     "desktop:dist:windows": "npm run build && electron-builder --win nsis portable --x64 --publish never",
     "desktop:dist:mac": "npm run build && electron-builder --mac --universal --publish never",
     "preview": "vite preview",
-    "typecheck": "tsc -b --pretty false"
+    "typecheck": "tsc -b --pretty false",
+    "test:ito": "node --experimental-strip-types --test scripts/ito-rules.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
