@@ -4,7 +4,9 @@ import App from './App'
 import './styles.css'
 
 const root = createRoot(document.getElementById('root')!)
-if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('microphone-preview')) {
+if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('excalitower-preview')) {
+  void import('./dev/ExcalitowerPreview').then(({ ExcalitowerPreview }) => root.render(<StrictMode><ExcalitowerPreview /></StrictMode>))
+} else if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('microphone-preview')) {
   void import('./dev/MicrophonePreview').then(({ MicrophonePreview }) => root.render(<StrictMode><MicrophonePreview /></StrictMode>))
 } else if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('moderation-preview')) {
   void import('./dev/ModerationPreview').then(({ ModerationPreview }) => root.render(<StrictMode><ModerationPreview /></StrictMode>))
