@@ -1,174 +1,141 @@
 import type { AudioProcessorOptions, TrackProcessor, Track } from 'livekit-client'
+import microphoneWorkletUrl from './microphoneSensitivity.worklet.js?url&no-inline'
+import { clampMicrophoneThreshold } from './microphoneSettings'
 
-const GATE_HYSTERESIS_DB = 6
-const CLOSE_HOLD_MS = 240
-const SAMPLE_INTERVAL_MS = 40
-const LEVEL_UPDATE_INTERVAL_MS = 120
-const CLOSED_GAIN = 0
-const OPEN_GAIN = 1
+const modules = new WeakMap<AudioContext, Promise<void>>()
+const loadWorklet = (context: AudioContext) => {
+  let loading = modules.get(context)
+  if (!loading) {
+    loading = context.audioWorklet.addModule(microphoneWorkletUrl).catch((cause) => {
+      modules.delete(context)
+      throw cause
+    })
+    modules.set(context, loading)
+  }
+  return loading
+}
 
-/** A local noise gate: audio below the selected dBFS threshold is not sent. */
-export class MicrophoneSensitivityProcessor
-  implements TrackProcessor<Track.Kind.Audio, AudioProcessorOptions>
-{
+/** Optional unity-gain gate running on the audio thread, not UI/background timers. */
+export class MicrophoneSensitivityProcessor implements TrackProcessor<Track.Kind.Audio, AudioProcessorOptions> {
   readonly name = 'ford-kall-microphone-sensitivity'
   processedTrack?: MediaStreamTrack
 
   private context?: AudioContext
   private source?: MediaStreamAudioSourceNode
-  private analyser?: AnalyserNode
-  private gate?: GainNode
+  private node?: AudioWorkletNode
+  private bypass?: GainNode
   private destination?: MediaStreamAudioDestinationNode
-  private samples?: Float32Array<ArrayBuffer>
-  private timer?: number
-  private closeStartedAt = 0
-  private lastLevelUpdateAt = 0
-  private isOpen = true
   private thresholdDb: number
-  private onLevel: (levelDb: number) => void
-  private onVisibilityChange?: () => void
+  private failed = false
 
-  constructor(thresholdDb: number, onLevel: (levelDb: number) => void) {
-    this.thresholdDb = thresholdDb
-    this.onLevel = onLevel
+  constructor(
+    thresholdDb: number,
+    private onLevel: (levelDb: number, open: boolean) => void,
+    private onFailure: (message: string) => void = () => {},
+  ) {
+    this.thresholdDb = clampMicrophoneThreshold(thresholdDb)
   }
 
   setThreshold(thresholdDb: number) {
-    this.thresholdDb = thresholdDb
+    this.thresholdDb = clampMicrophoneThreshold(thresholdDb)
+    this.node?.port.postMessage({ type: 'threshold', value: this.thresholdDb })
   }
 
-  setOnLevel(onLevel: (levelDb: number) => void) {
-    this.onLevel = onLevel
-  }
+  setOnLevel(onLevel: (levelDb: number, open: boolean) => void) { this.onLevel = onLevel }
 
   async init({ audioContext, track }: AudioProcessorOptions) {
     await this.createGraph(audioContext, track)
   }
 
   async restart({ audioContext, track }: AudioProcessorOptions) {
+    // LiveKit 2.22's device-change restart omits audioContext at runtime.
+    const context = audioContext ?? this.context
     this.disposeGraph()
-    await this.createGraph(audioContext, track)
+    if (!context) throw new Error('O contexto de áudio do microfone não está disponível.')
+    await this.createGraph(context, track)
   }
 
-  async destroy() {
-    this.disposeGraph()
+  async destroy() { this.disposeGraph() }
+
+  private failOpen = () => {
+    if (this.failed) return
+    this.failed = true
+    // A processor exception otherwise makes a worklet permanently silent.
+    // Keep the original microphone audible until the hook removes the gate.
+    this.node?.disconnect()
+    if (this.bypass) this.bypass.gain.value = 1
+    this.onFailure('A sensibilidade foi desativada após uma falha. Sua voz continua sem esse filtro.')
   }
 
   private async createGraph(context: AudioContext, track: MediaStreamTrack) {
-    if (typeof context.createMediaStreamDestination !== 'function') {
-      throw new Error('Este navegador não oferece processamento de áudio local.')
+    if (!context?.audioWorklet || typeof AudioWorkletNode === 'undefined') {
+      throw new Error('Este navegador não oferece sensibilidade em tempo real. O microfone pode funcionar sem ela.')
     }
-
     this.context = context
+    this.failed = false
     try {
-      const stream = new MediaStream([track])
-      this.source = context.createMediaStreamSource(stream)
-      this.analyser = context.createAnalyser()
-      this.analyser.fftSize = 1024
-      this.samples = new Float32Array(this.analyser.fftSize)
-      this.gate = context.createGain()
-      this.destination = context.createMediaStreamDestination()
-
-      this.source.connect(this.analyser)
-      this.source.connect(this.gate)
-      this.gate.connect(this.destination)
-      this.setGateOpen(true)
-
+      await loadWorklet(context)
+      // Do not attach a silent processed track if autoplay is still blocked.
       if (context.state === 'suspended') {
-        await context.resume()
+        const resume = context.resume()
+        let timeout: ReturnType<typeof setTimeout> | undefined
+        try {
+          await Promise.race([resume, new Promise<never>((_, reject) => {
+            timeout = setTimeout(() => reject(new Error('Ative o áudio da call antes de ligar a sensibilidade.')), 1500)
+          })])
+        } finally { if (timeout !== undefined) clearTimeout(timeout) }
       }
+      if (context.state !== 'running') throw new Error('O áudio local está suspenso. A sensibilidade pode ser ligada quando ele voltar.')
 
-      const processedTrack = this.destination.stream.getAudioTracks()[0]
-      if (!processedTrack) throw new Error('Não foi possível criar a saída de áudio processada.')
-      this.processedTrack = processedTrack
-      this.closeStartedAt = 0
-      this.lastLevelUpdateAt = 0
-      this.timer = window.setInterval(() => this.sample(), SAMPLE_INTERVAL_MS)
-      this.onVisibilityChange = () => {
-        // Browsers throttle timers in background tabs; bypass the gate so this
-        // local convenience never cuts the user's call audio while they multitask.
-        if (document.hidden) {
-          this.closeStartedAt = 0
-          this.setGateOpen(true)
+      this.source = context.createMediaStreamSource(new MediaStream([track]))
+      this.destination = context.createMediaStreamDestination()
+      this.destination.channelCount = 1
+      this.bypass = context.createGain()
+      this.bypass.gain.value = 0
+      this.node = new AudioWorkletNode(context, 'ford-kall-microphone-sensitivity-v2', {
+        numberOfInputs: 1,
+        numberOfOutputs: 1,
+        channelCount: 1,
+        channelCountMode: 'explicit',
+        outputChannelCount: [1],
+        processorOptions: { thresholdDb: this.thresholdDb },
+      })
+      this.node.addEventListener('processorerror', this.failOpen)
+      this.node.port.onmessage = ({ data }) => {
+        if (typeof data?.levelDb === 'number' && Number.isFinite(data.levelDb)) {
+          this.onLevel(Math.max(-100, Math.min(0, data.levelDb)), data.open === true)
         }
       }
-      document.addEventListener('visibilitychange', this.onVisibilityChange)
-    } catch (error) {
+      this.source.connect(this.node)
+      this.node.connect(this.destination)
+      this.source.connect(this.bypass)
+      this.bypass.connect(this.destination)
+      const output = this.destination.stream.getAudioTracks()[0]
+      if (!output) throw new Error('Não foi possível criar a saída de áudio processada.')
+      this.processedTrack = output
+    } catch (cause) {
       this.disposeGraph()
-      if (error instanceof Error && error.message.includes('AudioContext')) throw error
-      if (context.state === 'suspended') {
-        throw new Error('O navegador bloqueou o processamento de áudio do microfone.')
-      }
-      throw error
+      throw cause
     }
-  }
-
-  private sample() {
-    const analyser = this.analyser
-    const samples = this.samples
-    if (!analyser || !samples) return
-
-    analyser.getFloatTimeDomainData(samples)
-    let sum = 0
-    for (const sample of samples) sum += sample * sample
-    const rms = Math.sqrt(sum / samples.length)
-    const levelDb = rms > 0 ? 20 * Math.log10(rms) : -100
-    const now = performance.now()
-
-    if (now - this.lastLevelUpdateAt >= LEVEL_UPDATE_INTERVAL_MS) {
-      this.lastLevelUpdateAt = now
-      this.onLevel(Math.max(-100, Math.min(0, levelDb)))
-    }
-
-    if (document.hidden) {
-      this.closeStartedAt = 0
-      this.setGateOpen(true)
-      return
-    }
-
-    if (this.isOpen) {
-      if (levelDb < this.thresholdDb - GATE_HYSTERESIS_DB) {
-        this.closeStartedAt ||= now
-        if (now - this.closeStartedAt >= CLOSE_HOLD_MS) this.setGateOpen(false)
-      } else {
-        this.closeStartedAt = 0
-      }
-    } else if (levelDb >= this.thresholdDb) {
-      this.closeStartedAt = 0
-      this.setGateOpen(true)
-    }
-  }
-
-  private setGateOpen(open: boolean) {
-    if (open === this.isOpen && this.gate) return
-    this.isOpen = open
-    const parameter = this.gate?.gain
-    const context = this.context
-    if (!parameter || !context) return
-
-    const now = context.currentTime
-    parameter.cancelScheduledValues(now)
-    parameter.setValueAtTime(parameter.value, now)
-    parameter.linearRampToValueAtTime(open ? OPEN_GAIN : CLOSED_GAIN, now + 0.025)
   }
 
   private disposeGraph() {
-    if (this.timer !== undefined) window.clearInterval(this.timer)
-    this.timer = undefined
-    if (this.onVisibilityChange) {
-      document.removeEventListener('visibilitychange', this.onVisibilityChange)
+    if (this.node) {
+      this.node.removeEventListener('processorerror', this.failOpen)
+      this.node.port.onmessage = null
+      this.node.port.postMessage({ type: 'stop' })
+      this.node.port.close()
+      this.node.disconnect()
     }
-    this.onVisibilityChange = undefined
     this.source?.disconnect()
-    this.analyser?.disconnect()
-    this.gate?.disconnect()
+    this.bypass?.disconnect()
     this.destination?.disconnect()
+    this.destination?.stream.getTracks().forEach((track) => track.stop())
     this.source = undefined
-    this.analyser = undefined
-    this.gate = undefined
+    this.node = undefined
+    this.bypass = undefined
     this.destination = undefined
-    this.samples = undefined
-    this.context = undefined
+    // The SDK owns the input track and AudioContext; never stop/close either here.
     this.processedTrack = undefined
   }
 }

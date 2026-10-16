@@ -16,7 +16,7 @@ import {
 } from '../services/livekit'
 import { saveLocalProfile } from '../storage/preferences'
 import type { ConnectionStatus, LocalProfile } from '../types'
-import { microphoneCaptureOptions } from './useMicrophoneProcessing'
+import { microphoneCaptureOptions } from '../services/microphoneCapture'
 
 const toConnectionStatus = (state: ConnectionState): ConnectionStatus => {
   if (state === ConnectionState.Connecting) return 'connecting'

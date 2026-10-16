@@ -3202,6 +3202,20 @@ svg {
   background: #0a0d0a;
 }
 
+.microphone-preset-note { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.microphone-advanced { border: 1px solid var(--border-default); border-radius: 12px; padding: 0 14px; }
+.microphone-advanced > summary { padding: 14px 0; cursor: pointer; font-size: 13px; font-weight: 650; }
+.microphone-advanced[open] > summary { margin-bottom: 4px; }
+.microphone-advanced > .microphone-preset-note { margin: 14px 0; }
+.settings-hub--audio .setting-switch strong { font-size: 14px; line-height: 1.4; }
+.settings-hub--audio .setting-switch small { color: var(--text-muted); font-size: 12px; line-height: 1.5; }
+.settings-hub--audio .select-field select { font-size: 14px; }
+.settings-hub--audio .settings-page__heading p,
+.settings-hub--audio .settings-card__header p { color: var(--text-muted); font-size: 12px; }
+@media (max-width: 720px) {
+  .settings-hub--audio .select-field select { font-size: 16px; }
+}
+
 .sensitivity-control__heading,
 .sensitivity-control__range-labels {
   display: flex;

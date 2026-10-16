@@ -7,6 +7,8 @@ import type {
   StreamQualityId,
 } from '../types'
 import { normalizeProfileAppearance } from '../services/profile'
+import { clampMicrophoneThreshold, DEFAULT_MICROPHONE_SENSITIVITY_DB } from '../services/microphoneSettings'
+export { MICROPHONE_SENSITIVITY_MIN_DB, MICROPHONE_SENSITIVITY_MAX_DB, DEFAULT_MICROPHONE_SENSITIVITY_DB } from '../services/microphoneSettings'
 
 const DISPLAY_NAME_KEY = 'ford-kall:display-name'
 const LOCAL_PROFILE_KEY = 'ford-kall:local-profile'
@@ -14,6 +16,8 @@ const VOLUMES_KEY = 'ford-kall:participant-volumes'
 const DEVICES_KEY = 'ford-kall:devices'
 const QUALITY_KEY = 'ford-kall:stream-quality'
 const NOISE_SUPPRESSION_KEY = 'ford-kall:noise-suppression'
+const ECHO_CANCELLATION_KEY = 'ford-kall:echo-cancellation'
+const AUTO_GAIN_CONTROL_KEY = 'ford-kall:auto-gain-control'
 const MICROPHONE_SENSITIVITY_ENABLED_KEY = 'ford-kall:microphone-sensitivity-enabled'
 const MICROPHONE_SENSITIVITY_THRESHOLD_KEY = 'ford-kall:microphone-sensitivity-threshold'
 const GALLERY_LAYOUT_KEY = 'ford-kall:gallery-layout'
@@ -154,14 +158,16 @@ export const getStreamQuality = (): StreamQualityId => {
 export const saveStreamQuality = (quality: StreamQualityId) =>
   safeWrite(QUALITY_KEY, quality)
 
-export const getNoiseSuppression = () => safeRead(NOISE_SUPPRESSION_KEY) !== 'false'
+export const getNoiseSuppression = () => safeRead(NOISE_SUPPRESSION_KEY) === 'true'
 
 export const saveNoiseSuppression = (enabled: boolean) =>
   safeWrite(NOISE_SUPPRESSION_KEY, String(enabled))
 
-export const MICROPHONE_SENSITIVITY_MIN_DB = -70
-export const MICROPHONE_SENSITIVITY_MAX_DB = -20
-export const DEFAULT_MICROPHONE_SENSITIVITY_DB = -48
+export const getEchoCancellation = () => safeRead(ECHO_CANCELLATION_KEY) !== 'false'
+export const saveEchoCancellation = (enabled: boolean) => safeWrite(ECHO_CANCELLATION_KEY, String(enabled))
+export const getAutoGainControl = () => safeRead(AUTO_GAIN_CONTROL_KEY) === 'true'
+export const saveAutoGainControl = (enabled: boolean) => safeWrite(AUTO_GAIN_CONTROL_KEY, String(enabled))
+export const getMicrophoneCaptureSettings = () => ({ noiseSuppression: getNoiseSuppression(), echoCancellation: getEchoCancellation(), autoGainControl: getAutoGainControl() })
 
 export const getMicrophoneSensitivityEnabled = () =>
   safeRead(MICROPHONE_SENSITIVITY_ENABLED_KEY) === 'true'
@@ -172,16 +178,13 @@ export const saveMicrophoneSensitivityEnabled = (enabled: boolean) =>
 export const getMicrophoneSensitivityThreshold = () => {
   const raw = safeRead(MICROPHONE_SENSITIVITY_THRESHOLD_KEY)
   if (raw === null) return DEFAULT_MICROPHONE_SENSITIVITY_DB
-  const stored = Number(raw)
-  return Number.isFinite(stored)
-    ? Math.min(MICROPHONE_SENSITIVITY_MAX_DB, Math.max(MICROPHONE_SENSITIVITY_MIN_DB, stored))
-    : DEFAULT_MICROPHONE_SENSITIVITY_DB
+  return clampMicrophoneThreshold(Number(raw))
 }
 
 export const saveMicrophoneSensitivityThreshold = (thresholdDb: number) =>
   safeWrite(
     MICROPHONE_SENSITIVITY_THRESHOLD_KEY,
-    String(Math.min(MICROPHONE_SENSITIVITY_MAX_DB, Math.max(MICROPHONE_SENSITIVITY_MIN_DB, thresholdDb))),
+    String(clampMicrophoneThreshold(thresholdDb)),
   )
 
 export const getGalleryLayout = (): GalleryLayoutMode =>

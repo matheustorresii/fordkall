@@ -8,7 +8,8 @@ import { useDesktopGameOverlay } from '../../hooks/useDesktopGameOverlay'
 import { useDesktopPerformanceMode } from '../../hooks/useDesktopPerformanceMode'
 import { useMicrophoneMonitor } from '../../hooks/useMicrophoneMonitor'
 import { useRoomSnapshot } from '../../hooks/useRoomSnapshot'
-import { microphoneCaptureOptions, useMicrophoneProcessing } from '../../hooks/useMicrophoneProcessing'
+import { useMicrophoneProcessing } from '../../hooks/useMicrophoneProcessing'
+import { microphoneCaptureOptions } from '../../services/microphoneCapture'
 import { useRoomChat } from '../../hooks/useRoomChat'
 import { useRoomIto } from '../../hooks/useRoomIto'
 import { useRoomExplodingKiwi } from '../../hooks/useRoomExplodingKiwi'
@@ -169,7 +170,7 @@ export const CallScreen = ({
   const microphoneMonitor = useMicrophoneMonitor(
     room,
     devices.preferences.voiceOutputId,
-    `${devices.selectedInput}:${microphoneProcessing.noiseSuppression}:${microphoneProcessing.processorRevision}`,
+    `${devices.selectedInput}:${microphoneProcessing.processorRevision}`,
   )
   const chat = useRoomChat(room)
   const gameParticipation = useRoomGameParticipation(room)

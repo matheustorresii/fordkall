@@ -2,7 +2,7 @@
   "name": "ford-kall",
   "productName": "Ford Kall",
   "private": true,
-  "version": "1.0.24",
+  "version": "1.0.25",
   "description": "Call privada de voz, camera e compartilhamento de tela entre amigos.",
   "author": "Matheus Torres",
   "homepage": "https://fordkall.11a3.dev/",
@@ -31,6 +31,7 @@
     "test:codenames": "node --experimental-strip-types --test scripts/codenames.test.mjs",
     "test:coup": "node --experimental-strip-types --test scripts/coup.test.mjs",
     "test:music": "node --experimental-strip-types --test scripts/music.test.mjs scripts/music-player.test.mjs",
+    "test:microphone": "node --experimental-strip-types --test scripts/microphone.test.mjs",
     "test:moderation": "node --experimental-strip-types --test scripts/moderation.test.mjs",
     "test:moderation:live": "node scripts/moderation-live.test.mjs",
     "test:social:live": "node scripts/social-live.test.mjs"

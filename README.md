@@ -15,7 +15,8 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - drawer de participantes fechado por padrão e menu contextual no clique ou botão direito;
 - volume local de 0% a 400% e mute independente para voz e transmissão;
 - deafen local sem perder os volumes individuais;
-- supressão de ruído WebRTC opcional para o microfone;
+- perfis de microfone Voz natural, Reduzir ruído e Sem tratamento, com supressão, eco e ganho automático independentes, sem isolamento de voz oculto; escolhas explícitas já salvas são preservadas;
+- sensibilidade opcional na thread de áudio (AudioWorklet), com antecipação de 12 ms, histerese e fechamento suave para preservar sílabas; retorno local acompanha o tratamento e as trocas de entrada;
 - screen share com vídeo, captura de áudio e proteção anti-retorno quando o navegador oferece suporte;
 - volume da transmissão separado do volume do microfone de quem transmite;
 - seleção entre múltiplas transmissões simultâneas;

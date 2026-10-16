@@ -42,6 +42,9 @@ jobs:
       - name: Test ITO rules
         run: npm run test:ito
 
+      - name: Test microphone capture and sensitivity DSP
+        run: npm run test:microphone
+
       - name: Test owner call moderation
         run: npm run test:moderation
 

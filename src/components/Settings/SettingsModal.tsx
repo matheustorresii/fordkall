@@ -12,6 +12,7 @@ import {
   MICROPHONE_SENSITIVITY_MIN_DB,
 } from '../../storage/preferences'
 import { Icon, type IconName } from '../ui/Icon'
+import type { MicrophonePreset } from '../../services/microphoneSettings'
 
 type AppUpdaterState = ReturnType<typeof useAppUpdater>
 type AudioDevicesState = ReturnType<typeof useAudioDevices>
@@ -137,7 +138,7 @@ export const SettingsModal = ({
       <section
         aria-labelledby="settings-title"
         aria-modal="true"
-        className="settings-modal settings-hub"
+        className={`settings-modal settings-hub ${page === 'audio' ? 'settings-hub--audio' : ''}`}
         onMouseDown={(event) => event.stopPropagation()}
         role="dialog"
       >
@@ -201,10 +202,30 @@ export const SettingsModal = ({
                     </select>
                   </label>
 
+                  <label className="select-field">
+                    <span>Tratamento da voz</span>
+                    <select
+                      disabled={microphoneProcessing.busy || microphoneProcessing.sensitivityBusy}
+                      onChange={(event) => void microphoneProcessing.setPreset(event.target.value as MicrophonePreset)}
+                      value={microphoneProcessing.preset}
+                    >
+                      <option value="natural">Voz natural</option>
+                      <option value="noise">Reduzir ruído</option>
+                      <option value="unprocessed">Sem tratamento · use fones</option>
+                      <option disabled value="custom">Personalizado</option>
+                    </select>
+                  </label>
+                  <p className="microphone-preset-note">
+                    {microphoneProcessing.preset === 'natural' ? 'Sem supressão, ganho automático ou corte de voz. Mantém apenas a proteção contra eco.'
+                      : microphoneProcessing.preset === 'noise' ? 'Reduz ruídos do ambiente, sem ganho automático nem corte por sensibilidade.'
+                      : microphoneProcessing.preset === 'unprocessed' ? 'Desliga os tratamentos do app para comparar o timbre original. Use fones para evitar retorno na call.'
+                      : 'Tratamentos ajustados individualmente. Se a voz ficar artificial, experimente Voz natural.'}
+                  </p>
+
                   <label className={`setting-switch ${!microphoneProcessing.supported ? 'is-disabled' : ''}`}>
                     <span>
                       <strong>Supressão de ruído</strong>
-                      <small>Reduz teclado, ventoinha e ruído contínuo no próprio dispositivo.</small>
+                      <small>Opcional. Pode alterar o timbre; evite sobrepor a filtros como Broadcast ou Sonar.</small>
                     </span>
                     <input
                       checked={microphoneProcessing.noiseSuppression}
@@ -218,10 +239,22 @@ export const SettingsModal = ({
                     <div className="settings-note"><Icon name="warning" />Seu navegador não expõe esse filtro.</div>
                   )}
 
+                  <details className="microphone-advanced">
+                    <summary>Ajustes avançados</summary>
+                    <label className={`setting-switch ${!microphoneProcessing.echoCancellationSupported ? 'is-disabled' : ''}`}>
+                      <span><strong>Cancelamento de eco</strong><small>Evita que o áudio dos alto-falantes volte para a call. Com fones, você pode testar desligado.</small></span>
+                      <input checked={microphoneProcessing.echoCancellation} disabled={!microphoneProcessing.echoCancellationSupported || microphoneProcessing.busy} onChange={(event) => void microphoneProcessing.setEchoCancellation(event.target.checked)} type="checkbox" />
+                      <i aria-hidden="true" />
+                    </label>
+                    <label className={`setting-switch ${!microphoneProcessing.autoGainControlSupported ? 'is-disabled' : ''}`}>
+                      <span><strong>Ganho automático</strong><small>Ajusta o volume da captura. Deixe desligado se o microfone já tem volume estável ou tratamento externo.</small></span>
+                      <input checked={microphoneProcessing.autoGainControl} disabled={!microphoneProcessing.autoGainControlSupported || microphoneProcessing.busy} onChange={(event) => void microphoneProcessing.setAutoGainControl(event.target.checked)} type="checkbox" />
+                      <i aria-hidden="true" />
+                    </label>
                   <label className={`setting-switch ${!microphoneProcessing.sensitivitySupported ? 'is-disabled' : ''}`}>
                     <span>
                       <strong>Sensibilidade de entrada</strong>
-                      <small>Filtra sons abaixo do limiar escolhido. Processamento local e opcional.</small>
+                      <small>Fecha o microfone no silêncio. Não remove ruído enquanto você fala; um limiar alto pode cortar voz baixa.</small>
                     </span>
                     <input
                       checked={microphoneProcessing.sensitivityEnabled}
@@ -274,14 +307,17 @@ export const SettingsModal = ({
                         <span>Mais sensível</span>
                         <span>Menos sensível</span>
                       </div>
-                      <small>Fale para ajustar. Verde = nível do microfone; a marca = limiar em dBFS.</small>
+                      <small>{microphoneProcessing.gateOpen ? 'Voz passando' : 'Abaixo do limiar'} · a marca indica o nível mínimo. Ajuste abaixo da sua voz mais baixa.</small>
                     </div>
                   )}
+                    <p className="microphone-preset-note">Isolamento adicional de voz desativado pelo app. Tratamentos do sistema, headset ou interface de áudio podem continuar ativos.</p>
+                    {microphoneProcessing.isolationWarning && <div className="settings-note"><Icon name="warning" />O sistema ainda informa isolamento de voz ativo. Confira os efeitos de áudio do sistema.</div>}
+                  </details>
 
                   <label className={`setting-switch ${!microphoneMonitor.supported ? 'is-disabled' : ''}`}>
                     <span>
                       <strong>Ouvir meu microfone</strong>
-                      <small>Retorno local para testar como os outros recebem sua voz.</small>
+                      <small>Ouça sua voz após o tratamento local. Use fones e compare os perfis acima.</small>
                     </span>
                     <input
                       checked={microphoneMonitor.enabled}

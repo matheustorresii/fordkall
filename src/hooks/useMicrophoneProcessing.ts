@@ -1,211 +1,194 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { LocalAudioTrack, RoomEvent, Track, type Room } from 'livekit-client'
+import { LocalAudioTrack, RoomEvent, Track, TrackEvent, type Room } from 'livekit-client'
 import {
-  getMicrophoneSensitivityEnabled,
-  getMicrophoneSensitivityThreshold,
-  getNoiseSuppression,
-  saveMicrophoneSensitivityEnabled,
-  saveMicrophoneSensitivityThreshold,
-  saveNoiseSuppression,
+  getMicrophoneCaptureSettings, getMicrophoneSensitivityEnabled, getMicrophoneSensitivityThreshold,
+  saveAutoGainControl, saveEchoCancellation, saveNoiseSuppression,
+  saveMicrophoneSensitivityEnabled, saveMicrophoneSensitivityThreshold,
 } from '../storage/preferences'
 import { MicrophoneSensitivityProcessor } from '../services/MicrophoneSensitivityProcessor'
+import { clampMicrophoneThreshold, microphoneConstraints, microphonePresetFor, microphonePresets, type MicrophoneCaptureSettings, type MicrophonePreset } from '../services/microphoneSettings'
 
-export const microphoneCaptureOptions = () => ({
-  autoGainControl: true,
-  echoCancellation: true,
-  noiseSuppression: getNoiseSuppression(),
-})
+const saveCapture = (settings: MicrophoneCaptureSettings) => {
+  saveNoiseSuppression(settings.noiseSuppression)
+  saveEchoCancellation(settings.echoCancellation)
+  saveAutoGainControl(settings.autoGainControl)
+}
 
 export const useMicrophoneProcessing = (room: Room) => {
-  const [noiseSuppression, setNoiseSuppression] = useState(getNoiseSuppression)
+  const [capture, setCaptureState] = useState(getMicrophoneCaptureSettings)
   const [sensitivityEnabled, setSensitivityEnabledState] = useState(getMicrophoneSensitivityEnabled)
   const [sensitivityThresholdDb, setSensitivityThresholdDb] = useState(getMicrophoneSensitivityThreshold)
   const [inputLevelDb, setInputLevelDb] = useState(-100)
+  const [gateOpen, setGateOpen] = useState(true)
   const [processorRevision, setProcessorRevision] = useState(0)
   const [sensitivityBusy, setSensitivityBusy] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
-  const sensitivitySupported =
-    typeof AudioContext !== 'undefined' &&
-    typeof AudioContext.prototype.createMediaStreamDestination === 'function'
-  const supported =
-    typeof navigator !== 'undefined' &&
-    navigator.mediaDevices?.getSupportedConstraints().noiseSuppression === true
+  const [isolationWarning, setIsolationWarning] = useState(false)
+  const constraints = typeof navigator !== 'undefined' ? navigator.mediaDevices?.getSupportedConstraints() : undefined
+  const sensitivitySupported = typeof AudioWorkletNode !== 'undefined' && typeof AudioContext !== 'undefined' && 'audioWorklet' in AudioContext.prototype
 
+  const activeRef = useRef(true)
+  const captureRef = useRef(capture)
   const sensitivityEnabledRef = useRef(sensitivityEnabled)
-  const sensitivityThresholdRef = useRef(sensitivityThresholdDb)
+  const thresholdRef = useRef(sensitivityThresholdDb)
   const processorRef = useRef<MicrophoneSensitivityProcessor | null>(null)
   const processorTrackRef = useRef<LocalAudioTrack | null>(null)
   const syncQueueRef = useRef<Promise<void>>(Promise.resolve())
-  sensitivityEnabledRef.current = sensitivityEnabled
-  sensitivityThresholdRef.current = sensitivityThresholdDb
+  const failureRef = useRef<(message: string) => void>(() => {})
 
-  const applyNoiseSuppression = useCallback(
-    async (enabled: boolean) => {
-      const publication = room.localParticipant.getTrackPublication(Track.Source.Microphone)
-      if (!(publication?.track instanceof LocalAudioTrack)) return
-      await publication.track.applyConstraints({
-        autoGainControl: true,
-        echoCancellation: true,
-        noiseSuppression: enabled,
-      })
-    },
-    [room],
-  )
-
-  const syncSensitivity = useCallback(async () => {
-    setSensitivityBusy(true)
-    try {
-      const publication = room.localParticipant.getTrackPublication(Track.Source.Microphone)
-      const track = publication?.track instanceof LocalAudioTrack ? publication.track : null
-      const previousTrack = processorTrackRef.current
-      const previousProcessor = processorRef.current
-
-      if (previousTrack && previousTrack !== track) {
-        if (previousTrack.getProcessor() === previousProcessor) {
-          await previousTrack.stopProcessor()
-          setProcessorRevision((revision) => revision + 1)
-        }
-        processorTrackRef.current = null
-        processorRef.current = null
-      }
-      if (!track) return
-
-      const currentProcessor = track.getProcessor()
-      if (!sensitivityEnabledRef.current) {
-        if (currentProcessor instanceof MicrophoneSensitivityProcessor) {
-          await track.stopProcessor()
-          setProcessorRevision((revision) => revision + 1)
-        }
-        if (processorTrackRef.current === track) {
-          processorTrackRef.current = null
-          processorRef.current = null
-        }
-        return
-      }
-
-      if (currentProcessor instanceof MicrophoneSensitivityProcessor) {
-        currentProcessor.setThreshold(sensitivityThresholdRef.current)
-        currentProcessor.setOnLevel(setInputLevelDb)
-        processorTrackRef.current = track
-        processorRef.current = currentProcessor
-        return
-      }
-      if (currentProcessor) {
-        throw new Error('Outro processamento de áudio já está ativo neste microfone.')
-      }
-
-      const processor = new MicrophoneSensitivityProcessor(
-        sensitivityThresholdRef.current,
-        setInputLevelDb,
-      )
-      await track.setProcessor(processor)
-      if (sensitivityEnabledRef.current) {
-        processorTrackRef.current = track
-        processorRef.current = processor
-        setProcessorRevision((revision) => revision + 1)
-      } else if (track.getProcessor() === processor) {
-        await track.stopProcessor()
-        setProcessorRevision((revision) => revision + 1)
-      }
-    } catch (cause) {
-      const message = cause instanceof Error ? cause.message : ''
-      setError(message || 'Não foi possível ativar o limiar de sensibilidade deste microfone.')
-      sensitivityEnabledRef.current = false
-      saveMicrophoneSensitivityEnabled(false)
-      setSensitivityEnabledState(false)
-    } finally {
-      setSensitivityBusy(false)
-    }
+  const reportLevel = useCallback((db: number, open: boolean) => {
+    if (activeRef.current) { setInputLevelDb(db); setGateOpen(open) }
+  }, [])
+  const getTrack = useCallback(() => {
+    const publication = room.localParticipant.getTrackPublication(Track.Source.Microphone)
+    return publication?.track instanceof LocalAudioTrack ? publication.track : null
   }, [room])
-
-  const queueSensitivitySync = useCallback(() => {
-    const next = syncQueueRef.current.catch(() => undefined).then(syncSensitivity)
+  // Capture changes, processor swaps and cleanup share a queue. Fast toggles or
+  // a device switch must never put an older processor/settings back on the sender.
+  const enqueue = useCallback((work: () => Promise<void>) => {
+    const next = syncQueueRef.current.catch(() => undefined).then(work)
     syncQueueRef.current = next.catch(() => undefined)
     return next
-  }, [syncSensitivity])
-
-  useEffect(() => {
-    const restoreNoiseSuppression = () =>
-      void applyNoiseSuppression(getNoiseSuppression()).catch(() => undefined)
-    const restoreSensitivity = () => void queueSensitivitySync()
-    room.on(RoomEvent.LocalTrackPublished, restoreNoiseSuppression)
-    room.on(RoomEvent.LocalTrackPublished, restoreSensitivity)
-    room.on(RoomEvent.LocalTrackUnpublished, restoreSensitivity)
-    restoreNoiseSuppression()
-    restoreSensitivity()
-
-    return () => {
-      room.off(RoomEvent.LocalTrackPublished, restoreNoiseSuppression)
-      room.off(RoomEvent.LocalTrackPublished, restoreSensitivity)
-      room.off(RoomEvent.LocalTrackUnpublished, restoreSensitivity)
-      const cleanup = syncQueueRef.current.catch(() => undefined).then(async () => {
-        const track = processorTrackRef.current
-        const processor = processorRef.current
-        if (track && processor && track.getProcessor() === processor) {
-          await track.stopProcessor()
-        }
-        processorTrackRef.current = null
-        processorRef.current = null
-      })
-      syncQueueRef.current = cleanup.catch(() => undefined)
+  }, [])
+  const syncCapture = useCallback(async () => {
+    if (!activeRef.current) return
+    const track = getTrack()
+    if (!track) return
+    await track.applyConstraints(microphoneConstraints(captureRef.current))
+    if (activeRef.current) {
+      const settings = track.getSourceTrackSettings() as MediaTrackSettings & { voiceIsolation?: boolean }
+      setIsolationWarning(settings.voiceIsolation === true)
+      // Clones can retain their own capture constraints. Rebuild the local
+      // monitor AFTER applying NS/AGC/echo, not before the async change finishes.
+      setProcessorRevision((revision) => revision + 1)
     }
-  }, [applyNoiseSuppression, queueSensitivitySync, room])
-
-  useEffect(() => {
-    void queueSensitivitySync()
-  }, [queueSensitivitySync, sensitivityEnabled])
-
-  useEffect(() => {
-    processorRef.current?.setThreshold(sensitivityThresholdDb)
-  }, [sensitivityThresholdDb])
-
-  const setEnabled = useCallback(
-    async (enabled: boolean) => {
-      if (!supported) return
-      setBusy(true)
-      setError('')
-      saveNoiseSuppression(enabled)
-      setNoiseSuppression(enabled)
-      try {
-        await applyNoiseSuppression(enabled)
-      } catch {
-        setError('O navegador não conseguiu alterar o tratamento de ruído deste microfone.')
-      } finally {
-        setBusy(false)
+  }, [getTrack])
+  const syncSensitivity = useCallback(async () => {
+    if (!activeRef.current) return
+    setSensitivityBusy(true)
+    try {
+      const track = getTrack()
+      const previousTrack = processorTrackRef.current, previous = processorRef.current
+      if (previousTrack && previousTrack !== track) {
+        if (previousTrack.getProcessor() === previous) await previousTrack.stopProcessor()
+        processorTrackRef.current = null; processorRef.current = null
       }
-    },
-    [applyNoiseSuppression, supported],
-  )
+      if (!track) return
+      const current = track.getProcessor()
+      if (!sensitivityEnabledRef.current) {
+        if (current instanceof MicrophoneSensitivityProcessor) await track.stopProcessor()
+        processorTrackRef.current = null; processorRef.current = null
+        if (activeRef.current) { setInputLevelDb(-100); setGateOpen(true) }
+        return
+      }
+      if (current instanceof MicrophoneSensitivityProcessor) {
+        current.setThreshold(thresholdRef.current); current.setOnLevel(reportLevel)
+        processorTrackRef.current = track; processorRef.current = current
+        return
+      }
+      if (current) throw new Error('Outro processamento de áudio já está ativo neste microfone.')
+      const processor = new MicrophoneSensitivityProcessor(thresholdRef.current, reportLevel, (message) => failureRef.current(message))
+      await track.setProcessor(processor)
+      if (activeRef.current && sensitivityEnabledRef.current) {
+        processorTrackRef.current = track; processorRef.current = processor
+      } else if (track.getProcessor() === processor) await track.stopProcessor()
+    } catch (cause) {
+      if (activeRef.current) {
+        setError(cause instanceof Error ? cause.message : 'Não foi possível ativar a sensibilidade. Sua voz continua sem esse filtro.')
+        sensitivityEnabledRef.current = false
+        saveMicrophoneSensitivityEnabled(false)
+        setSensitivityEnabledState(false)
+      }
+    } finally { if (activeRef.current) setSensitivityBusy(false) }
+  }, [getTrack, reportLevel])
+  const queueSensitivity = useCallback(() => enqueue(syncSensitivity), [enqueue, syncSensitivity])
+  failureRef.current = (message) => {
+    if (!activeRef.current) return
+    setError(message)
+    sensitivityEnabledRef.current = false
+    saveMicrophoneSensitivityEnabled(false); setSensitivityEnabledState(false)
+    void queueSensitivity()
+  }
 
+  useEffect(() => {
+    activeRef.current = true
+    let bound: LocalAudioTrack | null = null
+    const changed = () => { if (activeRef.current) setProcessorRevision((revision) => revision + 1) }
+    const restore = () => {
+      const next = getTrack()
+      if (bound !== next) {
+        bound?.off(TrackEvent.Restarted, restore)
+        bound?.off(TrackEvent.TrackProcessorUpdate, changed)
+        bound = next
+        bound?.on(TrackEvent.Restarted, restore)
+        bound?.on(TrackEvent.TrackProcessorUpdate, changed)
+      }
+      changed()
+      void enqueue(syncCapture).catch(() => {
+        if (activeRef.current) setError('Não foi possível aplicar o tratamento do microfone. Confira as opções ou tente trocar a entrada.')
+      })
+      void queueSensitivity()
+    }
+    room.on(RoomEvent.LocalTrackPublished, restore)
+    room.on(RoomEvent.LocalTrackUnpublished, restore)
+    restore()
+    return () => {
+      activeRef.current = false
+      room.off(RoomEvent.LocalTrackPublished, restore)
+      room.off(RoomEvent.LocalTrackUnpublished, restore)
+      bound?.off(TrackEvent.Restarted, restore)
+      bound?.off(TrackEvent.TrackProcessorUpdate, changed)
+      void enqueue(async () => {
+        const track = processorTrackRef.current, processor = processorRef.current
+        if (track && processor && track.getProcessor() === processor) await track.stopProcessor()
+        processorTrackRef.current = null; processorRef.current = null
+      })
+    }
+  }, [enqueue, getTrack, queueSensitivity, room, syncCapture])
+
+  const setCapture = useCallback(async (next: MicrophoneCaptureSettings) => {
+    const previous = captureRef.current
+    captureRef.current = next; saveCapture(next); setCaptureState(next)
+    setBusy(true); setError('')
+    try { await enqueue(syncCapture); return true }
+    catch {
+      if (captureRef.current === next) { captureRef.current = previous; saveCapture(previous); setCaptureState(previous) }
+      setError('O navegador não conseguiu alterar esse tratamento. A configuração anterior foi mantida.')
+      return false
+    } finally { if (activeRef.current) setBusy(false) }
+  }, [enqueue, syncCapture])
   const setSensitivityEnabled = useCallback((enabled: boolean) => {
+    if (enabled && !sensitivitySupported) return
     setError('')
     sensitivityEnabledRef.current = enabled
-    saveMicrophoneSensitivityEnabled(enabled)
-    setSensitivityEnabledState(enabled)
-    void queueSensitivitySync()
-  }, [queueSensitivitySync])
-
-  const setSensitivityThreshold = useCallback((thresholdDb: number) => {
-    saveMicrophoneSensitivityThreshold(thresholdDb)
-    sensitivityThresholdRef.current = thresholdDb
-    setSensitivityThresholdDb(thresholdDb)
+    saveMicrophoneSensitivityEnabled(enabled); setSensitivityEnabledState(enabled)
+    void queueSensitivity()
+  }, [queueSensitivity, sensitivitySupported])
+  const setSensitivityThreshold = useCallback((value: number) => {
+    const threshold = clampMicrophoneThreshold(value)
+    thresholdRef.current = threshold; saveMicrophoneSensitivityThreshold(threshold); setSensitivityThresholdDb(threshold)
+    processorRef.current?.setThreshold(threshold)
   }, [])
+  const setPreset = useCallback(async (preset: MicrophonePreset) => {
+    setSensitivityEnabled(false)
+    return setCapture({ ...microphonePresets[preset] })
+  }, [setCapture, setSensitivityEnabled])
 
   return {
-    noiseSuppression,
-    supported,
-    busy,
-    error,
+    ...capture,
+    preset: microphonePresetFor(capture, sensitivityEnabled),
+    setPreset,
+    supported: constraints?.noiseSuppression === true,
+    echoCancellationSupported: constraints?.echoCancellation === true,
+    autoGainControlSupported: constraints?.autoGainControl === true,
+    busy, error, isolationWarning,
     clearError: () => setError(''),
-    setEnabled,
-    sensitivityEnabled,
-    sensitivitySupported,
-    sensitivityBusy,
-    sensitivityThresholdDb,
-    inputLevelDb,
-    processorRevision,
-    setSensitivityEnabled,
-    setSensitivityThreshold,
+    setEnabled: (enabled: boolean) => setCapture({ ...captureRef.current, noiseSuppression: enabled }),
+    setEchoCancellation: (enabled: boolean) => setCapture({ ...captureRef.current, echoCancellation: enabled }),
+    setAutoGainControl: (enabled: boolean) => setCapture({ ...captureRef.current, autoGainControl: enabled }),
+    sensitivityEnabled, sensitivitySupported, sensitivityBusy, sensitivityThresholdDb,
+    inputLevelDb, gateOpen, processorRevision,
+    setSensitivityEnabled, setSensitivityThreshold,
   }
 }

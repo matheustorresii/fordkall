@@ -6,6 +6,7 @@ import {
 import type { StreamQualityId } from '../types'
 import type { LocalProfile } from '../types'
 import { invokeFunction } from './supabase'
+import { microphoneCaptureOptions } from './microphoneCapture'
 
 export type LiveKitConnectionDetails = TokenSourceResponseObject & {
   backendId?: string | null
@@ -91,6 +92,7 @@ export const createLiveKitRoom = () =>
     dynacast: true,
     disconnectOnPageLeave: true,
     webAudioMix: true,
+    audioCaptureDefaults: microphoneCaptureOptions(),
   })
 
 export const fetchConnectionDetails = async (
