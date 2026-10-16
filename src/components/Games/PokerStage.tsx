@@ -6,13 +6,18 @@ import {
   describePokerHand,
   pokerLegalActions,
   pokerPotTotal,
+  POKER_FLOW_TIMING,
   readPokerSettings,
   type PokerSettings,
+  type PokerState,
 } from '../../games/poker'
 import { Icon } from '../ui/Icon'
 import { arrangeSeats, GameError, GameHud, GameLobby, GameModal as TableModal } from './GameTable'
 import { PokerCardFace } from './PokerCardFace'
 import { PokerResultView } from './PokerResultView'
+import { PokerHandGuide } from './PokerHandGuide'
+import { AnimatedNumber } from './AnimatedNumber'
+import { PokerMotionLayer } from './PokerMotionLayer'
 import './PokerStage.css'
 
 type PokerGame = Pick<
@@ -61,7 +66,9 @@ const positions: Record<number, Array<[number, number]>> = {
 }
 export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props) => {
   const { state } = game
-  const [modal, setModal] = useState<'rules' | 'settings' | 'history' | 'result' | 'end' | null>(null)
+  const [modal, setModal] = useState<'rules' | 'guide' | 'settings' | 'history' | 'result' | 'end' | 'restart' | null>(null)
+  const [lastResult, setLastResult] = useState<PokerState | null>(null)
+  const [resultSnapshot, setResultSnapshot] = useState<PokerState | null>(null)
   const [settings, setSettings] = useState<PokerSettings>(defaultPokerSettings)
   const [draftSettings, setDraftSettings] = useState<PokerSettings>(defaultPokerSettings)
   const [raising, setRaising] = useState(false)
@@ -74,6 +81,8 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
   const seats = arrangeSeats(state.players, identity)
   const result = state.result,
     ended = state.phase === 'hand-result' || state.phase === 'finished'
+  const runningOut = state.phase === 'runout'
+  const champion = state.phase === 'finished' ? state.players.find((p) => p.stack > 0 && !p.away) : undefined
   const busy = submittedTurn === state.turnId && !game.error
   const raiseMin = Math.min(legal.minRaise, legal.maxTotal),
     raiseValue = Math.max(raiseMin, Math.min(raiseTotal, legal.maxTotal))
@@ -88,6 +97,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
   const personalCards = new Set(personalBest?.cards)
   const currentName = state.players.find((p) => p.identity === state.current)?.name ?? ''
   const seconds = state.turnExpiresAt ? Math.max(0, Math.ceil((state.turnExpiresAt - now) / 1000)) : null
+  const nextSeconds = Math.max(0, Math.ceil((state.transitionAt - now) / 1000))
   const winners = state.players.filter((p) => (result?.payouts[p.identity] ?? 0) > 0)
   const resultLabel =
     winners.length === 1
@@ -97,15 +107,25 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
         : 'Mesa encerrada'
   const street = { preflop: 'Pré-flop', flop: 'Flop', turn: 'Turn', river: 'River' }[state.street]
   useEffect(() => {
-    if (!state.turnExpiresAt || state.phase !== 'playing') return
+    if (!state.turnExpiresAt && !state.transitionAt) return
     setNow(Date.now())
     const interval = window.setInterval(() => setNow(Date.now()), 250)
     return () => window.clearInterval(interval)
-  }, [state.turnExpiresAt, state.phase])
+  }, [state.turnExpiresAt, state.transitionAt])
+  useEffect(() => {
+    if (state.result) setLastResult(state)
+    else setLastResult((previous) => previous?.matchId === state.matchId ? previous : null)
+  }, [state])
   useEffect(() => {
     setRaising(false)
     setSubmittedTurn('')
   }, [state.gameId, state.turnId])
+  const openResult = () => {
+    const snapshot = state.result ? state : lastResult
+    if (!snapshot) return
+    setResultSnapshot(snapshot)
+    setModal('result')
+  }
   const act = (action: Parameters<PokerGame['act']>[0]) => {
     if (busy) return
     if (game.act(action)) {
@@ -121,7 +141,8 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
   return (
     <section
       aria-label="Poker Texas Hold’em"
-      className={`poker-stage ${state.phase === 'lobby' ? 'poker-stage--lobby' : ''}`}
+      className={`poker-stage ${state.phase === 'lobby' ? 'poker-stage--lobby' : ''} ${runningOut ? 'is-runout' : ''} ${state.phase === 'finished' ? 'is-finished' : ''}`}
+      data-poker-phase={state.phase}
     >
       <GameHud
         onExit={onExit}
@@ -188,6 +209,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
       ) : (
         <>
           <div className="poker-arena" data-player-count={seats.length}>
+            <PokerMotionLayer state={state} locations={Object.fromEntries(seats.map((p, index) => [p.identity, positions[seats.length]?.[index] ?? [50, 50]]))} />
             <div aria-hidden="true" className="poker-felt">
               <span>TEXAS HOLD’EM</span>
             </div>
@@ -198,6 +220,10 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                 {street}
               </span>
               <div>
+                <button className="poker-guide-button" onClick={() => setModal('guide')} type="button">
+                  <span aria-hidden="true">♠</span> Combinações
+                </button>
+                {lastResult && <button aria-label="Ver última mão" onClick={openResult} title="Última mão" type="button"><Icon name="chevron" /></button>}
                 <button
                   aria-label="Histórico desta mão"
                   onClick={() => setModal('history')}
@@ -234,7 +260,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                   {(revealed || (player.identity !== identity && player.inHand && !player.folded)) && (
                     <span className="poker-seat__cards">
                       {[0, 1].map((card) => (
-                        <PokerCardFace card={revealed?.[card]} highlighted={won} key={card} />
+                        <PokerCardFace card={revealed?.[card]} highlighted={won} key={`${state.gameId}-${revealed?.[card] ?? card}`} motion={revealed ? 'flip' : 'deal'} delay={revealed ? card * 100 : index * 90 + card * seats.length * 90} />
                       ))}
                     </span>
                   )}
@@ -258,10 +284,10 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                     {player.name}
                   </strong>
                   <span className="poker-seat__stack">
-                    {chips(player.stack)}
+                    <AnimatedNumber value={player.stack} delay={won ? 800 : 0} />
                     <i aria-hidden="true" className="poker-chip" />
                   </span>
-                  <span className={`poker-seat__action ${player.allIn ? 'is-all-in' : ''}`}>
+                  <span className={`poker-seat__action ${player.allIn ? 'is-all-in' : ''}`} key={`${state.gameId}-${player.action}-${won}`}>
                     {won
                       ? `+${chips(result!.payouts[player.identity]!)}`
                       : player.away
@@ -269,12 +295,12 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                         : player.action || '\u00a0'}
                   </span>
                   {player.identity === state.dealer && (
-                    <span className="poker-seat__dealer" title="Dealer">
+                    <span className="poker-seat__dealer" title="Dealer" key={`${state.gameId}-dealer`}>
                       D
                     </span>
                   )}
                   {!ended && player.bet > 0 && (
-                    <span className="poker-seat__bet">
+                    <span className="poker-seat__bet" key={`${state.gameId}-${state.street}-${player.bet}`}>
                       <i className="poker-chip" />
                       {chips(player.bet)}
                       {player.identity === state.smallBlind ? (
@@ -291,7 +317,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
               <button
                 aria-label={ended ? 'Ver resultado dos potes' : `Pote de ${chips(totalPot)} fichas. Ver histórico.`}
                 className="poker-pot"
-                onClick={() => setModal(ended ? 'result' : 'history')}
+                onClick={() => ended ? openResult() : setModal('history')}
                 type="button"
               >
                 <span className="poker-pot__chips" aria-hidden="true">
@@ -301,7 +327,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                 </span>
                 <span>
                   {ended ? 'POTE DISTRIBUÍDO' : 'POTE TOTAL'}
-                  <strong key={totalPot}>{chips(totalPot)}</strong>
+                  <strong><AnimatedNumber value={totalPot} /></strong>
                 </span>
               </button>
               <div aria-label="Cartas comunitárias" className="poker-board">
@@ -316,6 +342,8 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                         card={state.board[index]}
                         bestHand={!ended && personalCards.has(state.board[index]!)}
                         highlighted={ended && winningCards.has(state.board[index]!)}
+                        motion="flip"
+                        delay={index < 3 ? index * 130 : 0}
                       />
                     )}
                   </span>
@@ -338,8 +366,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                     game.hand.map((card) => (
                       <PokerCardFace
                         card={card}
-                        bestHand={!ended && personalCards.has(card)}
-                        highlighted={Boolean(result?.bestCards[identity]?.includes(card))}
+                        bestHand={personalCards.has(card)}
                         key={`${state.gameId}-${card}`}
                       />
                     ))
@@ -386,33 +413,34 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
               {ended ? (
                 <>
                   <p className="poker-action-caption">
-                    {state.phase === 'finished' ? 'Fim de partida' : 'Mão encerrada'}
-                    <button onClick={() => setModal('result')} type="button">
+                    {state.phase === 'finished' ? 'PARTIDA ENCERRADA' : 'Mão encerrada'}
+                    <button onClick={openResult} type="button">
                       Ver resultado <Icon name="chevron" />
                     </button>
                   </p>
-                  <div className="poker-action-buttons">
-                    <button className="game-action" onClick={onOpenGameHub} type="button">
-                      Outros jogos
-                    </button>
+                  {state.phase === 'finished' ? <div className="poker-finale" key={state.matchId}>
+                    <span aria-hidden="true">★</span>
+                    <div><small>{champion ? 'CAMPEÃO DA MESA' : 'MESA ENCERRADA'}</small><strong title={champion?.name}>{champion?.name ?? 'Obrigado pela partida'}</strong></div>
                     {local && (
                       <button
                         className="game-action game-action--primary"
-                        onClick={() => {
-                          if (state.phase === 'finished') {
-                            game.start(state.settings)
-                          } else {
-                            game.nextHand()
-                          }
-                        }}
+                        onClick={() => setModal('restart')}
                         type="button"
                       >
-                        {state.phase === 'finished' ? 'Nova partida' : 'Próxima mão'}
-                        <Icon name="chevron" />
+                        Nova partida
                       </button>
                     )}
-                  </div>
+                  </div> : <div className="poker-next-hand" role="status">
+                    <span>Próxima mão em <strong>{nextSeconds}s</strong></span>
+                    <div className="poker-next-hand__track"><i style={{ scale: `${Math.min(1, Math.max(0, (state.transitionAt - now) / POKER_FLOW_TIMING.nextHand))} 1` }} /></div>
+                    <small>As fichas continuam. O dealer gira.</small>
+                  </div>}
                 </>
+              ) : runningOut ? (
+                <div className="poker-runout" role="status">
+                  <span className="poker-runout__symbol" aria-hidden="true">♠</span>
+                  <div><small>APOSTAS ENCERRADAS</small><strong>{state.street === 'river' ? 'Showdown' : `Vem o ${state.street === 'preflop' ? 'flop' : state.street === 'flop' ? 'turn' : 'river'}`}</strong><span>{state.street === 'river' ? 'As melhores cinco cartas decidem.' : 'Mãos abertas. Cada carta conta.'}</span></div>
+                </div>
               ) : (
                 <>
                   <p aria-live="polite" className="poker-action-caption">
@@ -618,25 +646,24 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
               All-ins desiguais criam potes separados: você disputa apenas o que cobriu. Empates dividem o pote; naipes
               não desempatam. Valores não cobertos voltam ao dono.
             </p>
-            <ol>
-              {[
-                'Royal / straight flush',
-                'Quadra',
-                'Full house',
-                'Flush',
-                'Sequência',
-                'Trinca',
-                'Dois pares',
-                'Um par',
-                'Carta alta',
-              ].map((rank) => (
-                <li key={rank}>{rank}</li>
-              ))}
-            </ol>
+            <button className="game-action" onClick={() => setModal('guide')} type="button">Ver tabela de combinações</button>
+            <p>A próxima mão começa automaticamente após uma pausa para ver o resultado. Quando só resta uma pessoa com fichas, a partida termina: uma nova partida precisa ser iniciada pela mesa.</p>
             <p>
               De 2 a 6 pessoas. As fichas são fictícias e não ficam salvas entre partidas. Quem entrar depois assiste;
               sair da call dá fold, exceto se já estiver all-in. Se quem distribui as cartas sair, a mesa é encerrada.
             </p>
+          </div>
+        </GameModal>
+      ) : modal === 'guide' ? (
+        <GameModal detail="Da mais forte à mais fraca. Sua mão final sempre tem cinco cartas." onClose={() => setModal(null)} title="Combinações do poker" wide>
+          <PokerHandGuide current={personalBest?.name} />
+        </GameModal>
+      ) : modal === 'restart' ? (
+        <GameModal detail="O resultado desta partida fica na mesa até vocês decidirem começar outra." onClose={() => setModal(null)} title="Começar uma nova partida?">
+          <p className="game-modal__hint">Cada pessoa volta a ter {chips(state.settings.startingStack)} fichas. Este é um novo jogo, não a próxima mão.</p>
+          <div className="game-modal__actions">
+            <button className="game-action" onClick={() => setModal(null)} type="button">Manter resultado</button>
+            <button className="game-action game-action--primary" onClick={() => { if (game.start(state.settings)) setModal(null) }} type="button">Iniciar nova partida</button>
           </div>
         </GameModal>
       ) : modal === 'history' ? (
@@ -656,13 +683,13 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
             ))}
           </ol>
         </GameModal>
-      ) : modal === 'result' && result ? (
+      ) : modal === 'result' && resultSnapshot?.result ? (
         <GameModal
-          detail={result.uncontested ? 'A mão terminou sem showdown.' : 'As melhores cinco cartas decidem cada pote.'}
+          detail={resultSnapshot.result.uncontested ? 'A mão terminou sem showdown.' : 'As melhores cinco cartas decidem cada pote.'}
           onClose={() => setModal(null)}
-          title="Resultado da mão"
+          title={`Resultado · mão ${resultSnapshot.handNumber}`}
         >
-          <PokerResultView state={state} />
+          <PokerResultView state={resultSnapshot} />
         </GameModal>
       ) : modal === 'end' ? (
         <GameModal

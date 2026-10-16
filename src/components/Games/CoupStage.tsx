@@ -14,6 +14,8 @@ import type { ParticipantMedia } from '../../types'
 import { Icon } from '../ui/Icon'
 import { arrangeSeats, GameError, GameHud, GameModal } from './GameTable'
 import './CoupStage.css'
+import { useGameMotion } from './useGameMotion'
+import { AnimatedNumber } from './AnimatedNumber'
 
 type Game = Pick<
   ReturnType<typeof useRoomCoup>,
@@ -98,9 +100,9 @@ const initial = (name: string) =>
     .join('')
     .toUpperCase()
 const Coin = ({ value }: { value: number }) => (
-  <span className="coup-coins" key={value} aria-label={`${value} moedas`}>
-    <i aria-hidden="true">◈</i>
-    <b>{value}</b>
+  <span className="coup-coins" aria-label={`${value} moedas`}>
+    <i aria-hidden="true" key={value}>◈</i>
+    <b><AnimatedNumber value={value} /></b>
   </span>
 )
 const Portrait = ({ player, avatar }: { player: { name: string }; avatar?: string }) => (
@@ -121,6 +123,7 @@ export const CoupStage = ({ game, participants, onExit, onOpenGameHub }: Props) 
   const [selected, setSelected] = useState<string[]>([])
   const [dismissedStep, setDismissedStep] = useState('')
   const [privateVisible, setPrivateVisible] = useState(true)
+  const motionRef = useGameMotion(`${state.revision}:${hand.map((c) => c.id).join(',')}:${privateVisible}`, state.gameId)
   const [settings, setSettings] = useState<CoupSettings>({ ...defaultCoupSettings })
   const [now, setNow] = useState(Date.now)
   useEffect(() => {
@@ -256,6 +259,7 @@ export const CoupStage = ({ game, participants, onExit, onOpenGameHub }: Props) 
     <section
       aria-label="Coup · Corte Kiwi"
       className={`game-match coup-stage ${state.phase === 'lobby' ? 'coup-stage--lobby' : ''}`}
+      ref={motionRef}
     >
       <GameHud title="Coup" subtitle="Corte Kiwi" onExit={onExit} onOpenGameHub={onOpenGameHub}>
         <button
@@ -340,7 +344,7 @@ export const CoupStage = ({ game, participants, onExit, onOpenGameHub }: Props) 
             {seats.map(seat)}
             <div className={`coup-center ${p ? 'has-action' : ''}`} key={state.events.at(-1)?.id ?? 'start'}>
               {p && proofRole ? (
-                <span className="coup-center__claim">
+                <span className="coup-center__claim" data-game-card={`claim-${state.events.at(-1)?.id}`}>
                   <CoupCardFace role={proofRole} />
                   <small>{p.claim === 'block' ? 'BLOQUEIO ALEGADO' : 'PERSONAGEM ALEGADO'}</small>
                 </span>
@@ -412,6 +416,8 @@ export const CoupStage = ({ game, participants, onExit, onOpenGameHub }: Props) 
                   <button
                     aria-label={privateVisible ? `Ver ${coupRoles[c.role].name}` : 'Carta oculta'}
                     key={c.id}
+                    data-game-card={c.id}
+                    data-game-revealed={privateVisible}
                     onClick={() => privateVisible && setInspect(c.role)}
                     type="button"
                   >

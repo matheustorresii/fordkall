@@ -1,10 +1,11 @@
-import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type FormEvent } from 'react'
 import type { ParticipantMedia } from '../../types'
 import type { ItoCard, useRoomIto } from '../../hooks/useRoomIto'
 import { defaultItoSettings, itoNextProgress, itoRequiredVotes, type ItoSettings } from '../../games/itoRules'
 import { Icon } from '../ui/Icon'
 import { arrangeSeats, GameError, GameHud, GameLobby, GameModal, GameSeat, NumberCard } from './GameTable'
 import './ItoGameStage.css'
+import { useGameMotion, useGameResultPause } from './useGameMotion'
 
 interface ItoGameStageProps { game: ReturnType<typeof useRoomIto>; participants: ParticipantMedia[]; onExit: () => void; onOpenGameHub: () => void }
 const lossLabels = { keep: 'Manter as cartas', 'remove-one': 'Remover uma carta extra', reset: 'Voltar a uma carta por pessoa' }
@@ -18,7 +19,6 @@ export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoG
   const [dismissedResult, setDismissedResult] = useState('')
   const [railScroll, setRailScroll] = useState({ left: false, right: false })
   const orderRailRef = useRef<HTMLDivElement>(null)
-  const previousCardPositions = useRef(new Map<string, DOMRect>())
   const { state } = game
   const myIdentity = participants.find((person) => person.isLocal)?.id ?? ''
   const seats = arrangeSeats(state.players, myIdentity)
@@ -32,6 +32,8 @@ export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoG
   const requiredVotes = itoRequiredVotes(state.settings.revealRule, state.players.length)
   const hasVoted = state.revealVotes.includes(myIdentity)
   const resultKey = `${state.gameId}:${state.phase}`
+  const resultReady = useGameResultPause(resultKey, state.phase === 'revealed', 1200)
+  const motionRef = useGameMotion(`${state.phase}:${state.order.join(',')}:${game.localCards.map((c) => c.value).join(',')}`, state.gameId)
   const maximumExtras = state.players.length * (state.settings.targetCards - 1)
   const nextExtras = itoNextProgress(state.extraCards, Boolean(state.succeeded), state.settings.lossRule, maximumExtras)
   const nextRecipient = state.players[nextExtras > state.extraCards ? state.extraCards % state.players.length : nextExtras % state.players.length]
@@ -51,19 +53,6 @@ export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoG
     resize.observe(rail); rail.addEventListener('scroll', update, { passive: true }); update()
     return () => { resize.disconnect(); rail.removeEventListener('scroll', update) }
   }, [state.gameId, state.phase, state.cards.length])
-  useLayoutEffect(() => {
-    const cards = Array.from(orderRailRef.current?.querySelectorAll<HTMLElement>('[data-ito-card]') ?? [])
-    const positions = new Map<string, DOMRect>()
-    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    for (const card of cards) {
-      const id = card.dataset.itoCard!, next = card.getBoundingClientRect(), previous = previousCardPositions.current.get(id)
-      if (previous && !reduceMotion && previous.left !== next.left) card.animate([
-        { transform: `translateX(${previous.left - next.left}px)` }, { transform: 'translateX(0)' },
-      ], { duration: 300, easing: 'cubic-bezier(.2,.8,.2,1)' })
-      positions.set(id, next)
-    }
-    previousCardPositions.current = positions
-  }, [state.order, state.gameId])
 
   const submitClue = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -73,7 +62,7 @@ export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoG
   }
   const start = () => game.start(settings)
 
-  return <section aria-label="Jogo ITO" className={`ito-stage ${state.phase === 'lobby' ? 'ito-stage--lobby' : 'game-match'}`} data-phase={state.phase} data-player-count={state.players.length}>
+  return <section aria-label="Jogo ITO" className={`ito-stage ${state.phase === 'lobby' ? 'ito-stage--lobby' : 'game-match'}`} data-phase={state.phase} data-player-count={state.players.length} ref={motionRef}>
     <GameHud onExit={onExit} onOpenGameHub={onOpenGameHub} subtitle={state.phase === 'lobby' ? 'Uma ordem, várias intuições' : `Rodada ${state.roundNumber} · ${state.cards.length} cartas`} title="ITO"><button aria-label="Regras do ITO" className="game-icon-button" onClick={() => setModal('rules')} type="button">?</button></GameHud>
     <GameError error={game.error} onClose={game.clearError} />
     {state.phase === 'lobby' ? <GameLobby art={<><NumberCard value={8} /><NumberCard value={92} /></>} description="Comecem com uma carta por pessoa. A cada vitória, mais uma carta entra na próxima rodada. Organizem todas as dicas, juntos." disabled={game.participantCount < 2 || game.participantCount > 8} eyebrow="2–8 JOGADORES · INTUIÇÃO" note={`${voteLabels[settings.revealRule]} para revelar · Meta: ${settings.targetCards} cartas por pessoa · Derrota: ${lossLabels[settings.lossRule].toLowerCase()}`} onRules={() => setModal('rules')} onSettings={() => setModal('settings')} onStart={start} participants={participants} title="ITO" /> : <>
@@ -89,7 +78,7 @@ export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoG
             const owner = state.players.find((person) => person.identity === card.ownerIdentity)
             const ownerIndex = state.cards.filter((item) => item.ownerIdentity === card.ownerIdentity).findIndex((item) => item.id === card.id) + 1
             const label = `${owner?.name ?? 'Pessoa'}${(owner?.cardCount ?? 0) > 1 ? `, carta ${ownerIndex}` : ''}`
-            return <article className="ito-clue-token" data-ito-card={card.id} key={card.id}>
+            return <article className="ito-clue-token" data-ito-card={card.id} data-game-card={`ito-table-${card.id}`} data-game-revealed={state.phase === 'revealed'} key={card.id}>
               <div className={`ito-clue-face ${state.phase === 'revealed' ? 'is-revealed' : ''}`}><small>{String(index + 1).padStart(2, '0')}</small><b className="ito-clue-face__number">{state.phase === 'revealed' ? state.numbers?.[card.id] ?? '—' : '?'}</b><blockquote>{card.clue}</blockquote><strong>{label}</strong></div>
               {state.phase === 'order' && <div className="ito-clue-controls"><button aria-label={`Mover ${label} para a esquerda`} className="game-action" disabled={!game.isParticipating || index === 0} onClick={() => game.moveCard(card.id, -1)} type="button">←</button><button aria-label={`Mover ${label} para a direita`} className="game-action" disabled={!game.isParticipating || index === orderedCards.length - 1} onClick={() => game.moveCard(card.id, 1)} type="button">→</button></div>}
             </article>
@@ -100,7 +89,7 @@ export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoG
       <div className="ito-private-zone">
         <div className="ito-private-hand" aria-label="Suas cartas privadas"><small>{game.isParticipating ? `SUA MÃO · ${ownCards.length} ${ownCards.length === 1 ? 'CARTA' : 'CARTAS'}` : 'ESPECTADOR'}</small><div className="ito-private-hand__rail">{ownCards.map((card, index) => {
           const value = game.localCards.find((item) => item.cardId === card.id)?.value
-          return <button aria-label={`Selecionar sua carta ${index + 1}${value === undefined ? ', aguardando número' : `, número ${value}`}${card.clue ? ', dica enviada' : ''}`} aria-pressed={activeCard?.id === card.id} className={`ito-private-card ${activeCard?.id === card.id ? 'is-selected' : ''}`} key={card.id} onClick={() => setSelectedCardId(card.id)} type="button"><NumberCard hidden={value === undefined} value={value ?? '?'} /><span>{card.clue ? '✓' : index + 1}</span></button>
+          return <button aria-label={`Selecionar sua carta ${index + 1}${value === undefined ? ', aguardando número' : `, número ${value}`}${card.clue ? ', dica enviada' : ''}`} aria-pressed={activeCard?.id === card.id} className={`ito-private-card ${activeCard?.id === card.id ? 'is-selected' : ''}`} data-game-card={`ito-private-${card.id}`} key={card.id} onClick={() => setSelectedCardId(card.id)} type="button"><NumberCard hidden={value === undefined} value={value ?? '?'} /><span>{card.clue ? '✓' : index + 1}</span></button>
         })}</div></div>
         {state.phase === 'clue' && activeCard ? <form className="ito-clue-form" onSubmit={submitClue}><label htmlFor="ito-clue">Dica da carta {ownCards.findIndex((card) => card.id === activeCard.id) + 1} <small>{ownSubmittedCount}/{ownCards.length} enviadas</small></label><div><input autoComplete="off" disabled={activeValue === undefined} id="ito-clue" maxLength={80} onChange={(event) => { const value = event.currentTarget.value; setDrafts((current) => ({ ...current, [activeCard.id]: value })) }} placeholder="Dê uma dica sem falar o número…" value={draft} /><button aria-label={activeCard.clue ? 'Atualizar dica' : 'Enviar dica'} className="game-action game-action--primary" disabled={!draft.trim() || activeValue === undefined} type="submit"><Icon name={activeCard.clue ? 'check' : 'send'} /></button></div><small>{ownSubmittedCount === ownCards.length ? 'Dicas enviadas. Aguarde as outras pessoas.' : 'Toque nas suas cartas para dar uma dica para cada uma.'}</small><div><button aria-label="Configurações da partida" className="game-icon-button" onClick={() => setModal('settings')} type="button"><Icon name="controls" /></button><button aria-label="Encerrar partida" className="game-icon-button" onClick={() => setModal('end')} type="button"><Icon name="menu" /></button></div></form>
           : state.phase === 'clue' ? <p className="ito-spectator-note">A mesa está preparando as dicas.</p>
@@ -114,6 +103,6 @@ export const ItoGameStage = ({ game, participants, onExit, onOpenGameHub }: ItoG
         <label><strong>Objetivo da partida</strong><select aria-label="Meta de cartas por pessoa" disabled={state.phase !== 'lobby'} onChange={(event) => { const targetCards = Number(event.currentTarget.value); setSettings((current) => ({ ...current, targetCards })) }} value={effectiveSettings.targetCards}>{[2,3,4,5].map((count) => <option key={count} value={count}>Vencer com {count} cartas por pessoa</option>)}</select><small>Todo mundo começa com uma carta. Cada vitória adiciona só uma carta à rodada seguinte, em rodízio.</small></label>
       </div><div className="game-modal__actions"><button className="game-action game-action--primary" onClick={() => setModal(null)} type="button">Pronto</button></div>
     </GameModal> : modal === 'rules' ? <GameModal onClose={() => setModal(null)} title="Como jogar ITO"><div className="game-rules"><p>Cada carta recebe um número secreto de 1 a 100. Dê uma dica para cada carta da sua mão, sem contar o número.</p><p>Organizem todas as dicas da esquerda (0) para a direita (100), usando as setas. Cartas da mesma pessoa podem ficar separadas na mesa.</p><p>Votem quando concordarem com a ordem. Cada pessoa tem um voto. Mudar a ordem cancela os votos para todo mundo conferir de novo.</p><p>Ganhar adiciona uma carta à próxima rodada, uma pessoa de cada vez. O objetivo padrão é vencer com duas cartas por pessoa. A consequência de perder e a votação são configuráveis.</p></div></GameModal> : modal === 'end' ? <GameModal onClose={() => setModal(null)} title="Encerrar a partida de ITO?"><div className="game-modal__actions"><button className="game-action" onClick={() => setModal(null)} type="button">Continuar</button><button className="game-action game-action--danger" onClick={() => { if (game.reset()) setModal(null) }} type="button">Encerrar</button></div></GameModal> : null}
-    {state.phase === 'revealed' && dismissedResult !== resultKey && !modal && <GameModal detail={nextRoundNote} onClose={() => setDismissedResult(resultKey)} title={state.campaignWon ? 'Vocês venceram a partida!' : state.succeeded ? 'Ordem perfeita!' : 'Foi por pouco.'}><div className="ito-result-mark">{state.campaignWon ? '✦' : state.succeeded ? '✓' : '↔'}</div><div className="game-modal__actions"><button className="game-action" onClick={() => setDismissedResult(resultKey)} type="button">Ver a mesa</button><button className="game-action game-action--primary" disabled={!game.isParticipating} onClick={state.campaignWon ? () => game.start(state.settings) : game.nextRound} type="button">{state.campaignWon ? 'Nova partida' : 'Próxima rodada'}</button></div></GameModal>}
+    {resultReady && dismissedResult !== resultKey && !modal && <GameModal detail={nextRoundNote} onClose={() => setDismissedResult(resultKey)} title={state.campaignWon ? 'Vocês venceram a partida!' : state.succeeded ? 'Ordem perfeita!' : 'Foi por pouco.'}><div className="ito-result-mark">{state.campaignWon ? '✦' : state.succeeded ? '✓' : '↔'}</div><div className="game-modal__actions"><button className="game-action" onClick={() => setDismissedResult(resultKey)} type="button">Ver a mesa</button><button className="game-action game-action--primary" disabled={!game.isParticipating} onClick={state.campaignWon ? () => game.start(state.settings) : game.nextRound} type="button">{state.campaignWon ? 'Nova partida' : 'Próxima rodada'}</button></div></GameModal>}
   </section>
 }

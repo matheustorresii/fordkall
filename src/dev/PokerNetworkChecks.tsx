@@ -95,6 +95,13 @@ const createMesh = () => {
   return { rooms, packets, deliver, command, membership }
 }
 const pause = (ms = 30) => new Promise<void>((resolve) => window.setTimeout(resolve, ms))
+const until = async (condition: () => boolean, limit = 20000) => {
+  const started = Date.now()
+  while (!condition()) {
+    if (Date.now() - started > limit) throw new Error('A mesa não avançou dentro do prazo')
+    await pause(40)
+  }
+}
 type Game = ReturnType<typeof useRoomPoker>
 export const PokerNetworkChecks = () => {
   const mesh = useMemo(createMesh, [])
@@ -126,6 +133,29 @@ export const PokerNetworkChecks = () => {
         await pause()
       }
       if (state().phase === 'playing') throw new Error('Mesa travada durante as apostas')
+      if (state().phase === 'runout') {
+        const locked = state()
+        assert(!locked.result && !locked.current && !locked.pending.length, 'Showdown suspende as ações sem revelar resultado antecipado')
+        const deadlines = locked.transitionAt
+        mesh.command('p1', { type: 'advance', gameId: locked.gameId, transitionAt: deadlines })
+        mesh.command('p0', { type: 'advance', gameId: locked.gameId, transitionAt: deadlines })
+        await pause()
+        assert(state().board.length === locked.board.length && !state().result, 'Cliente remoto e timer adiantado não pulam o suspense')
+        while (state().phase === 'runout') {
+          const previous = state()
+          await until(() => state().transitionAt !== previous.transitionAt || state().phase !== 'runout')
+          assert(
+            latest.current.filter((_, index) => index < state().players.length).every((client) => JSON.stringify(client.state) === JSON.stringify(state())),
+            `Etapa ${state().street} sincronizada entre os assentos`,
+          )
+          if (state().phase === 'runout') {
+            assert(!state().result && state().board.length === (previous.board.length === 0 ? 3 : previous.board.length + 1), 'A mesa abre apenas a próxima etapa, sem pagar o pote')
+            mesh.command('p0', { type: 'advance', gameId: previous.gameId, transitionAt: previous.transitionAt })
+            await pause()
+            assert(state().transitionAt !== previous.transitionAt && !state().result, 'Timer repetido não pula uma etapa')
+          }
+        }
+      }
     }
     try {
       for (let count = 2; count <= 6; count++) {
@@ -186,11 +216,14 @@ export const PokerNetworkChecks = () => {
           oldMatch = state().matchId,
           staleNext = game(1).nextHand
         game().nextHand()
+        await pause()
+        assert(state().handNumber === 1, 'A pausa do resultado não pode ser pulada por cliques')
+        await until(() => state().handNumber === 2)
         staleNext()
         await pause()
         assert(
           state().handNumber === 2 && state().gameId !== oldHand && state().matchId === oldMatch,
-          `Próxima mão gira o dealer sem duplicar distribuição (${count} pessoas)`,
+          `Próxima mão automática preserva a partida sem duplicar distribuição (${count} pessoas)`,
         )
         const hand = game(1).hand.join()
         mesh.deliver(oldPrivate)
@@ -209,6 +242,23 @@ export const PokerNetworkChecks = () => {
           `All-ins fazem o runout e distribuem potes nos ${count} clientes`,
         )
       }
+      mesh.membership(['p0', 'p1', 'p2'])
+      await pause()
+      game().reset()
+      await pause()
+      game().start({ startingStack: 100, bigBlind: 10, turnSeconds: 0 })
+      await pause()
+      for (let hand = 0; state().phase !== 'finished' && hand < 12; hand++) {
+        await finish(true)
+        if (state().phase !== 'finished') await until(() => state().phase === 'playing')
+      }
+      assert(state().phase === 'finished', 'Partida encerra quando só resta uma pessoa com fichas')
+      const final = JSON.stringify(state())
+      game().nextHand()
+      await pause(5400)
+      assert(JSON.stringify(state()) === final && state().transitionAt === 0, 'Campeão e stacks finais permanecem: não há reinício automático')
+      mesh.membership(['p0', 'p1', 'p2', 'p3', 'p4', 'p5'])
+      await pause()
       game().reset()
       await pause()
       game().start({ ...defaultPokerSettings, turnSeconds: 0 })

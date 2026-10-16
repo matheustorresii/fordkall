@@ -5,6 +5,7 @@ import { getKiwiCombo, getKiwiPlayTarget, isKiwiImmediate, kiwiCards, kiwiCardTy
 import { Icon } from '../ui/Icon'
 import { arrangeSeats, GameError, GameHud, GameModal, GameSeat } from './GameTable'
 import './ExplodingKiwiStage.css'
+import { useGameMotion } from './useGameMotion'
 
 type Game = ReturnType<typeof useRoomExplodingKiwi>
 interface ExplodingKiwiStageProps { game: Game; participants: ParticipantMedia[]; onExit: () => void; onOpenGameHub: () => void }
@@ -34,6 +35,7 @@ export const KiwiCardFace = ({ type, detail = false, hidden = false }: { type: K
 }
 
 export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }: ExplodingKiwiStageProps) => {
+  const motionRef = useGameMotion(`${game.state.phase}:${game.state.discard.at(-1)?.id}:${game.hand.map((c) => c.id).join(',')}`, game.state.gameId)
   const [expansions, setExpansions] = useState<KiwiExpansion[]>([])
   const [excludedCards, setExcludedCards] = useState<KiwiCardType[]>(['tower-of-power'])
   const [selectedIds, setSelectedIds] = useState<string[]>([])
@@ -132,7 +134,7 @@ export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }
   const positionControl = (value: number, onChange: (value: number) => void, label = 'Onde devolver ao monte?') => <label className="kiwi-position"><strong>{label}</strong><span>{value === game.state.deckCount ? 'No topo · próxima compra' : value === 0 ? 'No fundo do monte' : `${game.state.deckCount - value} carta(s) antes dela`}</span><input aria-label={label} max={game.state.deckCount} min={0} onChange={(event) => onChange(Number(event.currentTarget.value))} type="range" value={Math.min(value, game.state.deckCount)} /><small><span>Fundo</span><span>Topo</span></small></label>
   const pendingOwner = game.state.pendingDefenseIdentity || (prompt?.kind === 'favor' ? prompt.targetIdentity : prompt?.kind === 'give' ? prompt.queue[0] : prompt?.actorIdentity)
 
-  return <section aria-label="Exploding Kiwi" className={`kiwi-stage ${game.state.phase === 'lobby' ? 'kiwi-stage--lobby' : 'game-match'}`}>
+  return <section aria-label="Exploding Kiwi" className={`kiwi-stage ${game.state.phase === 'lobby' ? 'kiwi-stage--lobby' : 'game-match'}`} ref={motionRef}>
     <GameHud onExit={onExit} onOpenGameHub={onOpenGameHub} subtitle={game.state.phase === 'lobby' ? '2–5 jogadores' : `${game.state.players.filter((player) => player.alive).length} na mesa`} title="Exploding Kiwi">
       <button aria-label="Regras do Exploding Kiwi" className="game-icon-button" onClick={() => setModal('rules')} type="button">?</button>
     </GameHud>
@@ -151,7 +153,7 @@ export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }
         {seats.map((player, index) => <GameSeat active={player.identity === game.state.currentPlayerIdentity && game.state.phase === 'playing'} avatar={participants.find((person) => person.id === player.identity)?.avatarDataUrl} cards={player.handCount} eliminated={!player.alive} index={index} key={player.identity} local={player.identity === myIdentity} name={player.name} status={player.blind ? 'Amaldiçoado' : player.tower ? 'Torre do Poder' : !player.alive ? 'Eliminado' : undefined} total={seats.length} />)}
         <div className="kiwi-piles">
           <button aria-label={`Comprar uma carta. ${game.state.deckCount} no monte`} className="kiwi-pile kiwi-pile--deck" disabled={!canDraw} onClick={game.draw} type="button"><KiwiCardFace hidden type="kiwi-cat-d" /><span>Comprar <b>{game.state.deckCount}</b></span></button>
-          <button aria-label={`Ver descarte, ${game.state.discard.length} cartas`} className="kiwi-pile kiwi-pile--discard" onClick={() => setModal('discard')} type="button">{game.state.discard.at(-1) ? <KiwiCardFace type={game.state.discard.at(-1)!.type} /> : <span className="kiwi-empty-pile"><Icon name="eye" />Descarte vazio</span>}<span>Descarte <b>{game.state.discard.length}</b><Icon name="eye" /></span></button>
+          <button aria-label={`Ver descarte, ${game.state.discard.length} cartas`} className="kiwi-pile kiwi-pile--discard" data-game-card={game.state.discard.at(-1)?.id} onClick={() => setModal('discard')} type="button">{game.state.discard.at(-1) ? <KiwiCardFace type={game.state.discard.at(-1)!.type} /> : <span className="kiwi-empty-pile"><Icon name="eye" />Descarte vazio</span>}<span>Descarte <b>{game.state.discard.length}</b><Icon name="eye" /></span></button>
         </div>
         {game.state.pendingAction ? <div className="kiwi-reaction" role="status"><span>{game.state.pendingAction.nopeCount % 2 ? 'Ação anulada' : 'Pode jogar Não!'}<b>{remainingSeconds}s</b></span>{game.hand.find((card) => card.type === 'nope') && <button className="game-action game-action--danger" onClick={() => game.nope(game.hand.find((card) => card.type === 'nope')!.id)} type="button">Não!</button>}</div>
           : pendingOwner && pendingOwner !== myIdentity ? <p className="game-table-note" role="status">Aguardando {actorName(pendingOwner)}…</p> : <p className="game-table-note" key={game.state.lastAction} role="status">{game.state.lastAction}</p>}
@@ -168,7 +170,7 @@ export const ExplodingKiwiStage = ({ game, participants, onExit, onOpenGameHub }
             {game.isController && <button aria-label="Encerrar partida" className="game-icon-button" onClick={() => setModal('end')} type="button"><Icon name="menu" /></button>}
           </div>
         </div>
-        <div className="game-hand__rail">{game.hand.map((card) => <button aria-label={myPlayer?.blind ? 'Carta virada' : kiwiCards[card.type].title} aria-pressed={selectedIds.includes(card.id)} className={`kiwi-hand-card ${selectedIds.includes(card.id) ? 'is-selected' : ''} ${card.marked ? 'is-marked' : ''}`} key={card.id} onClick={() => toggleCard(card.id)} onDoubleClick={() => { if (!myPlayer?.blind) { setSelectedIds([card.id]); setModal('inspect') } }} type="button"><KiwiCardFace hidden={myPlayer?.blind} type={card.type} /></button>)}{!game.hand.length && <span className="kiwi-hand-empty">{game.isPlaying ? 'Aguardando a próxima jogada…' : 'Você está assistindo à partida.'}</span>}</div>
+        <div className="game-hand__rail">{game.hand.map((card) => <button aria-label={myPlayer?.blind ? 'Carta virada' : kiwiCards[card.type].title} aria-pressed={selectedIds.includes(card.id)} className={`kiwi-hand-card ${selectedIds.includes(card.id) ? 'is-selected' : ''} ${card.marked ? 'is-marked' : ''}`} data-game-card={card.id} key={card.id} onClick={() => toggleCard(card.id)} onDoubleClick={() => { if (!myPlayer?.blind) { setSelectedIds([card.id]); setModal('inspect') } }} type="button"><KiwiCardFace hidden={myPlayer?.blind} type={card.type} /></button>)}{!game.hand.length && <span className="kiwi-hand-empty">{game.isPlaying ? 'Aguardando a próxima jogada…' : 'Você está assistindo à partida.'}</span>}</div>
       </div>
     </>}
 

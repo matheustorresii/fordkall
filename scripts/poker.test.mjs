@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   applyPokerAction,
+  advancePokerFlow,
   createPokerMatch,
   dealPokerHand,
   defaultPokerSettings,
@@ -11,10 +12,13 @@ import {
   makePokerDeck,
   pokerLegalActions,
   pokerPotTotal,
+  POKER_FLOW_TIMING,
   readPokerSettings,
   settlePokerPots,
   syncPokerMembers,
 } from '../src/games/poker.ts'
+import { pokerHandGuide } from '../src/games/pokerGuide.ts'
+import { pokerMotionEvents } from '../src/games/pokerMotion.ts'
 
 const cards = (text) => text.split(' ')
 const members = (count) => Array.from({ length: count }, (_, i) => ({ identity: `p${i}`, name: `Pessoa ${i}` }))
@@ -23,6 +27,14 @@ const seeded = (seed) => () => {
   return seed / 0x100000000
 }
 const chips = ({ state }) => state.players.reduce((n, p) => n + p.stack + p.committed, 0)
+const runout = (engine) => {
+  let next = engine
+  for (let step = 0; next.state.phase === 'runout'; step++) {
+    assert.ok(step < 5, 'o showdown termina em no máximo quatro etapas')
+    next = advancePokerFlow(next, next.state.transitionAt)
+  }
+  return next
+}
 const passive = (engine) => {
   let next = engine,
     actions = 0
@@ -31,7 +43,7 @@ const passive = (engine) => {
     const legal = pokerLegalActions(next.state, next.state.current)
     next = applyPokerAction(next, next.state.current, { type: legal.canCheck ? 'check' : 'call' })
   }
-  return next
+  return runout(next)
 }
 test('baralho tem 52 cartas únicas; embaralhamento determinístico só é injetado nos testes', () => {
   const deck = makePokerDeck(seeded(1))
@@ -329,6 +341,10 @@ test('aposta não paga volta ao dono e all-in corre o board sem pedir ações ex
   e = applyPokerAction(e, first, { type: 'all-in' })
   e = applyPokerAction(e, e.state.current, { type: 'call' })
   assert.notEqual(e.state.phase, 'playing')
+  assert.equal(e.state.phase, 'runout')
+  assert.equal(e.state.board.length, 0)
+  assert.equal(e.state.result, null)
+  e = runout(e)
   assert.equal(e.state.board.length, 5)
   assert.equal(chips(e), total)
   assert.equal(e.state.result.refunds[first], 900)
@@ -376,6 +392,7 @@ test('cem partidas de várias mãos mantêm o saldo e giram o dealer apenas entr
           type: random() < 0.35 && legal.canAllIn ? 'all-in' : legal.canCheck ? 'check' : 'call',
         })
       }
+      e = runout(e)
       assert.equal(chips(e), count * 100)
       if (e.state.phase === 'finished') break
       const dealer = e.state.dealer,
@@ -434,6 +451,8 @@ test('1.000 mãos aleatórias de 2–6 pessoas: fichas conservadas, cartas únic
       const visible = [...Object.values(e.hands).flat(), ...e.state.board, ...e.deck]
       assert.equal(new Set(visible).size, visible.length)
     }
+    e = runout(e)
+    assert.equal(chips(e), total)
     assert.equal(pokerPotTotal(e.state), 0)
     assert.equal(
       Object.values(e.state.result.payouts).reduce((a, b) => a + b, 0),
@@ -447,4 +466,139 @@ test('1.000 mãos aleatórias de 2–6 pessoas: fichas conservadas, cartas únic
     for (const pot of e.state.result.pots)
       for (const winner of pot.winners) assert.equal(e.state.players.find((p) => p.identity === winner).folded, false)
   }
+})
+
+test('all-in pré-flop revela 0 → 3 → 4 → 5 cartas; só depois anuncia e paga o vencedor', () => {
+  let e = createPokerMatch(members(3), undefined, seeded(43))
+  while (e.state.phase === 'playing') {
+    const legal = pokerLegalActions(e.state, e.state.current)
+    e = applyPokerAction(e, e.state.current, { type: legal.canAllIn ? 'all-in' : 'call' })
+  }
+  const original = JSON.stringify(e), locked = e, match = e.state.matchId, hand = e.state.gameId
+  assert.equal(e.state.phase, 'runout')
+  assert.equal(e.state.board.length, 0)
+  assert.equal(Object.keys(e.state.revealed).length, 3)
+  assert.equal(e.state.result, null)
+  assert.equal(e.state.current, '')
+  assert.equal(e.state.turnExpiresAt, 0)
+  assert.throws(() => dealPokerHand(e))
+  for (const count of [3, 4, 5]) {
+    assert.throws(() => advancePokerFlow(e, e.state.transitionAt - 1))
+    const before = JSON.stringify(e), deadline = e.state.transitionAt
+    e = advancePokerFlow(e, deadline)
+    assert.equal(e.state.board.length, count)
+    assert.equal(e.state.phase, 'runout')
+    assert.equal(e.state.result, null)
+    assert.equal(e.state.matchId, match)
+    assert.equal(e.state.gameId, hand)
+    assert.equal(e.state.players.reduce((n, p) => n + p.stack, 0), 0, 'pote ainda não foi pago')
+    assert.equal(chips(e), 3000)
+    assert.equal(e.state.transitionAt, deadline + (count === 5 ? POKER_FLOW_TIMING.showdown : POKER_FLOW_TIMING.street))
+    assert.notEqual(JSON.stringify(e), before)
+  }
+  e = advancePokerFlow(e, e.state.transitionAt)
+  assert.ok(e.state.result)
+  assert.equal(e.state.players.reduce((n, p) => n + p.stack, 0), 3000)
+  assert.equal(e.state.matchId, match)
+  assert.equal(JSON.stringify(locked), original, 'cada etapa preserva o estado anterior')
+})
+
+test('showdown normal também tem pausa; folded não revela cartas no runout', () => {
+  let e = createPokerMatch(members(3), undefined, seeded(43))
+  const folded = e.state.current
+  e = applyPokerAction(e, folded, { type: 'fold' })
+  while (e.state.phase === 'playing') {
+    const legal = pokerLegalActions(e.state, e.state.current)
+    e = applyPokerAction(e, e.state.current, { type: legal.canCheck ? 'check' : 'call' })
+  }
+  assert.equal(e.state.phase, 'runout')
+  assert.equal(e.state.street, 'river')
+  assert.equal(e.state.board.length, 5)
+  assert.equal(e.state.revealed[folded], undefined)
+  assert.equal(e.state.result, null)
+  e = advancePokerFlow(e, e.state.transitionAt)
+  assert.equal(e.state.phase, 'hand-result')
+  assert.equal(e.state.revealed[folded], undefined)
+})
+
+test('próxima mão mantém saldo, matchId e assentos; gira dealer depois da pausa de resultado', () => {
+  let e = createPokerMatch(members(6), undefined, seeded(4))
+  for (let i = 0; i < 5; i++) e = applyPokerAction(e, e.state.current, { type: 'fold' })
+  const snapshot = JSON.stringify(e), deadline = e.state.transitionAt
+  assert.equal(e.state.phase, 'hand-result')
+  assert.ok(deadline > Date.now())
+  assert.throws(() => advancePokerFlow(e, deadline - 1))
+  const next = advancePokerFlow(e, deadline, seeded(5))
+  assert.equal(next.state.handNumber, 2)
+  assert.equal(next.state.matchId, e.state.matchId)
+  assert.notEqual(next.state.gameId, e.state.gameId)
+  assert.notEqual(next.state.dealer, e.state.dealer)
+  assert.equal(chips(next), 6000)
+  for (const player of next.state.players)
+    assert.equal(player.stack + player.committed, e.state.players.find((p) => p.identity === player.identity).stack)
+  assert.equal(JSON.stringify(e), snapshot)
+  assert.throws(() => advancePokerFlow(next, deadline + 100000), 'timer antigo não inicia outra mão')
+})
+
+test('dois eliminados e um campeão: resultado permanece e não aceita reinício implícito', () => {
+  let e = createPokerMatch(members(3), undefined, seeded(43))
+  while (e.state.phase === 'playing') {
+    const legal = pokerLegalActions(e.state, e.state.current)
+    e = applyPokerAction(e, e.state.current, { type: legal.canAllIn ? 'all-in' : 'call' })
+  }
+  e = runout(e)
+  assert.equal(e.state.phase, 'finished')
+  assert.equal(e.state.transitionAt, 0)
+  assert.equal(e.state.players.filter((p) => p.stack > 0).length, 1)
+  const snapshot = JSON.stringify(e)
+  assert.throws(() => advancePokerFlow(e, Date.now() + 1000000))
+  assert.throws(() => dealPokerHand(e))
+  assert.equal(JSON.stringify(e), snapshot)
+  const restarted = createPokerMatch(members(3), e.state.settings, seeded(45))
+  assert.notEqual(restarted.state.matchId, e.state.matchId)
+  assert.equal(restarted.state.handNumber, 1)
+})
+
+test('saída no intervalo cancela próxima mão se não houver duas pessoas com fichas', () => {
+  const e = passive(createPokerMatch(members(3), undefined, seeded(1)))
+  const stopped = syncPokerMembers(e, new Set(['p0']))
+  assert.equal(stopped.state.phase, 'finished')
+  assert.equal(stopped.state.transitionAt, 0)
+  assert.ok(stopped.state.result)
+  assert.throws(() => advancePokerFlow(stopped, e.state.transitionAt + 10000))
+  const reconnected = syncPokerMembers(stopped, new Set(['p0', 'p1', 'p2']))
+  assert.equal(reconnected.state.phase, 'finished', 'reconectar não recomeça uma partida encerrada')
+})
+
+test('tabela ilustrada tem dez exemplos válidos em ordem estrita de força', () => {
+  assert.equal(pokerHandGuide.length, 10)
+  let previous = Infinity
+  for (const hand of pokerHandGuide) {
+    const evaluated = evaluatePokerFive(hand.cards)
+    assert.equal(evaluated.name, hand.name)
+    assert.ok(evaluated.score < previous)
+    previous = evaluated.score
+  }
+})
+
+test('animações vêm de deltas públicos: aposta, fold, recolhimento, pagamento e distribuição', () => {
+  let e = createPokerMatch(members(3), undefined, seeded(2))
+  const dealt = pokerMotionEvents(null, e.state)
+  assert.equal(dealt.filter((event) => event.kind === 'deal').length, 6)
+  const caller = e.state.current, called = applyPokerAction(e, caller, { type: 'call' })
+  assert.ok(pokerMotionEvents(e.state, called.state).some((event) => event.kind === 'bet' && event.from === caller))
+  const folded = applyPokerAction(called, called.state.current, { type: 'fold' })
+  assert.ok(pokerMotionEvents(called.state, folded.state).some((event) => event.kind === 'fold'))
+  e = folded
+  while (e.state.phase === 'playing') {
+    const legal = pokerLegalActions(e.state, e.state.current)
+    const next = applyPokerAction(e, e.state.current, { type: legal.canCheck ? 'check' : 'call' })
+    if (next.state.street !== e.state.street && e.state.players.some((p) => p.bet))
+      assert.ok(pokerMotionEvents(e.state, next.state).some((event) => event.kind === 'collect'))
+    e = next
+  }
+  const paid = runout(e), cues = pokerMotionEvents(e.state, paid.state)
+  assert.equal(cues.filter((event) => event.kind === 'pay').length, Object.keys(paid.state.result.payouts).length)
+  assert.ok(cues.every((event) => !('card' in event) && !('hand' in event)))
+  assert.deepEqual(pokerMotionEvents(paid.state, paid.state), [], 'não repete animação em renderizações sem jogada')
 })

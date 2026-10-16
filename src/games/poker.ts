@@ -8,6 +8,7 @@ export interface PokerSettings {
   turnSeconds: number
 }
 export const defaultPokerSettings: PokerSettings = { startingStack: 1000, bigBlind: 10, turnSeconds: 60 }
+export const POKER_FLOW_TIMING = { reveal: 1200, street: 1800, showdown: 2200, nextHand: 5000 } as const
 export interface PokerPlayer {
   identity: string
   name: string
@@ -44,7 +45,7 @@ export interface PokerState {
   matchId: string
   controllerIdentity: string
   revision: number
-  phase: 'lobby' | 'playing' | 'hand-result' | 'finished'
+  phase: 'lobby' | 'playing' | 'runout' | 'hand-result' | 'finished'
   street: PokerStreet
   handNumber: number
   settings: PokerSettings
@@ -59,6 +60,7 @@ export interface PokerState {
   pending: string[]
   turnId: string
   turnExpiresAt: number
+  transitionAt: number
   revealed: Record<string, PokerCard[]>
   returned: Record<string, number>
   result: PokerResult | null
@@ -126,6 +128,7 @@ export const emptyPokerState = (controllerIdentity: string, revision = 0): Poker
   pending: [],
   turnId: '',
   turnExpiresAt: 0,
+  transitionAt: 0,
   revealed: {},
   returned: {},
   result: null,
@@ -386,7 +389,7 @@ export const settlePokerPots = (
     bestCards: Object.fromEntries(Object.entries(ranked).map(([id, hand]) => [id, hand.cards])),
   }
 }
-const settle = (engine: PokerEngine, uncontested: boolean) => {
+const settle = (engine: PokerEngine, uncontested: boolean, now = Date.now()) => {
   const state = engine.state,
     survivors = state.players.filter(live)
   const refunds = { ...state.returned }
@@ -419,6 +422,7 @@ const settle = (engine: PokerEngine, uncontested: boolean) => {
     p.allIn = false
   })
   state.phase = state.players.filter((p) => p.stack > 0 && !p.away).length < 2 ? 'finished' : 'hand-result'
+  state.transitionAt = state.phase === 'hand-result' ? now + POKER_FLOW_TIMING.nextHand : 0
   state.current = ''
   state.pending = []
   setTurn(state)
@@ -445,6 +449,17 @@ const nextStreet = (engine: PokerEngine) => {
     state.street === 'flop' ? 'Flop na mesa.' : state.street === 'turn' ? 'Turn na mesa.' : 'River na mesa.',
   )
 }
+const beginRunout = (engine: PokerEngine) => {
+  const state = engine.state
+  state.phase = 'runout'
+  state.revealed = Object.fromEntries(state.players.filter(live).map((p) => [p.identity, [...engine.hands[p.identity]!]]))
+  state.pending = []
+  state.current = ''
+  state.turnId = ''
+  state.turnExpiresAt = 0
+  state.transitionAt = Date.now() + (state.street === 'river' ? POKER_FLOW_TIMING.showdown : POKER_FLOW_TIMING.reveal)
+  event(state, '', state.street === 'river' ? 'Showdown · mãos abertas.' : 'Apostas encerradas · mãos abertas. Vamos às cartas.')
+}
 const finishAction = (engine: PokerEngine) => {
   const state = engine.state
   state.pending = state.pending.filter((id) => state.players.some((p) => p.identity === id && canAct(p)))
@@ -458,6 +473,7 @@ const finishAction = (engine: PokerEngine) => {
     })
     state.result = { payouts: {}, refunds, pots: [], hands: {}, bestCards: {}, uncontested: true }
     state.phase = 'finished'
+    state.transitionAt = 0
     state.pending = []
     setTurn(state)
     event(state, '', 'Mesa encerrada sem jogadores. As apostas foram devolvidas.')
@@ -472,14 +488,15 @@ const finishAction = (engine: PokerEngine) => {
     const actors = state.players.filter(canAct)
     // A lone player cannot bet against opponents who are already all-in.
     if (actors.length === 1) state.currentBet = Math.max(...state.players.map((p) => p.bet))
-    if ((actors.length === 1 && actors[0]!.bet >= state.currentBet) || actors.length === 0) state.pending = []
+    const locked = (actors.length === 1 && actors[0]!.bet >= state.currentBet) || actors.length === 0
+    if (locked) state.pending = []
     if (state.pending.length) {
       setTurn(state)
       return
     }
     returnUncalled(state)
-    if (state.street === 'river') {
-      settle(engine, false)
+    if (locked || state.street === 'river') {
+      beginRunout(engine)
       return
     }
     nextStreet(engine)
@@ -487,7 +504,9 @@ const finishAction = (engine: PokerEngine) => {
 }
 
 export const dealPokerHand = (previous: PokerEngine, random?: () => number): PokerEngine => {
-  if (previous.state.phase === 'playing') throw new Error('Termine a mão atual antes de distribuir novas cartas.')
+  if (previous.state.phase === 'playing' || previous.state.phase === 'runout')
+    throw new Error('Termine a mão atual antes de distribuir novas cartas.')
+  if (previous.state.phase === 'finished') throw new Error('A partida acabou. Inicie uma nova partida para jogar de novo.')
   const engine = cloneEngine(previous),
     state = engine.state
   const eligible = state.players.filter((p) => p.stack > 0 && !p.away)
@@ -498,6 +517,7 @@ export const dealPokerHand = (previous: PokerEngine, random?: () => number): Pok
   state.gameId = crypto.randomUUID()
   state.handNumber += 1
   state.phase = 'playing'
+  state.transitionAt = 0
   state.street = 'preflop'
   state.dealer = dealer.identity
   state.board = []
@@ -534,6 +554,24 @@ export const dealPokerHand = (previous: PokerEngine, random?: () => number): Pok
   state.pending = clockwise(state, big.identity, canAct).map((p) => p.identity)
   event(state, '', `Mão ${state.handNumber} · blinds ${state.settings.bigBlind / 2}/${state.settings.bigBlind}.`)
   finishAction(engine)
+  return engine
+}
+/** One authoritative step at a time. No future board, ranking or payout is broadcast early. */
+export const advancePokerFlow = (previous: PokerEngine, now = Date.now(), random?: () => number): PokerEngine => {
+  const { state } = previous
+  if (!state.transitionAt || now < state.transitionAt) throw new Error('Aguarde a mesa terminar a animação.')
+  if (state.phase === 'hand-result') return dealPokerHand(previous, random)
+  if (state.phase !== 'runout') throw new Error('Não há transição pendente nesta mão.')
+  const engine = cloneEngine(previous)
+  if (state.street === 'river') settle(engine, false, now)
+  else {
+    nextStreet(engine)
+    engine.state.pending = []
+    engine.state.current = ''
+    engine.state.turnId = ''
+    engine.state.turnExpiresAt = 0
+    engine.state.transitionAt = now + (engine.state.street === 'river' ? POKER_FLOW_TIMING.showdown : POKER_FLOW_TIMING.street)
+  }
   return engine
 }
 export const createPokerMatch = (
@@ -622,5 +660,9 @@ export const syncPokerMembers = (previous: PokerEngine, connected: Set<string>):
     player.away = away
   })
   if (state.phase === 'playing') finishAction(engine)
+  if (state.phase === 'hand-result' && state.players.filter((p) => p.stack > 0 && !p.away).length < 2) {
+    state.phase = 'finished'
+    state.transitionAt = 0
+  }
   return engine
 }

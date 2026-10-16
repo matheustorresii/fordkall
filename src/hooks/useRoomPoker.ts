@@ -3,8 +3,8 @@ import type { Room } from 'livekit-client'
 import { useRoomGameProtocol, type RoomGameProtocolContext } from './useRoomGameProtocol'
 import {
   applyPokerAction,
+  advancePokerFlow,
   createPokerMatch,
-  dealPokerHand,
   defaultPokerSettings,
   emptyPokerState,
   isPokerCard,
@@ -23,6 +23,7 @@ type Command =
   | { type: 'action'; gameId: string; turnId: string; action: PokerAction }
   | { type: 'next'; gameId: string }
   | { type: 'timeout'; gameId: string; turnId: string }
+  | { type: 'advance'; gameId: string; transitionAt: number }
   | { type: 'sync'; gameId: string }
   | { type: 'reset' }
 const emptyPrivate: PokerCard[] = []
@@ -53,7 +54,7 @@ export const parsePokerState = (value: unknown): PokerState | null => {
     !text(raw.controllerIdentity) ||
     !number(raw.revision, Number.MAX_SAFE_INTEGER) ||
     !number(raw.handNumber, Number.MAX_SAFE_INTEGER) ||
-    !['lobby', 'playing', 'hand-result', 'finished'].includes(raw.phase) ||
+    !['lobby', 'playing', 'runout', 'hand-result', 'finished'].includes(raw.phase) ||
     !['preflop', 'flop', 'turn', 'river'].includes(raw.street) ||
     !Array.isArray(raw.players) ||
     raw.players.length > 6 ||
@@ -65,6 +66,7 @@ export const parsePokerState = (value: unknown): PokerState | null => {
     !text(raw.current) ||
     !text(raw.turnId, 80) ||
     !number(raw.turnExpiresAt, Number.MAX_SAFE_INTEGER) ||
+    !number(raw.transitionAt ?? 0, Number.MAX_SAFE_INTEGER) ||
     !Array.isArray(raw.pending) ||
     !Array.isArray(raw.events) ||
     raw.events.length > 40
@@ -192,9 +194,16 @@ export const parsePokerState = (value: unknown): PokerState | null => {
   if (
     raw.phase === 'playing'
       ? result || !raw.pending.length || raw.pending[0] !== raw.current || !raw.turnId
-      : raw.current || raw.pending.length || (raw.phase !== 'lobby' && !result)
+      : raw.current || raw.pending.length || (raw.phase === 'runout' ? result || !raw.transitionAt : raw.phase !== 'lobby' && !result)
   )
     return null
+  if (raw.phase !== 'playing' && (raw.turnId || raw.turnExpiresAt)) return null
+  if (!['runout', 'hand-result'].includes(raw.phase) && raw.transitionAt) return null
+  if (raw.phase === 'runout') {
+    const contenders = validPlayers.filter((p) => p.inHand && !p.folded)
+    if (contenders.length < 2 || contenders.length !== Object.keys(revealed).length || contenders.some((p) => !revealed[p.identity]))
+      return null
+  }
   return {
     gameId: raw.gameId,
     matchId: raw.matchId,
@@ -215,6 +224,7 @@ export const parsePokerState = (value: unknown): PokerState | null => {
     pending: [...raw.pending],
     turnId: raw.turnId,
     turnExpiresAt: raw.turnExpiresAt,
+    transitionAt: raw.transitionAt ?? 0,
     revealed,
     returned: { ...raw.returned },
     result,
@@ -230,6 +240,8 @@ const parseCommand = (value: unknown): Command | null => {
     return settings && text(raw.matchId, 80) ? { type: 'start', settings, matchId: raw.matchId } : null
   }
   if (!text(raw.gameId, 80) || !raw.gameId) return null
+  if (raw.type === 'advance' && number(raw.transitionAt, Number.MAX_SAFE_INTEGER) && raw.transitionAt > 0)
+    return { type: 'advance', gameId: raw.gameId, transitionAt: raw.transitionAt }
   if (raw.type === 'next' || raw.type === 'sync') return { type: raw.type, gameId: raw.gameId }
   if (!text(raw.turnId, 80) || !raw.turnId) return null
   if (raw.type === 'timeout') return { type: 'timeout', gameId: raw.gameId, turnId: raw.turnId }
@@ -295,6 +307,9 @@ export const useRoomPoker = (room: Room) => {
           return e instanceof Error ? e.message : 'Não foi possível abrir a mesa.'
         }
       }
+      // A visibility wake-up can race a timer already in the command queue. Internal ticks are idempotent.
+      if (command.type === 'advance' && sender === room.localParticipant.identity &&
+          (command.gameId !== current.gameId || command.transitionAt !== current.transitionAt)) return null
       if (command.gameId !== current.gameId) return 'A mão mudou. Confira suas novas cartas.'
       const previous = engineRef.current
       if (!previous || previous.state.gameId !== current.gameId)
@@ -305,11 +320,18 @@ export const useRoomPoker = (room: Room) => {
           return sender === room.localParticipant.identity
             ? save(syncPokerMembers(engine, connected))
             : 'Ação reservada à mesa.'
+        if (command.type === 'advance') {
+          if (sender !== room.localParticipant.identity || current.transitionAt !== command.transitionAt)
+            return 'A mesa já avançou ou essa ação não é sua.'
+          const synced = syncPokerMembers(engine, connected)
+          return synced.state.phase === 'finished' ? save(synced) : save(advancePokerFlow(synced))
+        }
         if (!current.players.some((p) => p.identity === sender) && command.type !== 'timeout')
           return 'Você está assistindo a esta partida.'
         if (command.type === 'next') {
-          if (!['hand-result', 'finished'].includes(current.phase)) return 'Esta mão ainda não terminou.'
-          return save(dealPokerHand(syncPokerMembers(engine, connected)))
+          if (current.phase !== 'hand-result') return 'A próxima mão é automática. Uma nova partida precisa ser iniciada.'
+          const synced = syncPokerMembers(engine, connected)
+          return synced.state.phase === 'finished' ? save(synced) : save(advancePokerFlow(synced))
         }
         if (current.turnId !== command.turnId || current.phase !== 'playing') return 'A vez mudou. Confira a mesa.'
         if (command.type === 'timeout') {
@@ -338,6 +360,14 @@ export const useRoomPoker = (room: Room) => {
     handleCommand,
   })
   const { state, dispatch, isController, participantRevision } = protocol
+  useEffect(() => {
+    if (!isController || !['runout', 'hand-result'].includes(state.phase) || !state.transitionAt) return
+    const advance = () => dispatch({ type: 'advance', gameId: state.gameId, transitionAt: state.transitionAt })
+    const timer = window.setTimeout(advance, Math.max(1, state.transitionAt - Date.now() + 30))
+    const visible = () => { if (!document.hidden && Date.now() >= state.transitionAt) advance() }
+    document.addEventListener('visibilitychange', visible)
+    return () => { window.clearTimeout(timer); document.removeEventListener('visibilitychange', visible) }
+  }, [isController, state.phase, state.gameId, state.transitionAt, dispatch])
   useEffect(() => {
     if (isController && state.gameId) dispatch({ type: 'sync', gameId: state.gameId })
   }, [isController, participantRevision, state.gameId, dispatch])

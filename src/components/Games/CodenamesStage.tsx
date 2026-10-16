@@ -13,6 +13,7 @@ import type { CodenamesKind, CodenamesPlayer, CodenamesSettings, CodenamesTeam }
 import { GameError, GameHud, GameModal } from './GameTable'
 import { Icon } from '../ui/Icon'
 import './CodenamesStage.css'
+import { useGameMotion } from './useGameMotion'
 
 type Game = Pick<
   ReturnType<typeof useRoomCodenames>,
@@ -56,6 +57,7 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
     lobby = state.phase === 'lobby',
     finished = state.phase === 'finished'
   const identity = participants.find((p) => p.isLocal)?.id ?? ''
+  const motionRef = useGameMotion(`${state.phase}:${state.board.length}`, state.gameId)
   const local = state.players.find((p) => p.identity === identity)
   const [modal, setModal] = useState<'rules' | 'settings' | 'history' | 'teams' | 'reset' | null>(null)
   const [confirm, setConfirm] = useState<{ cardId: string; stepId: string } | null>(null)
@@ -172,6 +174,7 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
       lang="pt-BR"
       aria-label="Codenames"
       data-team={state.turnTeam}
+      ref={motionRef}
     >
       <GameHud
         title="Codenames"
@@ -337,6 +340,7 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
                       style={{ '--cn-letters': card.word.length } as CSSProperties}
                       data-kind={visibleKind ?? 'unknown'}
                       data-card-id={card.id}
+                      data-game-card={card.id}
                       aria-label={`${card.word}${visibleKind ? `, ${kindName[visibleKind]}` : ''}${card.revealed ? ', revelada' : ''}${mine ? ', seu palpite' : ''}${choices.length ? `, ${choices.length} ${choices.length === 1 ? 'sugestão' : 'sugestões'}` : ''}`}
                       aria-pressed={mine}
                       disabled={!mayGuess || Boolean(card.revealed)}
