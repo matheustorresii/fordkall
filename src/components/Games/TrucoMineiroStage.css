@@ -18,8 +18,8 @@
 .truco-scoreboard > span { display: grid; justify-items: center; gap: 3px; color: #b7c8ad; font-size: 8px; letter-spacing: .06em; }
 .truco-scoreboard b { color: #e9d0a4; font-size: 25px; line-height: 1; }
 .truco-scoreboard i { color: #8ba18c; font-size: 14px; font-style: normal; }
-.truco-center { position: absolute; top: 48%; left: 50%; display: grid; width: 320px; height: min(260px, 75%); grid-template-rows: 25px minmax(0, 1fr); gap: 10px; transform: translate(-50%, -50%); }
-.truco-stake { align-self: center; color: #d4dfbf; font-size: 9px; font-weight: 700; letter-spacing: .07em; text-align: center; }
+.truco-center { position: absolute; top: 48%; left: 50%; display: grid; width: 320px; height: min(260px, 75%); grid-template-rows: minmax(0, 1fr); transform: translate(-50%, -50%); }
+.truco-stake { position: absolute; top: 0; right: 18px; color: #d4dfbf; font-size: 10px; font-weight: 700; letter-spacing: .07em; text-align: center; }
 .truco-stake b { display: inline-grid; width: 25px; height: 25px; place-items: center; margin-left: 4px; border: 1px solid #e4d6a83d; border-radius: 50%; background: #1b482f80; color: #eee0b9; font-size: 13px; }
 .truco-trick { position: relative; }
 .truco-table-card { position: absolute; width: 73px; height: 103px; animation: game-card-land 280ms ease both; }

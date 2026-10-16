@@ -249,14 +249,14 @@ export const CallScreen = ({
   }, [explodingKiwi.state.gameId])
 
   useEffect(() => {
-    if (!trucoGame.state.gameId) return
+    if (!trucoGame.state.matchId) return
     setLayoutMenuPoint(null)
     setParticipantsOpen(false)
     setChatOpen(false)
     setMusicOpen(false)
     setGameMode('truco')
     setGamesOpen(true)
-  }, [trucoGame.state.gameId])
+  }, [trucoGame.state.matchId])
 
   useEffect(() => {
     if (!mindGame.state.gameId) return

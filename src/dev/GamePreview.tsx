@@ -6,10 +6,9 @@ import { Icon } from '../components/ui/Icon'
 import { BrandMark } from '../components/ui/BrandMark'
 import { kiwiCardTitle } from '../games/kiwiCards'
 import { TheMindStage } from '../components/Games/TheMindStage'
-import { TrucoMineiroStage } from '../components/Games/TrucoMineiroStage'
+import { TrucoPreview } from './TrucoPreview'
 import { ItoGameStage } from '../components/Games/ItoGameStage'
 import type { MindRoomState } from '../hooks/useRoomMind'
-import type { TrucoCard, TrucoRoomState } from '../hooks/useRoomTruco'
 import type { ItoRoomState } from '../hooks/useRoomIto'
 import { KiwiNetworkChecks } from './KiwiNetworkChecks'
 import { defaultItoSettings, itoCardCounts, itoNextProgress, itoRequiredVotes } from '../games/itoRules'
@@ -21,6 +20,7 @@ import { PokerNetworkChecks } from './PokerNetworkChecks'
 import { RoomGamesHub } from '../components/Games/RoomGamesHub'
 import { CodenamesPreview } from './CodenamesPreview'
 import { CodenamesNetworkChecks } from './CodenamesNetworkChecks'
+import { TrucoNetworkChecks } from './TrucoNetworkChecks'
 
 export const previewParticipants: ParticipantMedia[] = ['frangoelho 2', 'luisalgaelalves76', 'gabriela kaori', 'torres mobile', 'Um nome bastante comprido para testar', 'Kiwi', 'Pandinha', 'Amigo da call'].map((name, index) => ({
   id: `p${index}`, name, isLocal: index === 0, cameraEnabled: false, microphoneMuted: false,
@@ -38,8 +38,6 @@ const initialState = (count: number): KiwiRoomState => ({
   barkingOwnerIdentity: '', winnerIdentity: '', lastAction: 'Jogue uma ação ou compre para encerrar seu turno.',
 })
 const initialMind = (count: number): MindRoomState => ({ gameId: 'mind-preview', controllerIdentity: 'p0', revision: 1, phase: 'playing', players: previewParticipants.slice(0, Math.min(count, 4)).map((person, index) => ({ identity: person.id, name: person.name, cardsRemaining: index === 1 ? 1 : 2 })), level: 2, maxLevel: 12, lives: 2, maxLives: 4, shurikens: 1, played: [8, 17, 35], shurikenVotes: [], lastMistake: null, lastEvent: 'luisalgaelalves76 jogou uma carta.' })
-const initialTruco = (): TrucoRoomState => ({ gameId: 'truco-preview', controllerIdentity: 'p0', revision: 1, phase: 'playing', players: previewParticipants.slice(0, 4).map((person, seat) => ({ identity: person.id, name: person.name, seat, team: (seat % 2) as 0 | 1 })), scores: [4, 6], dealerSeat: 3, manoSeat: 0, currentSeat: 0, trickLeaderSeat: 0, trickIndex: 0, trickPlays: [{ identity: 'p1', card: { id: '7-ouros', rank: '7', suit: 'ouros' } }, { identity: 'p2', card: { id: 'K-paus', rank: 'K', suit: 'paus' } }], lastTrick: [], trickWinners: [], stake: 2, lastRaiseTeam: null, pendingRaise: null, handWinner: null, lastHandMessage: '' })
-const initialTrucoHand: TrucoCard[] = [{ id: '4-paus', rank: '4', suit: 'paus' }, { id: 'A-espadas', rank: 'A', suit: 'espadas' }, { id: '3-copas', rank: '3', suit: 'copas' }]
 const initialIto = (count: number, extras = 2): ItoRoomState => {
   const counts = itoCardCounts(count, extras, 2)
   const players = previewParticipants.slice(0, count).map((person, index) => ({ identity: person.id, name: person.name, cardCount: counts[index]! }))
@@ -59,8 +57,6 @@ export const GamePreview = () => {
   const [lastCommand, setLastCommand] = useState('')
   const [mindState, setMindState] = useState(initialMind(4))
   const [mindHand, setMindHand] = useState([61, 92])
-  const [trucoState, setTrucoState] = useState(initialTruco)
-  const [trucoHand, setTrucoHand] = useState(initialTrucoHand)
   const [itoState, setItoState] = useState(initialIto(5))
   const reveal = () => { setPeek(future); setPeekId(crypto.randomUUID()) }
   const game: ReturnType<typeof useRoomExplodingKiwi> = {
@@ -80,7 +76,6 @@ export const GamePreview = () => {
     choose: () => { setState((value) => ({ ...value, prompt: null })); setPeek([]); return true }, cardTitle: kiwiCardTitle,
   }
   const mindGame: ComponentProps<typeof TheMindStage>['game'] = { state: mindState, hand: mindHand, error: '', clearError: () => {}, participantCount: mindState.players.length, start: () => { setMindState(initialMind(count)); setMindHand([61,92]); return true }, play: (value) => { setMindHand((items) => items.filter((item) => item !== value)); setMindState((current) => ({ ...current, played: [...current.played, value], players: current.players.map((player) => player.identity === 'p0' ? { ...player, cardsRemaining: player.cardsRemaining - 1 } : player) })); return true }, voteShuriken: () => { setMindState((current) => ({ ...current, shurikenVotes: ['p0'] })); return true }, nextLevel: () => { setMindState((current) => ({ ...current, phase: 'playing', level: current.level + 1, played: [] })); return true }, reset: () => { setMindState((current) => ({ ...current, phase: 'lobby' })); return true } }
-  const trucoGame: ComponentProps<typeof TrucoMineiroStage>['game'] = { state: trucoState, hand: trucoHand, error: '', clearError: () => {}, participantCount: 4, start: () => { setTrucoState(initialTruco()); setTrucoHand(initialTrucoHand); return true }, play: (id) => { const selected = trucoHand.find((item) => item.id === id); if (selected) { setTrucoHand((items) => items.filter((item) => item.id !== id)); setTrucoState((current) => ({ ...current, trickPlays: [...current.trickPlays, { identity: 'p0', card: selected }], currentSeat: 3 })) }; return true }, callTruco: () => { setTrucoState((current) => ({ ...current, pendingRaise: { identity: 'p1', team: 1, targetStake: 4 } })); return true }, acceptRaise: () => { setTrucoState((current) => ({ ...current, stake: 4, pendingRaise: null })); return true }, refuseRaise: () => { setTrucoState((current) => ({ ...current, phase: 'hand-result', handWinner: 1, pendingRaise: null, lastHandMessage: 'Dupla 2 levou a mão.' })); return true }, nextHand: () => { setTrucoState(initialTruco()); return true }, reset: () => { setTrucoState((current) => ({ ...current, phase: 'lobby' })); return true } }
   const itoGame: ComponentProps<typeof ItoGameStage>['game'] = {
     state: itoState, localCards: itoState.cards.filter((card) => card.ownerIdentity === 'p0').map((card, index) => ({ cardId: card.id, value: [31, 58, 72, 89, 95][index]! })), error: '', clearError: () => {}, isController: true, participantCount: count, isParticipating: true,
     start: (settings = defaultItoSettings) => { const next = initialIto(count, 0); setItoState({ ...next, settings, phase: 'clue', cards: next.cards.map((card) => ({ ...card, clue: '' })) }); return true },
@@ -93,11 +88,12 @@ export const GamePreview = () => {
   if (kind === 'checks') return <KiwiNetworkChecks />
   if (kind === 'ito-checks') return <ItoNetworkChecks />
   if (kind === 'poker-checks') return <PokerNetworkChecks />
+  if (kind === 'truco-checks') return <TrucoNetworkChecks />
   if (kind === 'coup-checks') return <CoupNetworkChecks />
   if (kind === 'codenames-checks') return <CodenamesNetworkChecks />
   return <main className="call-shell call-shell--games-open">
     <header className="call-header"><button className="brand brand--compact call-home-button" type="button"><BrandMark /><h1>FORD KALL</h1></button><div className="call-header__actions">{(['users', 'music', 'gamepad', 'chat'] as const).map((name) => <button aria-label={name} className="participants-toggle" key={name} type="button"><Icon name={name} /></button>)}<div className="connection-pill connection-pill--connected"><i /></div></div></header>
-    <div className="call-workspace">{kind === 'hub' ? <RoomGamesHub itoActive={false} itoPlayers={0} kiwiActive={false} kiwiPlayers={0} trucoActive={false} trucoPlayers={0} mindActive={false} mindPlayers={0} pokerActive={false} pokerPlayers={0} coupActive={false} coupPlayers={0} codenamesActive={false} codenamesPlayers={0} onSelectCodenames={() => setKind('codenames')} onSelectCoup={() => setKind('coup')} onSelectIto={() => setKind('ito')} onSelectKiwi={() => setKind('kiwi')} onSelectTruco={() => setKind('truco')} onSelectMind={() => setKind('mind')} onSelectPoker={() => setKind('poker')} onExit={() => setLastCommand('Voltar para call')} /> : kind === 'codenames' ? <CodenamesPreview participants={previewParticipants} onOpenGameHub={() => setKind('hub')} /> : kind === 'coup' ? <CoupPreview participants={previewParticipants} onOpenGameHub={() => setKind('hub')} /> : kind === 'poker' ? <PokerPreview participants={previewParticipants} onOpenGameHub={() => setKind('hub')} /> : kind === 'mind' ? <TheMindStage game={mindGame} participants={previewParticipants.slice(0, 4)} onExit={() => setLastCommand('Voltar para call')} onOpenGameHub={() => setKind('hub')} /> : kind === 'truco' ? <TrucoMineiroStage game={trucoGame} participants={previewParticipants.slice(0, 4)} onExit={() => setLastCommand('Voltar para call')} onOpenGameHub={() => setKind('hub')} /> : kind === 'ito' ? <ItoGameStage game={itoGame} participants={previewParticipants.slice(0, count)} onExit={() => setLastCommand('Voltar para call')} onOpenGameHub={() => setKind('hub')} /> : <ExplodingKiwiStage game={game} participants={previewParticipants.slice(0, count)} onExit={() => setLastCommand('Voltar para call')} onOpenGameHub={() => setKind('hub')} />}</div>
+    <div className="call-workspace">{kind === 'hub' ? <RoomGamesHub itoActive={false} itoPlayers={0} kiwiActive={false} kiwiPlayers={0} trucoActive={false} trucoPlayers={0} mindActive={false} mindPlayers={0} pokerActive={false} pokerPlayers={0} coupActive={false} coupPlayers={0} codenamesActive={false} codenamesPlayers={0} onSelectCodenames={() => setKind('codenames')} onSelectCoup={() => setKind('coup')} onSelectIto={() => setKind('ito')} onSelectKiwi={() => setKind('kiwi')} onSelectTruco={() => setKind('truco')} onSelectMind={() => setKind('mind')} onSelectPoker={() => setKind('poker')} onExit={() => setLastCommand('Voltar para call')} /> : kind === 'codenames' ? <CodenamesPreview participants={previewParticipants} onOpenGameHub={() => setKind('hub')} /> : kind === 'coup' ? <CoupPreview participants={previewParticipants} onOpenGameHub={() => setKind('hub')} /> : kind === 'poker' ? <PokerPreview participants={previewParticipants} onOpenGameHub={() => setKind('hub')} /> : kind === 'mind' ? <TheMindStage game={mindGame} participants={previewParticipants.slice(0, 4)} onExit={() => setLastCommand('Voltar para call')} onOpenGameHub={() => setKind('hub')} /> : kind === 'truco' ? <TrucoPreview participants={previewParticipants.slice(0, 4)} onOpenGameHub={() => setKind('hub')} /> : kind === 'ito' ? <ItoGameStage game={itoGame} participants={previewParticipants.slice(0, count)} onExit={() => setLastCommand('Voltar para call')} onOpenGameHub={() => setKind('hub')} /> : <ExplodingKiwiStage game={game} participants={previewParticipants.slice(0, count)} onExit={() => setLastCommand('Voltar para call')} onOpenGameHub={() => setKind('hub')} />}</div>
     <footer className="call-dock"><div className="call-dock__group">{(['micOff', 'cameraOff', 'headphones', 'screen', 'settings', 'leave'] as const).map((name) => <button aria-label={name} className="call-control" key={name} type="button"><span className="call-control__icon"><Icon name={name} /></span><span>{name}</span></button>)}</div></footer>
     {!new URLSearchParams(window.location.search).has('clean') && <details style={{ position: 'fixed', bottom: 10, left: 10, zIndex: 100, maxWidth: 230, borderRadius: 8, background: '#17231edc', padding: 7, font: '11px system-ui', color: '#dcdecf' }}><summary>Prévia de desenvolvimento</summary><div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', paddingTop: 6 }}>
       {['hub','codenames','coup','poker','kiwi','mind','truco','ito'].map((value) => <button key={value} onClick={() => setKind(value)} type="button">{value}</button>)}
