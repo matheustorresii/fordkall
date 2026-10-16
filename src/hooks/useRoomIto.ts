@@ -1,10 +1,11 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
+import { gameMembers, gameStartError, type RoomGameParticipation } from './useRoomGameParticipation'
 import type { Room } from 'livekit-client'
 import { useRoomGameProtocol, type RoomGameProtocolContext } from './useRoomGameProtocol'
 import { defaultItoSettings, isItoOrderCorrect, itoCardCounts, itoNextProgress, itoPlaceCard, itoRequiredVotes, itoRoundTopic, itoTableReady, itoWrittenTopic, readItoSettings, type ItoOrder, type ItoSettings } from '../games/itoRules'
 
 // Empty slots and player-written topics need the same rules on every client.
-export const ITO_TOPIC = 'ford-kall.ito.v3'
+export const ITO_TOPIC = 'ford-kall.ito.v4'
 const MAX_PLAYERS = 8
 const MAX_CLUE_LENGTH = 80
 
@@ -31,6 +32,7 @@ export interface ItoRoomState {
 }
 
 type ItoCommand =
+  | { type: 'sync-participation'; gameId: string }
   | { type: 'start'; settings: ItoSettings; topic: string }
   | { type: 'clue'; gameId: string; cardId: string; clue: string }
   | { type: 'move'; gameId: string; cardId: string; offset: -1 | 1; orderVersion: number }
@@ -114,6 +116,7 @@ const parseCommand = (value: unknown): ItoCommand | null => {
   if (raw.type === 'start') { const settings = readItoSettings(raw.settings); return settings && typeof raw.topic === 'string' ? { type: 'start', settings, topic: itoWrittenTopic(raw.topic) } : null }
   const gameId = cleanText(raw.gameId, 80)
   if (!gameId) return null
+  if (raw.type === 'sync-participation') return { type: 'sync-participation', gameId }
   if (raw.type === 'next-round' && typeof raw.topic === 'string') return { type: 'next-round', gameId, topic: itoWrittenTopic(raw.topic) }
   if (raw.type === 'vote' && typeof raw.approved === 'boolean' && integer(raw.orderVersion, 0, Number.MAX_SAFE_INTEGER)) return { type: 'vote', gameId, approved: raw.approved, orderVersion: raw.orderVersion }
   const cardId = cleanText(raw.cardId, 128)
@@ -131,12 +134,13 @@ const shuffle = <T,>(values: T[]) => {
 }
 type Context = RoomGameProtocolContext<ItoRoomState, ItoPrivateCard[]>
 
-export const useRoomIto = (room: Room) => {
+export const useRoomIto = (room: Room, participation?: RoomGameParticipation) => {
   const handleCommand = useCallback((command: ItoCommand, senderIdentity: string, context: Context): string | null => {
     const current = context.state
     const player = current.players.find((person) => person.identity === senderIdentity)
     const connected = new Set([room.localParticipant.identity, ...room.remoteParticipants.keys()])
     if (!connected.has(senderIdentity)) return 'Você não está nesta sala.'
+    if (command.type !== 'sync-participation' && command.type !== 'reset' && participation && !participation.allowed('ito', senderIdentity)) return 'Você está só assistindo a esta mesa.'
     const dealRound = (players: ItoPlayer[], extraCards: number, roundNumber: number, settings: ItoSettings, topic: string) => {
       const counts = itoCardCounts(players.length, extraCards, settings.targetCards)
       const values = shuffle(Array.from({ length: 100 }, (_, index) => index + 1))
@@ -161,10 +165,21 @@ export const useRoomIto = (room: Room) => {
     }
     if (command.type === 'reset') { context.commit((latest) => emptyState(room.localParticipant.identity, latest.revision)); context.replaceSecrets('', {}); return null }
     if (command.type === 'start') {
+      const startError = gameStartError('ito', senderIdentity, participation)
+      if (startError) return startError
       if (current.phase !== 'lobby' && !current.campaignWon) return 'Encerre a partida atual antes de mudar suas regras.'
-      const members = [room.localParticipant, ...room.remoteParticipants.values()]
+      const members = gameMembers(room, 'ito', participation)
       if (members.length < 2 || members.length > MAX_PLAYERS) return 'ITO precisa de 2 a 8 pessoas.'
       dealRound(shuffle(members).map((person) => ({ identity: person.identity, name: cleanText(person.name || person.identity, 80), cardCount: 1 })), 0, 1, command.settings, command.topic)
+      return null
+    }
+    if (command.type === 'sync-participation') {
+      if (senderIdentity !== room.localParticipant.identity || command.gameId !== current.gameId) return 'Ação reservada ao controlador.'
+      const eligible = new Set(gameMembers(room, 'ito', participation).map((member) => member.identity))
+      const remaining = current.players.filter((member) => eligible.has(member.identity))
+      if (remaining.length === current.players.length || current.phase === 'revealed') return null
+      if (remaining.length < 2) { context.commit(() => emptyState(room.localParticipant.identity)); context.replaceSecrets('', {}); return null }
+      dealRound(remaining, Math.min(current.extraCards, remaining.length * (current.settings.targetCards - 1)), current.roundNumber, current.settings, current.topic)
       return null
     }
     if (!player) return 'Você está assistindo, não participa desta partida.'
@@ -172,8 +187,10 @@ export const useRoomIto = (room: Room) => {
     if (command.type === 'next-round') {
       if (current.phase !== 'revealed' || current.campaignWon) return 'Esta rodada ainda não terminou ou a partida já foi vencida.'
       if (current.players.some((person) => !connected.has(person.identity))) return 'Uma pessoa da mesa saiu. Encerrem e iniciem uma nova partida com quem está na sala.'
-      const extras = itoNextProgress(current.extraCards, Boolean(current.succeeded), current.settings.lossRule, current.players.length * (current.settings.targetCards - 1))
-      dealRound(current.players, extras, current.roundNumber + 1, current.settings, command.topic)
+      const members = current.players.filter((person) => !participation || participation.allowed('ito', person.identity))
+      if (members.length < 2) return 'São necessárias duas pessoas que queiram jogar.'
+      const extras = itoNextProgress(current.extraCards, Boolean(current.succeeded), current.settings.lossRule, members.length * (current.settings.targetCards - 1))
+      dealRound(members, extras, current.roundNumber + 1, current.settings, command.topic)
       return null
     }
     if (command.type === 'clue') {
@@ -210,14 +227,17 @@ export const useRoomIto = (room: Room) => {
     context.commit((latest) => ({ ...latest, phase: 'revealed', revealVotes: votes, numbers, succeeded,
       campaignWon: succeeded && current.extraCards === current.players.length * (current.settings.targetCards - 1) }))
     return null
-  }, [room])
+  }, [room, participation])
 
   const protocol = useRoomGameProtocol<ItoRoomState, ItoCommand, ItoPrivateCard[]>({ room, topic: ITO_TOPIC, emptyState, parseState, parseCommand, parsePrivate, emptyPrivate, handleCommand, strictAuthority: true })
   const { state, dispatch } = protocol
+  useEffect(() => {
+    if (protocol.isController && state.gameId) dispatch({ type: 'sync-participation', gameId: state.gameId })
+  }, [dispatch, protocol.isController, protocol.participantRevision, state.gameId, participation?.state.revision])
   return {
     state, localCards: protocol.localPrivate, error: protocol.error, clearError: protocol.clearError,
-    isController: protocol.isController, participantCount: protocol.participantCount,
-    isParticipating: state.players.some((player) => player.identity === room.localParticipant.identity),
+    isController: protocol.isController, participantCount: gameMembers(room, 'ito', participation).length,
+    isParticipating: state.players.some((player) => player.identity === room.localParticipant.identity) && (!participation || participation.allowed('ito', room.localParticipant.identity)),
     start: (settings: ItoSettings = defaultItoSettings, topic = '') => dispatch({ type: 'start', settings, topic }),
     submitClue: (cardId: string, clue: string) => dispatch({ type: 'clue', gameId: state.gameId, cardId, clue }),
     moveCard: (cardId: string, offset: -1 | 1) => dispatch({ type: 'move', gameId: state.gameId, cardId, offset, orderVersion: state.orderVersion }),

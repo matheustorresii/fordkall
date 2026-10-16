@@ -20,7 +20,8 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - volume da transmissão separado do volume do microfone de quem transmite;
 - seleção entre múltiplas transmissões simultâneas;
 - chat realtime de texto e imagens de até 4 MB durante a call;
-- central de jogos sincronizados na sala: Coup, Poker, ITO, Exploding Kiwi, Truco Mineiro em duplas e The Mind cooperativo, com busca, categorias e catálogo paginado;
+- central de jogos sincronizados na sala: Codenames, Coup, Poker, ITO, Exploding Kiwi, Truco Mineiro em duplas e The Mind cooperativo, com busca, categorias e catálogo paginado;
+- optout independente nos sete jogos: ficar só assistindo sem sair da call, controle de participantes pelo organizador e confirmação para sair de partidas em andamento; só a própria pessoa pode voltar a participar;
 - Coup · Corte Kiwi de 2–6 pessoas, cinco personagens com arte original, blefes, contestações, bloqueios, troca secreta, eliminação e relógio configurável para decisões;
 - Poker Texas Hold’em No Limit de 2–6 pessoas, fichas fictícias, blinds e tempo configuráveis, all-in, potes paralelos e showdown;
 - ITO com temas escritos pela mesa (sugestões como fallback), espaços na escala de 0 a 100 para posicionar dicas imediatamente, revelação na própria mesa, votação por pessoa, progressão em rodízio e regras configuráveis;

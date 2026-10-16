@@ -1,4 +1,5 @@
-import { useCallback } from 'react'
+import { useCallback, useEffect } from 'react'
+import { gameMembers, gameStartError, type RoomGameParticipation } from './useRoomGameParticipation'
 import type { Room } from 'livekit-client'
 import { useRoomGameProtocol, type RoomGameBaseState, type RoomGameProtocolContext } from './useRoomGameProtocol'
 
@@ -29,13 +30,14 @@ export interface MindRoomState extends RoomGameBaseState {
 }
 
 type MindCommand =
+  | { type: 'sync-participation'; gameId: string }
   | { type: 'start' }
   | { type: 'play'; card: number }
   | { type: 'vote-shuriken' }
   | { type: 'next-level' }
   | { type: 'reset' }
 
-const topic = 'ford-kall.the-mind.v1'
+const topic = 'ford-kall.the-mind.v2'
 const emptyHand: number[] = []
 const cleanText = (value: unknown, max = 80) => typeof value === 'string'
   ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max)
@@ -111,6 +113,7 @@ const parseState = (value: unknown): MindRoomState | null => {
 const parseCommand = (value: unknown): MindCommand | null => {
   if (!value || typeof value !== 'object') return null
   const raw = value as Record<string, unknown>
+  if (raw.type === 'sync-participation' && typeof raw.gameId === 'string') return { type: 'sync-participation', gameId: raw.gameId }
   if (raw.type === 'start') return { type: 'start' }
   if (raw.type === 'vote-shuriken') return { type: 'vote-shuriken' }
   if (raw.type === 'next-level') return { type: 'next-level' }
@@ -166,14 +169,32 @@ const finishLevelIfReady = (state: MindRoomState, secrets: Record<string, number
   return state
 }
 
-export const useRoomMind = (room: Room) => {
+export const useRoomMind = (room: Room, participation?: RoomGameParticipation) => {
   const handleCommand = useCallback((command: MindCommand, senderIdentity: string, context: RoomGameProtocolContext<MindRoomState, number[]>) => {
     const current = context.state
     const player = current.players.find((candidate) => candidate.identity === senderIdentity)
+    if (senderIdentity !== room.localParticipant.identity && !room.remoteParticipants.has(senderIdentity)) return 'Você não está nesta sala.'
+    if (!['sync-participation', 'reset'].includes(command.type) && participation && !participation.allowed('mind', senderIdentity)) return 'Você está só assistindo.'
+    if (command.type === 'sync-participation') {
+      if (senderIdentity !== room.localParticipant.identity || current.gameId !== command.gameId) return 'Ação reservada ao controlador.'
+      const eligible = new Set(gameMembers(room, 'mind', participation).map((member) => member.identity))
+      const remaining = current.players.filter((member) => eligible.has(member.identity))
+      if (remaining.length === current.players.length) return null
+      if (remaining.length < 2) { context.commit(() => emptyState(room.localParticipant.identity)); context.replaceSecrets('', {}); return null }
+      const nextState = { ...current, players: remaining, maxLevel: maxLevelFor(remaining.length), shurikenVotes: current.shurikenVotes.filter((id) => eligible.has(id)) }
+      if (current.phase === 'playing') {
+        const next = dealLevel({ ...nextState, gameId: crypto.randomUUID() }, current.level)
+        next.state.lastEvent = 'O nível foi redistribuído entre quem ficou, sem perder uma vida.'
+        context.commit(() => next.state); context.replaceSecrets(next.state.gameId, next.hands)
+      } else { context.commit(() => nextState); context.replaceSecrets(current.gameId, Object.fromEntries(Object.entries(context.getSecrets()).filter(([id]) => eligible.has(id)))) }
+      return null
+    }
 
     if (command.type === 'start') {
+      const startError = gameStartError('mind', senderIdentity, participation)
+      if (startError) return startError
       if (current.gameId && !['won', 'lost'].includes(current.phase)) return 'Já há uma partida em andamento nesta sala.'
-      const members = [room.localParticipant, ...room.remoteParticipants.values()]
+      const members = gameMembers(room, 'mind', participation)
         .sort((a, b) => a.identity.localeCompare(b.identity))
       if (members.length < 2 || members.length > 4) return 'The Mind aceita de 2 a 4 pessoas.'
       const maxLevel = maxLevelFor(members.length)
@@ -299,7 +320,7 @@ export const useRoomMind = (room: Room) => {
       return null
     }
     return null
-  }, [room])
+  }, [room, participation])
 
   const game = useRoomGameProtocol<MindRoomState, MindCommand, number[]>({
     room,
@@ -311,9 +332,13 @@ export const useRoomMind = (room: Room) => {
     emptyPrivate: emptyHand,
     handleCommand,
   })
+  useEffect(() => {
+    if (game.isController && game.state.gameId) game.dispatch({ type: 'sync-participation', gameId: game.state.gameId })
+  }, [game.dispatch, game.isController, game.participantRevision, game.state.gameId, participation?.state.revision])
 
   return {
     ...game,
+    participantCount: gameMembers(room, 'mind', participation).length,
     hand: game.localPrivate,
     start: useCallback(() => game.dispatch({ type: 'start' }), [game.dispatch]),
     play: useCallback((card: number) => game.dispatch({ type: 'play', card }), [game.dispatch]),

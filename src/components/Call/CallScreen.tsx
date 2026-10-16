@@ -41,6 +41,10 @@ import type {
 } from '../../types'
 import { ChatPanel } from '../Chat/ChatPanel'
 import { ItoGameStage } from '../Games/ItoGameStage'
+import { useRoomGameParticipation } from '../../hooks/useRoomGameParticipation'
+import { GameParticipationContext } from '../Games/GameParticipationContext'
+import { GameParticipationPanel } from '../Games/GameParticipationPanel'
+import type { GameKind } from '../../games/gameParticipation'
 import { ExplodingKiwiStage } from '../Games/ExplodingKiwiStage'
 import { TrucoMineiroStage } from '../Games/TrucoMineiroStage'
 import { TheMindStage } from '../Games/TheMindStage'
@@ -168,13 +172,14 @@ export const CallScreen = ({
     `${devices.selectedInput}:${microphoneProcessing.noiseSuppression}:${microphoneProcessing.processorRevision}`,
   )
   const chat = useRoomChat(room)
-  const itoGame = useRoomIto(room)
-  const explodingKiwi = useRoomExplodingKiwi(room)
-  const trucoGame = useRoomTruco(room)
-  const mindGame = useRoomMind(room)
-  const pokerGame = useRoomPoker(room)
-  const coupGame = useRoomCoup(room)
-  const codenamesGame = useRoomCodenames(room)
+  const gameParticipation = useRoomGameParticipation(room)
+  const itoGame = useRoomIto(room, gameParticipation)
+  const explodingKiwi = useRoomExplodingKiwi(room, gameParticipation)
+  const trucoGame = useRoomTruco(room, gameParticipation)
+  const mindGame = useRoomMind(room, gameParticipation)
+  const pokerGame = useRoomPoker(room, gameParticipation)
+  const coupGame = useRoomCoup(room, gameParticipation)
+  const codenamesGame = useRoomCodenames(room, gameParticipation)
   const music = useRoomMusic(room)
   const [deafened, setDeafened] = useState(false)
   const [callSoundsEnabled, setCallSoundsEnabled] = useState(getCallSoundsEnabled)
@@ -192,6 +197,8 @@ export const CallScreen = ({
   const [chatOpen, setChatOpen] = useState(false)
   const [musicOpen, setMusicOpen] = useState(false)
   const [gamesOpen, setGamesOpen] = useState(false)
+  const [gameParticipationOpen, setGameParticipationOpen] = useState(false)
+  const pendingGameStart = useRef<{ kind: GameKind; start: () => boolean } | null>(null)
   const [gameMode, setGameMode] = useState<'hub' | 'ito' | 'kiwi' | 'truco' | 'mind' | 'poker' | 'coup' | 'codenames'>('hub')
   const [unreadMessages, setUnreadMessages] = useState(0)
   const lastSeenMessageId = useRef('')
@@ -229,7 +236,7 @@ export const CallScreen = ({
   }, [gamesOpen, snapshot.lives])
 
   useEffect(() => {
-    if (!itoGame.state.gameId) return
+    if (!itoGame.state.gameId || !gameParticipation.allowed('ito', room.localParticipant.identity) || !itoGame.state.players.some((player) => player.identity === room.localParticipant.identity)) return
     setLayoutMenuPoint(null)
     setParticipantsOpen(false)
     setChatOpen(false)
@@ -239,7 +246,7 @@ export const CallScreen = ({
   }, [itoGame.state.gameId])
 
   useEffect(() => {
-    if (!explodingKiwi.state.gameId) return
+    if (!explodingKiwi.state.gameId || !gameParticipation.allowed('kiwi', room.localParticipant.identity) || !explodingKiwi.state.players.some((player) => player.identity === room.localParticipant.identity)) return
     setLayoutMenuPoint(null)
     setParticipantsOpen(false)
     setChatOpen(false)
@@ -249,7 +256,7 @@ export const CallScreen = ({
   }, [explodingKiwi.state.gameId])
 
   useEffect(() => {
-    if (!trucoGame.state.matchId) return
+    if (!trucoGame.state.matchId || !gameParticipation.allowed('truco', room.localParticipant.identity) || !trucoGame.state.players.some((player) => player.identity === room.localParticipant.identity)) return
     setLayoutMenuPoint(null)
     setParticipantsOpen(false)
     setChatOpen(false)
@@ -259,7 +266,7 @@ export const CallScreen = ({
   }, [trucoGame.state.matchId])
 
   useEffect(() => {
-    if (!mindGame.state.gameId) return
+    if (!mindGame.state.gameId || !gameParticipation.allowed('mind', room.localParticipant.identity) || !mindGame.state.players.some((player) => player.identity === room.localParticipant.identity)) return
     setLayoutMenuPoint(null)
     setParticipantsOpen(false)
     setChatOpen(false)
@@ -269,7 +276,7 @@ export const CallScreen = ({
   }, [mindGame.state.gameId])
 
   useEffect(() => {
-    if (!pokerGame.state.matchId) return
+    if (!pokerGame.state.matchId || !gameParticipation.allowed('poker', room.localParticipant.identity) || !pokerGame.state.players.some((player) => player.identity === room.localParticipant.identity)) return
     setLayoutMenuPoint(null)
     setParticipantsOpen(false)
     setChatOpen(false)
@@ -279,7 +286,7 @@ export const CallScreen = ({
   }, [pokerGame.state.matchId])
 
   useEffect(() => {
-    if (!coupGame.state.gameId) return
+    if (!coupGame.state.gameId || !gameParticipation.allowed('coup', room.localParticipant.identity) || !coupGame.state.players.some((player) => player.identity === room.localParticipant.identity)) return
     setLayoutMenuPoint(null)
     setParticipantsOpen(false)
     setChatOpen(false)
@@ -289,7 +296,7 @@ export const CallScreen = ({
   }, [coupGame.state.gameId])
 
   useEffect(() => {
-    if (!codenamesGame.state.gameId) return
+    if (!codenamesGame.state.gameId || !gameParticipation.allowed('codenames', room.localParticipant.identity) || !codenamesGame.state.players.some((player) => player.identity === room.localParticipant.identity && player.team)) return
     setLayoutMenuPoint(null)
     setParticipantsOpen(false)
     setChatOpen(false)
@@ -493,6 +500,36 @@ export const CallScreen = ({
     if (selected !== 'coup' && coupGame.state.gameId) void coupGame.reset()
     if (selected !== 'codenames' && codenamesGame.state.gameId) void codenamesGame.reset()
   }
+  const startGame = (selected: GameKind, start: () => boolean) => {
+    if (!gameParticipation.canStart(selected, room.localParticipant.identity)) { gameParticipation.organize(selected); setGameParticipationOpen(true); return false }
+    pendingGameStart.current = { kind: selected, start }
+    if (!gameParticipation.organize(selected)) { pendingGameStart.current = null; return false }
+    // Wait for the shared organizer claim before touching another active game.
+    if (gameParticipation.getState().games[selected].organizer === room.localParticipant.identity) {
+      pendingGameStart.current = null
+      resetOtherGames(selected)
+      return start()
+    }
+    return true
+  }
+  useEffect(() => {
+    const pending = pendingGameStart.current
+    if (!pending) return
+    if (gameParticipation.error) { pendingGameStart.current = null; setGameParticipationOpen(true); return }
+    if (gameParticipation.state.games[pending.kind].organizer !== room.localParticipant.identity) return
+    pendingGameStart.current = null
+    resetOtherGames(pending.kind)
+    pending.start()
+  }, [gameParticipation.state.revision, gameParticipation.error])
+  const selectedGameState = gameMode === 'hub' ? null : { ito: itoGame.state, kiwi: explodingKiwi.state, truco: trucoGame.state, mind: mindGame.state, poker: pokerGame.state, coup: coupGame.state, codenames: codenamesGame.state }[gameMode]
+  const gameParticipationUi = gameMode === 'hub' ? null : {
+    kind: gameMode,
+    participating: gameParticipation.allowed(gameMode, room.localParticipant.identity),
+    count: gameParticipation.members(gameMode).length,
+    canStart: gameParticipation.canStart(gameMode, room.localParticipant.identity),
+    members: snapshot.participantMedia.filter((person) => gameParticipation.allowed(gameMode, person.id)),
+    open: () => setGameParticipationOpen(true),
+  }
 
   return (
     <main className={`call-shell ${chatOpen || musicOpen ? 'call-shell--chat-open' : ''} ${musicOpen ? 'call-shell--music-open' : ''} ${gamesOpen ? 'call-shell--games-open' : ''}`}>
@@ -631,6 +668,7 @@ export const CallScreen = ({
         </div>
       )}
 
+      <GameParticipationContext.Provider value={gameParticipationUi}>
       <div className="call-workspace">
         {gamesOpen ? (
           gameMode === 'hub' ? (
@@ -660,70 +698,49 @@ export const CallScreen = ({
             />
           ) : gameMode === 'codenames' ? (
             <CodenamesStage
-              game={{ ...codenamesGame, start: (...args) => {
-                resetOtherGames('codenames')
-                return codenamesGame.start(...args)
-              } }}
+              game={{ ...codenamesGame, start: (...args) => startGame('codenames', () => codenamesGame.start(...args)) }}
               onExit={() => setGamesOpen(false)}
               onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
             />
           ) : gameMode === 'coup' ? (
             <CoupStage
-              game={{ ...coupGame, start: (...args) => {
-                resetOtherGames('coup')
-                return coupGame.start(...args)
-              } }}
+              game={{ ...coupGame, start: (...args) => startGame('coup', () => coupGame.start(...args)) }}
               onExit={() => setGamesOpen(false)}
               onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
             />
           ) : gameMode === 'poker' ? (
             <PokerStage
-              game={{ ...pokerGame, start: (...args) => {
-                resetOtherGames('poker')
-                return pokerGame.start(...args)
-              } }}
+              game={{ ...pokerGame, start: (...args) => startGame('poker', () => pokerGame.start(...args)) }}
               onExit={() => setGamesOpen(false)}
               onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
             />
           ) : gameMode === 'kiwi' ? (
             <ExplodingKiwiStage
-              game={{ ...explodingKiwi, start: (...args) => {
-                resetOtherGames('kiwi')
-                return explodingKiwi.start(...args)
-              } }}
+              game={{ ...explodingKiwi, start: (...args) => startGame('kiwi', () => explodingKiwi.start(...args)) }}
               onExit={() => setGamesOpen(false)}
               onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
             />
           ) : gameMode === 'truco' ? (
             <TrucoMineiroStage
-              game={{ ...trucoGame, start: () => {
-                resetOtherGames('truco')
-                return trucoGame.start()
-              } }}
+              game={{ ...trucoGame, start: () => startGame('truco', () => trucoGame.start()) }}
               onExit={() => setGamesOpen(false)}
               onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
             />
           ) : gameMode === 'mind' ? (
             <TheMindStage
-              game={{ ...mindGame, start: () => {
-                resetOtherGames('mind')
-                return mindGame.start()
-              } }}
+              game={{ ...mindGame, start: () => startGame('mind', () => mindGame.start()) }}
               onExit={() => setGamesOpen(false)}
               onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
             />
           ) : (
             <ItoGameStage
-              game={{ ...itoGame, start: (...args) => {
-                resetOtherGames('ito')
-                return itoGame.start(...args)
-              } }}
+              game={{ ...itoGame, start: (...args) => startGame('ito', () => itoGame.start(...args)) }}
               onExit={() => setGamesOpen(false)}
               onOpenGameHub={() => setGameMode('hub')}
               participants={snapshot.participantMedia}
@@ -741,6 +758,12 @@ export const CallScreen = ({
           />
         )}
       </div>
+
+      {gamesOpen && gameParticipationOpen && gameParticipationUi && selectedGameState && <GameParticipationPanel
+        active={Boolean(selectedGameState.gameId)} activeIds={selectedGameState.players.map((player) => player.identity)} kind={gameParticipationUi.kind}
+        onClose={() => setGameParticipationOpen(false)} participants={snapshot.participantMedia} participation={gameParticipation}
+      />}
+      </GameParticipationContext.Provider>
 
       {participantsOpen && (
         <button

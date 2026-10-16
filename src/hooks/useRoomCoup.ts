@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { Room } from 'livekit-client'
 import { useRoomGameProtocol, type RoomGameProtocolContext } from './useRoomGameProtocol'
+import { gameMembers, gameStartError, type RoomGameParticipation } from './useRoomGameParticipation'
 import {
   applyCoupMove,
   coupPrivateFor,
@@ -14,7 +15,7 @@ import {
 import type { CoupEngine, CoupMove, CoupPrivate, CoupSettings, CoupState } from '../games/coup'
 import { parseCoupMove, parseCoupPrivate, parseCoupState } from '../games/coupWire'
 
-export const COUP_TOPIC = 'ford-kall.coup.v1'
+export const COUP_TOPIC = 'ford-kall.coup.v2'
 export { parseCoupState } from '../games/coupWire'
 type Command =
   | { type: 'start'; gameId: string; settings: CoupSettings }
@@ -40,7 +41,7 @@ const parseCommand = (value: unknown): Command | null => {
   const move = parseCoupMove(raw.move)
   return raw.type === 'move' && move ? { type: 'move', gameId: raw.gameId, stepId: raw.stepId, move } : null
 }
-export const useRoomCoup = (room: Room) => {
+export const useRoomCoup = (room: Room, participation?: RoomGameParticipation) => {
   const engineRef = useRef<CoupEngine | null>(null)
   const handleCommand = useCallback(
     (
@@ -49,8 +50,9 @@ export const useRoomCoup = (room: Room) => {
       context: RoomGameProtocolContext<CoupState, CoupPrivate>,
     ): string | null => {
       const current = context.state,
-        connected = new Set([room.localParticipant.identity, ...room.remoteParticipants.keys()])
-      if (!connected.has(sender)) return 'Você não está nesta sala.'
+        connected = new Set(gameMembers(room, 'coup', participation).map((member) => member.identity))
+      if (sender !== room.localParticipant.identity && !room.remoteParticipants.has(sender)) return 'Você não está nesta sala.'
+      if (!connected.has(sender) && !['sync', 'timeout', 'reset'].includes(command.type)) return 'Você está só assistindo.'
       const save = (engine: CoupEngine) => {
         engine.state.controllerIdentity = room.localParticipant.identity
         engine.state.revision = current.revision
@@ -72,9 +74,11 @@ export const useRoomCoup = (room: Room) => {
           return null
         }
         if (command.type === 'start') {
+          const startError = gameStartError('coup', sender, participation)
+          if (startError) return startError
           if (command.gameId !== current.gameId || !['lobby', 'finished'].includes(current.phase))
             return 'Já existe uma partida em andamento.'
-          const members = [room.localParticipant, ...room.remoteParticipants.values()].map((p) => ({
+          const members = gameMembers(room, 'coup', participation).map((p) => ({
             identity: p.identity,
             name:
               (p.name || p.identity)
@@ -107,7 +111,7 @@ export const useRoomCoup = (room: Room) => {
         return cause instanceof Error ? cause.message : 'Não foi possível concluir sua jogada.'
       }
     },
-    [room],
+    [room, participation],
   )
   const protocol = useRoomGameProtocol<CoupState, Command, CoupPrivate>({
     room,
@@ -123,7 +127,7 @@ export const useRoomCoup = (room: Room) => {
   const { state, dispatch, isController, participantRevision } = protocol
   useEffect(() => {
     if (isController && state.gameId) dispatch({ type: 'sync', gameId: state.gameId })
-  }, [isController, participantRevision, state.gameId, dispatch])
+  }, [isController, participantRevision, state.gameId, dispatch, participation?.state.revision])
   useEffect(() => {
     if (!isController || !state.expiresAt) return
     const timer = window.setTimeout(
@@ -138,7 +142,7 @@ export const useRoomCoup = (room: Room) => {
     error: protocol.error,
     clearError: protocol.clearError,
     isController,
-    participantCount: protocol.participantCount,
+    participantCount: gameMembers(room, 'coup', participation).length,
     start: (settings: CoupSettings = defaultCoupSettings) =>
       dispatch({ type: 'start', gameId: state.gameId, settings }),
     move: (move: CoupMove) => dispatch({ type: 'move', gameId: state.gameId, stepId: state.stepId, move }),

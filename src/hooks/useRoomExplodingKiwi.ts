@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { RoomEvent, type RemoteParticipant, type Room } from 'livekit-client'
 import { getKiwiCombo, getKiwiPlayTarget, kiwiCardTitle } from '../games/kiwiCards'
+import { gameMembers, gameStartError, type RoomGameParticipation } from './useRoomGameParticipation'
 
-const TOPIC = 'ford-kall.exploding-kiwi.v1'
+export const KIWI_TOPIC = 'ford-kall.exploding-kiwi.v2'
+const TOPIC = KIWI_TOPIC
 const MAX_PLAYERS = 5
 const REACTION_MS = 4_000
 const encoder = new TextEncoder()
@@ -77,6 +79,7 @@ export interface KiwiRoomState {
 }
 
 type KiwiCommand =
+  | { type: 'sync-participation'; gameId: string }
   | { type: 'start'; expansions: KiwiExpansion[]; excludedCards: KiwiCardType[] }
   | { type: 'play'; cardIds: string[]; targetIdentity: string; namedCardType?: KiwiCardType }
   | { type: 'draw' }
@@ -194,6 +197,7 @@ const parseState = (value: unknown): KiwiRoomState | null => {
 const parseCommand = (value: unknown): KiwiCommand | null => {
   if (!value || typeof value !== 'object') return null
   const raw = value as Record<string, unknown>
+  if (raw.type === 'sync-participation' && typeof raw.gameId === 'string') return { type: 'sync-participation', gameId: raw.gameId }
   if (raw.type === 'draw' || raw.type === 'reset') return { type: raw.type }
   if (raw.type === 'start') return { type: 'start', expansions: Array.isArray(raw.expansions) ? raw.expansions.filter((x): x is KiwiExpansion => EXPANSIONS.includes(x as KiwiExpansion)) : [],
     excludedCards: Array.isArray(raw.excludedCards) ? [...new Set(raw.excludedCards.filter(isCardType))] : [] }
@@ -245,7 +249,7 @@ const buildActionDeck = (expansions: KiwiExpansion[], playerCount: number, exclu
   return deck.filter((card) => !excluded.has(card.type))
 }
 
-export const useRoomExplodingKiwi = (room: Room) => {
+export const useRoomExplodingKiwi = (room: Room, participation?: RoomGameParticipation) => {
   const [participantRevision, setParticipantRevision] = useState(0)
   const [state, setState] = useState<KiwiRoomState>(() => emptyState(identitiesInRoom(room).sort()[0] || room.localParticipant.identity))
   const [hand, setHand] = useState<KiwiCard[]>([])
@@ -309,6 +313,8 @@ export const useRoomExplodingKiwi = (room: Room) => {
 
   const performCommand = useCallback((command: KiwiCommand, senderIdentity: string): string | null => {
     let current = stateRef.current
+    if (senderIdentity !== room.localParticipant.identity && !room.remoteParticipants.has(senderIdentity)) return 'Você não está nesta sala.'
+    if (!['sync-participation', 'reset', 'resolve'].includes(command.type) && participation && !participation.allowed('kiwi', senderIdentity)) return 'Você está só assistindo.'
     const player = current.players.find((candidate) => candidate.identity === senderIdentity)
     const getHand = (identity: string) => handsRef.current[identity] ?? []
     const putHand = (identity: string, cards: KiwiCard[]) => { handsRef.current[identity] = cards }
@@ -455,8 +461,10 @@ export const useRoomExplodingKiwi = (room: Room) => {
     }
     const startPrompt = (prompt: KiwiPrompt, lastAction: string) => update({ prompt, pendingAction: null, pendingDefenseIdentity: '', pendingFavor: null, lastAction })
     if (command.type === 'start') {
+      const startError = gameStartError('kiwi', senderIdentity, participation)
+      if (startError) return startError
       if (current.phase === 'playing') return 'A rodada atual ainda está em andamento.'
-      const members = [room.localParticipant, ...room.remoteParticipants.values()]
+      const members = gameMembers(room, 'kiwi', participation)
       if (members.length < 2) return 'Exploding Kiwi precisa de pelo menos duas pessoas.'
       if (members.length > MAX_PLAYERS) return `Exploding Kiwi aceita de 2 a ${MAX_PLAYERS} pessoas.`
       const expansions = [...new Set(command.expansions.filter((item) => EXPANSIONS.includes(item)))]
@@ -509,6 +517,27 @@ export const useRoomExplodingKiwi = (room: Room) => {
     if (command.type === 'reset') {
       handsRef.current = {}; peeksRef.current = {}; peekIdsRef.current = {}; stashesRef.current = {}; takenRef.current = {}; towerStashRef.current = []; deckRef.current = []; discardRef.current = []
       setHand([]); setPeek([]); setPeekId(''); setStash([]); commit((latest) => emptyState(room.localParticipant.identity, latest.revision)); return null
+    }
+    if (command.type === 'sync-participation') {
+      if (senderIdentity !== room.localParticipant.identity || command.gameId !== current.gameId) return 'Ação reservada ao controlador.'
+      const eligible = new Set(gameMembers(room, 'kiwi', participation).map((member) => member.identity))
+      const leaving = new Set(current.players.filter((member) => member.alive && !eligible.has(member.identity)).map((member) => member.identity))
+      if (!leaving.size || current.phase !== 'playing') return null
+      for (const identity of leaving) { discardRef.current.push(...getHand(identity), ...(stashesRef.current[identity] ?? [])); putHand(identity, []); stashesRef.current[identity] = []; setPrivatePeek(identity, []) }
+      clearKnownFutures()
+      const players = current.players.map((member) => leaving.has(member.identity) ? { ...member, alive: false, handCount: 0, tower: false, explosionCard: undefined, takeThatCard: undefined, takeThatByIdentity: undefined } : member)
+      const survivors = players.filter((member) => member.alive)
+      const currentIndex = current.players.findIndex((member) => member.identity === current.currentPlayerIdentity)
+      const next = Array.from({ length: players.length }, (_, i) => players[(currentIndex + current.direction * (i + 1) + players.length * 2) % players.length]!).find((member) => member.alive)
+      const pendingAction = current.pendingAction && [current.pendingAction.actorIdentity, current.pendingAction.targetIdentity, current.pendingAction.secondaryTargetIdentity].some((id) => leaving.has(id)) ? null : current.pendingAction
+      const prompt = current.prompt && [current.prompt.actorIdentity, current.prompt.targetIdentity, ...current.prompt.queue].some((id) => leaving.has(id)) ? null : current.prompt
+      const pendingFavor = current.pendingFavor && [current.pendingFavor.fromIdentity, current.pendingFavor.toIdentity].some((id) => leaving.has(id)) ? null : current.pendingFavor
+      const defenseLeft = leaving.has(current.pendingDefenseIdentity) || leaving.has(current.pendingDefenseTurnIdentity)
+      update({ players, pendingAction, prompt, pendingFavor, ...(defenseLeft ? { pendingDefenseIdentity: '', pendingDefenseType: '', pendingDefenseTurnIdentity: '' } : {}),
+        ...(leaving.has(current.currentPlayerIdentity) ? { currentPlayerIdentity: next?.identity ?? '', turnsRemaining: 1 } : {}),
+        ...(survivors.length <= 1 ? { phase: 'finished', currentPlayerIdentity: survivors[0]?.identity ?? '', winnerIdentity: survivors[0]?.identity ?? '', pendingAction: null, prompt: null, pendingFavor: null, pendingDefenseIdentity: '', pendingDefenseType: '', pendingDefenseTurnIdentity: '' } : {}),
+        lastAction: 'Quem foi assistir saiu da rodada. A call continua normalmente.' })
+      return null
     }
     if (!current.gameId || current.phase !== 'playing') return 'Não há uma partida ativa.'
 
@@ -695,7 +724,7 @@ export const useRoomExplodingKiwi = (room: Room) => {
       const explodedPlayer = current.players.find((item) => item.identity === senderIdentity)
       const explosion = explodedPlayer?.explosionCard
       const isBarking = current.pendingDefenseType === 'barking'
-      const deadPlayers = isBarking ? [] : current.players.filter((item) => !item.alive && item.identity !== senderIdentity)
+      const deadPlayers = isBarking ? [] : current.players.filter((item) => !item.alive && item.identity !== senderIdentity && (!participation || participation.allowed('kiwi', item.identity)))
       const revivedIdentity = command.reviveIdentity ?? ''
       const revivedPlayer = deadPlayers.find((item) => item.identity === revivedIdentity)
       if (wasZombie && deadPlayers.length && !revivedPlayer) return 'Escolha uma pessoa morta para trazer de volta antes de confirmar.'
@@ -893,7 +922,7 @@ export const useRoomExplodingKiwi = (room: Room) => {
       clearKnownFutures(); endTurn(senderIdentity); return null
     }
     return null
-  }, [commit, room, sendPrivateTo, setPrivatePeek])
+  }, [commit, room, sendPrivateTo, setPrivatePeek, participation])
 
   const ensureController = useCallback(() => {
     if (getControllerIdentity() !== room.localParticipant.identity) return false
@@ -916,6 +945,9 @@ export const useRoomExplodingKiwi = (room: Room) => {
     void publish({ type: 'command', commandId, command }, controller).catch(() => { window.clearTimeout(timeout); pendingCommandsRef.current.delete(commandId); setError('Não foi possível enviar sua ação para o jogo.') })
     return true
   }, [ensureController, getControllerIdentity, performCommand, publish, room])
+  useEffect(() => {
+    if (state.gameId && getControllerIdentity() === room.localParticipant.identity) dispatch({ type: 'sync-participation', gameId: state.gameId })
+  }, [dispatch, getControllerIdentity, room, state.gameId, participantRevision, participation?.state.revision])
 
   useEffect(() => {
     const action = state.pendingAction
@@ -1001,11 +1033,11 @@ export const useRoomExplodingKiwi = (room: Room) => {
   return {
     state, hand, peek, peekId, stash, error, clearError,
     isController: controllerIdentity === room.localParticipant.identity,
-    isPlaying: state.players.some((item) => item.identity === room.localParticipant.identity),
-    isMyTurn: state.currentPlayerIdentity === room.localParticipant.identity,
+    isPlaying: state.players.some((item) => item.identity === room.localParticipant.identity) && (!participation || participation.allowed('kiwi', room.localParticipant.identity)),
+    isMyTurn: state.currentPlayerIdentity === room.localParticipant.identity && (!participation || participation.allowed('kiwi', room.localParticipant.identity)),
     isPendingDefense: state.pendingDefenseIdentity === room.localParticipant.identity,
     isPendingFavor: state.pendingFavor?.toIdentity === room.localParticipant.identity,
-    participantCount: identitiesInRoom(room).length,
+    participantCount: gameMembers(room, 'kiwi', participation).length,
     start, reset, draw, play, defuse, favor, nope, choose, cardTitle,
   }
 }

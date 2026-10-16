@@ -2,6 +2,7 @@ import { useEffect, useId, useRef, type CSSProperties, type ReactNode } from 're
 import { createPortal } from 'react-dom'
 import { Icon } from '../ui/Icon'
 import type { ParticipantMedia } from '../../types'
+import { useGameParticipationUi } from './GameParticipationContext'
 import './GameTable.css'
 
 export const arrangeSeats = <T extends { identity: string }>(players: T[], localIdentity: string): T[] => {
@@ -58,16 +59,20 @@ export const GameHud = ({ title, subtitle, children, onOpenGameHub, onExit }: {
   children?: ReactNode
   onOpenGameHub: () => void
   onExit: () => void
-}) => (
+}) => {
+  const participation = useGameParticipationUi()
+  return (
   <header className="game-hud">
     <button className="game-hud__switch" onClick={onOpenGameHub} title="Escolher outro jogo" type="button">
       <strong>{title}</strong><Icon name="chevron" />
     </button>
     {subtitle && <span className="game-hud__subtitle">{subtitle}</span>}
+    {participation && <button aria-label="Jogadores: participar ou só assistir" className={`game-roster-trigger ${participation.participating ? '' : 'is-watching'}`} onClick={participation.open} title="Jogadores · participar ou só assistir" type="button"><Icon name={participation.participating ? 'users' : 'eye'} /><span>{participation.count}</span></button>}
     {children}
     <button aria-label="Voltar para a call" className="game-icon-button" onClick={onExit} title="Voltar para a call" type="button"><Icon name="x" /></button>
   </header>
 )
+}
 
 export const GameError = ({ error, onClose }: { error: string; onClose: () => void }) => error ? (
   <div className="game-error" role="alert"><Icon name="warning" /><span>{error}</span><button aria-label="Fechar aviso" onClick={onClose} type="button"><Icon name="x" /></button></div>
@@ -127,13 +132,18 @@ export const GameLobby = ({ title, eyebrow, description, art, participants, disa
   onSettings?: () => void
   note: string
   children?: ReactNode
-}) => (
+}) => {
+  const participation = useGameParticipationUi()
+  const members = participation?.members ?? participants
+  return (
   <div className="game-lobby">
     <div className="game-lobby__art" aria-hidden="true">{art}</div>
     <div className="game-lobby__copy"><span>{eyebrow}</span><h1>{title}</h1><p>{description}</p>
-      <div className="game-lobby__guests">{participants.map((person) => <span key={person.id} title={person.name}>{person.avatarDataUrl ? <img alt={person.name} src={person.avatarDataUrl} /> : person.name.slice(0, 1).toUpperCase()}</span>)}</div>
+      <div className="game-lobby__guests">{members.map((person) => <span key={person.id} title={person.name}>{person.avatarDataUrl ? <img alt={person.name} src={person.avatarDataUrl} /> : person.name.slice(0, 1).toUpperCase()}</span>)}</div>
+      {participation && <div className="game-participation-summary"><span>{participation.participating ? `${participation.count} pessoas participam` : 'Você está só assistindo'}</span><button onClick={participation.open} type="button">Escolher quem joga</button></div>}
       {children}
-      <div className="game-lobby__actions">{onSettings && <button className="game-action" onClick={onSettings} type="button"><Icon name="controls" />Configurar</button>}<button className="game-action" onClick={onRules} type="button">Como jogar</button><button className="game-action game-action--primary" disabled={disabled} onClick={onStart} type="button"><Icon name="play" />Jogar</button></div><small>{note}</small>
+      <div className="game-lobby__actions">{onSettings && <button className="game-action" onClick={onSettings} type="button"><Icon name="controls" />Configurar</button>}<button className="game-action" onClick={onRules} type="button">Como jogar</button><button className="game-action game-action--primary" disabled={disabled || Boolean(participation && !participation.canStart)} onClick={onStart} type="button"><Icon name="play" />Jogar</button></div><small>{note}</small>
     </div>
   </div>
 )
+}

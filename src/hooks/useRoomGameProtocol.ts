@@ -24,6 +24,7 @@ interface RoomGameProtocolOptions<TState extends RoomGameBaseState, TCommand, TP
   parsePrivate: (value: unknown) => TPrivate | null
   emptyPrivate: TPrivate
   strictAuthority?: boolean
+  preserveStateOnControllerChange?: boolean
   handleCommand: (
     command: TCommand,
     senderIdentity: string,
@@ -54,6 +55,7 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
   parsePrivate,
   emptyPrivate,
   strictAuthority = false,
+  preserveStateOnControllerChange = false,
   handleCommand,
 }: RoomGameProtocolOptions<TState, TCommand, TPrivate>) => {
   const [state, setState] = useState<TState>(() => {
@@ -85,11 +87,11 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
 
   const getControllerIdentity = useCallback((candidate = stateRef.current) => {
     const connected = roomIdentities(room)
-    if (candidate.gameId && candidate.controllerIdentity && connected.includes(candidate.controllerIdentity)) {
+    if ((candidate.gameId || preserveStateOnControllerChange) && candidate.controllerIdentity && connected.includes(candidate.controllerIdentity)) {
       return candidate.controllerIdentity
     }
     return connected.sort()[0] || room.localParticipant.identity
-  }, [room])
+  }, [room, preserveStateOnControllerChange])
 
   const publishPrivate = useCallback((gameId: string, identity: string, data: TPrivate) => {
     void publish({ type: 'private', gameId, data }, identity).catch(() => undefined)
@@ -157,12 +159,14 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
     const wasActive = Boolean(stateRef.current.gameId)
     privateRef.current = { gameId: '', values: {} }
     setLocalPrivate(emptyPrivate)
-    const next = emptyState(room.localParticipant.identity, stateRef.current.revision + 1)
+    const next = preserveStateOnControllerChange
+      ? { ...stateRef.current, controllerIdentity: room.localParticipant.identity, revision: stateRef.current.revision + 1 }
+      : emptyState(room.localParticipant.identity, stateRef.current.revision + 1)
     applyState(next)
     if (wasActive) setError('Quem iniciou a partida saiu. A rodada foi encerrada.')
     void publish({ type: 'state', state: next }).catch(() => undefined)
     return true
-  }, [applyState, emptyPrivate, emptyState, getControllerIdentity, publish, room])
+  }, [applyState, emptyPrivate, emptyState, getControllerIdentity, publish, room, preserveStateOnControllerChange])
 
   const dispatch = useCallback((command: TCommand) => {
     setError('')
@@ -206,7 +210,11 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
         const candidate = parseState(message.state)
         if (!candidate || participant.identity !== candidate.controllerIdentity) return
         const current = stateRef.current
-        if (strictAuthority && participant.identity !== getControllerIdentity(current)) return
+        // A fresh attendance client may have joined with a lower identity. Adopt the
+        // established list instead of electing itself and erasing everyone's optouts.
+        const attendanceBootstrap = preserveStateOnControllerChange && current.revision === 0 &&
+          (candidate.revision > 0 || candidate.revision === 0 && candidate.controllerIdentity < current.controllerIdentity)
+        if (strictAuthority && participant.identity !== getControllerIdentity(current) && !attendanceBootstrap) return
         if (candidate.controllerIdentity === current.controllerIdentity && candidate.revision <= current.revision) return
         applyState(candidate)
         if (candidate.gameId) void publish({ type: 'private-request', gameId: candidate.gameId }, participant.identity).catch(() => undefined)
@@ -274,7 +282,7 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
       room.off(RoomEvent.ParticipantConnected, onParticipantConnected)
       room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected)
     }
-  }, [applyState, ensureController, getControllerIdentity, parseCommand, parsePrivate, parseState, publish, room, sendCurrentState, topic, performCommand, strictAuthority])
+  }, [applyState, ensureController, getControllerIdentity, parseCommand, parsePrivate, parseState, publish, room, sendCurrentState, topic, performCommand, strictAuthority, preserveStateOnControllerChange])
 
   useEffect(() => () => {
     for (const timeout of pendingRef.current.values()) window.clearTimeout(timeout)
@@ -282,6 +290,7 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
   }, [])
 
   const clearError = useCallback(() => setError(''), [])
+  const getState = useCallback(() => stateRef.current, [])
 
   return {
     state,
@@ -289,6 +298,7 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
     error,
     participantRevision,
     clearError,
+    getState,
     dispatch,
     isController: getControllerIdentity() === room.localParticipant.identity,
     participantCount: roomIdentities(room).length,

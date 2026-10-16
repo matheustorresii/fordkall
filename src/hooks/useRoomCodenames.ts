@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { Room } from 'livekit-client'
 import { useRoomGameProtocol, type RoomGameProtocolContext } from './useRoomGameProtocol'
+import { gameMembers, gameStartError, type RoomGameParticipation } from './useRoomGameParticipation'
 import {
   applyCodenamesMove,
   codenamesPrivateFor,
@@ -19,7 +20,7 @@ import type {
 } from '../games/codenames'
 import { parseCodenamesMove, parseCodenamesPrivate, parseCodenamesState } from '../games/codenamesWire'
 
-export const CODENAMES_TOPIC = 'ford-kall.codenames.v2'
+export const CODENAMES_TOPIC = 'ford-kall.codenames.v3'
 type Command =
   | { type: 'start'; gameId: string; settings: CodenamesSettings }
   | { type: 'move'; gameId: string; stepId: string; move: CodenamesMove }
@@ -42,7 +43,7 @@ const parseCommand = (v: unknown): Command | null => {
     ? { type: 'move', gameId: raw.gameId, stepId: raw.stepId, move }
     : null
 }
-export const useRoomCodenames = (room: Room) => {
+export const useRoomCodenames = (room: Room, participation?: RoomGameParticipation) => {
   const engineRef = useRef<CodenamesEngine | null>(null)
   const handleCommand = useCallback(
     (
@@ -51,7 +52,7 @@ export const useRoomCodenames = (room: Room) => {
       context: RoomGameProtocolContext<CodenamesState, CodenamesPrivate>,
     ): string | null => {
       const current = context.state
-      const members = [room.localParticipant, ...room.remoteParticipants.values()].map((p) => ({
+      const members = gameMembers(room, 'codenames', participation).map((p) => ({
         identity: p.identity,
         name:
           (p.name || p.identity)
@@ -59,7 +60,7 @@ export const useRoomCodenames = (room: Room) => {
             .trim()
             .slice(0, 80) || 'Jogador',
       }))
-      if (!members.some((p) => p.identity === sender)) return 'Você não está nesta sala.'
+      if (!members.some((p) => p.identity === sender) && !['sync', 'reset'].includes(command.type)) return 'Você está só assistindo a esta mesa.'
       const save = (engine: CodenamesEngine) => {
         engine.state.controllerIdentity = room.localParticipant.identity
         engine.state.revision = current.revision
@@ -84,28 +85,38 @@ export const useRoomCodenames = (room: Room) => {
             .map((p) => ({ ...p, connected: true }))
           return save(syncCodenamesMembers({ state: lobby, key: [] }, members))
         }
-        if (command.type === 'start')
+        if (command.type === 'start') {
+          const startError = gameStartError('codenames', sender, participation)
+          if (startError) return startError
           return save(
             createCodenamesMatch(
               syncCodenamesMembers({ state: current, key: [] }, members).state,
               command.settings,
             ),
           )
+        }
         const previous = engineRef.current
         if (current.gameId && (!previous || previous.state.gameId !== current.gameId))
           return 'Quem guardava a chave saiu. Iniciem outra partida.'
         const engine = { state: current, key: previous?.key ?? [] }
-        if (command.type === 'sync')
+        if (command.type === 'sync') {
+          if (sender === room.localParticipant.identity && current.gameId && participation && current.players.some((player) => player.team && !participation.allowed('codenames', player.identity))) {
+            const lobby = emptyCodenamesState(room.localParticipant.identity)
+            lobby.clueMode = current.clueMode
+            lobby.players = current.players.filter((player) => members.some((member) => member.identity === player.identity)).map((player) => ({ ...player, connected: true }))
+            return save(syncCodenamesMembers({ state: lobby, key: [] }, members))
+          }
           return sender === room.localParticipant.identity
             ? save(syncCodenamesMembers(engine, members))
             : 'Ação reservada à mesa.'
+        }
         if (command.stepId !== current.stepId) return 'A mesa já mudou. Confira a pista e tente novamente.'
         return save(applyCodenamesMove(engine, sender, command.move))
       } catch (cause) {
         return cause instanceof Error ? cause.message : 'Não foi possível concluir sua jogada.'
       }
     },
-    [room],
+    [room, participation],
   )
   const protocol = useRoomGameProtocol<CodenamesState, Command, CodenamesPrivate>({
     room,
@@ -121,14 +132,14 @@ export const useRoomCodenames = (room: Room) => {
   const { state, dispatch, isController, participantRevision } = protocol
   useEffect(() => {
     if (isController) dispatch({ type: 'sync', gameId: state.gameId })
-  }, [isController, participantRevision, state.gameId, dispatch])
+  }, [isController, participantRevision, state.gameId, dispatch, participation?.state.revision])
   return {
     state,
     key: protocol.localPrivate.key,
     error: protocol.error,
     clearError: protocol.clearError,
     isController,
-    participantCount: protocol.participantCount,
+    participantCount: gameMembers(room, 'codenames', participation).length,
     start: (settings: CodenamesSettings = defaultCodenamesSettings) =>
       dispatch({ type: 'start', gameId: state.gameId, settings }),
     move: (move: CodenamesMove) =>

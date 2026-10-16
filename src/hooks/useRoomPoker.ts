@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react'
 import type { Room } from 'livekit-client'
 import { useRoomGameProtocol, type RoomGameProtocolContext } from './useRoomGameProtocol'
+import { gameMembers, gameStartError, type RoomGameParticipation } from './useRoomGameParticipation'
 import {
   applyPokerAction,
   advancePokerFlow,
@@ -19,7 +20,7 @@ import {
   type PokerState,
 } from '../games/poker'
 
-export const POKER_TOPIC = 'ford-kall.poker.v1'
+export const POKER_TOPIC = 'ford-kall.poker.v2'
 type Command =
   | { type: 'start'; matchId: string; settings: PokerSettings }
   | { type: 'action'; gameId: string; turnId: string; action: PokerAction }
@@ -277,14 +278,15 @@ const cleanName = (name: string) =>
     .trim()
     .slice(0, 80) || 'Jogador'
 
-export const useRoomPoker = (room: Room) => {
+export const useRoomPoker = (room: Room, participation?: RoomGameParticipation) => {
   // The elected controller owns the deck. Peers only receive their own two cards.
   const engineRef = useRef<PokerEngine | null>(null)
   const handleCommand = useCallback(
     (command: Command, sender: string, context: Context): string | null => {
       const current = context.state,
-        connected = new Set([room.localParticipant.identity, ...room.remoteParticipants.keys()])
-      if (!connected.has(sender)) return 'Você não está nesta sala.'
+        connected = new Set(gameMembers(room, 'poker', participation).map((member) => member.identity))
+      if (sender !== room.localParticipant.identity && !room.remoteParticipants.has(sender)) return 'Você não está nesta sala.'
+      if (!connected.has(sender) && !['sync', 'timeout', 'advance', 'reset'].includes(command.type)) return 'Você está só assistindo.'
       const save = (engine: PokerEngine) => {
         const changedHand = engine.state.gameId !== current.gameId
         engine.state = {
@@ -304,9 +306,11 @@ export const useRoomPoker = (room: Room) => {
         return null
       }
       if (command.type === 'start') {
+        const startError = gameStartError('poker', sender, participation)
+        if (startError) return startError
         if (command.matchId !== current.matchId || !['lobby', 'finished'].includes(current.phase))
           return 'Já existe uma mesa em andamento.'
-        const members = [room.localParticipant, ...room.remoteParticipants.values()].map((p) => ({
+        const members = gameMembers(room, 'poker', participation).map((p) => ({
           identity: p.identity,
           name: cleanName(p.name || p.identity),
         }))
@@ -358,7 +362,7 @@ export const useRoomPoker = (room: Room) => {
         return e instanceof Error ? e.message : 'Não foi possível concluir sua jogada.'
       }
     },
-    [room],
+    [room, participation],
   )
   const protocol = useRoomGameProtocol<PokerState, Command, PokerCard[]>({
     room,
@@ -381,7 +385,7 @@ export const useRoomPoker = (room: Room) => {
   }, [isController, state.phase, state.gameId, state.transitionAt, dispatch])
   useEffect(() => {
     if (isController && state.gameId) dispatch({ type: 'sync', gameId: state.gameId })
-  }, [isController, participantRevision, state.gameId, dispatch])
+  }, [isController, participantRevision, state.gameId, dispatch, participation?.state.revision])
   useEffect(() => {
     if (!isController || state.phase !== 'playing' || !state.turnExpiresAt) return
     const timer = window.setTimeout(
@@ -396,7 +400,7 @@ export const useRoomPoker = (room: Room) => {
     error: protocol.error,
     clearError: protocol.clearError,
     isController,
-    participantCount: protocol.participantCount,
+    participantCount: gameMembers(room, 'poker', participation).length,
     start: (settings: PokerSettings = defaultPokerSettings) =>
       dispatch({ type: 'start', matchId: state.matchId, settings }),
     act: (action: PokerAction) => dispatch({ type: 'action', gameId: state.gameId, turnId: state.turnId, action }),
