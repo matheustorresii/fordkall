@@ -9,20 +9,22 @@ export const PokerCardFace = ({
   bestHand = false,
   motion,
   delay = 0,
+  emphasis,
 }: {
   card?: PokerCard
   highlighted?: boolean
   bestHand?: boolean
   motion?: 'deal' | 'flip'
   delay?: number
+  emphasis?: 'made' | 'kicker'
 }) => {
   const suit = card?.[1] as keyof typeof suits | undefined,
     rank = card?.[0] === 'T' ? '10' : card?.[0]
   const label = card && suit ? `${rank} de ${suitNames[suit]}` : 'Carta fechada'
   return (
     <span
-      aria-label={`${label}${card && bestHand ? ', sua combinação atual' : ''}`}
-      className={`poker-card ${!card ? 'poker-card--back' : ''} ${suit === 'h' || suit === 'd' ? 'is-red' : ''} ${highlighted ? 'is-highlighted' : ''} ${card && bestHand ? 'is-best-hand' : ''}`}
+      aria-label={`${label}${card && bestHand ? ', sua combinação atual' : ''}${emphasis === 'made' ? ', forma a combinação' : emphasis === 'kicker' ? ', carta de desempate' : ''}`}
+      className={`poker-card ${suit ? `poker-card--${suit}` : 'poker-card--back'} ${highlighted ? 'is-highlighted' : ''} ${card && bestHand ? 'is-best-hand' : ''} ${emphasis ? `is-example-${emphasis}` : ''}`}
       role="img"
       data-card-motion={motion}
       style={motion ? { '--card-delay': `${delay}ms` } as CSSProperties : undefined}

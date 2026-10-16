@@ -8,6 +8,8 @@ import {
   defaultPokerSettings,
   emptyPokerState,
   pokerLegalActions,
+  rebuyPokerStack,
+  resumePokerMatch,
   type PokerEngine,
   type PokerSettings,
 } from '../games/poker'
@@ -29,12 +31,19 @@ const fixture = (participants: ParticipantMedia[]): PokerEngine => {
   }
   return engine
 }
-const allInFixture = (participants: ParticipantMedia[]): PokerEngine => {
+const allInFixture = (participants: ParticipantMedia[], sidePots = false): PokerEngine => {
   let engine = createPokerMatch(participants.map((p) => ({ identity: p.id, name: p.name })), { ...defaultPokerSettings, turnSeconds: 0 }, random(43))
+  if (sidePots && engine.state.players[2]) engine.state.players[2].stack = 100 - engine.state.players[2].committed
   while (engine.state.phase === 'playing') {
     const legal = pokerLegalActions(engine.state, engine.state.current)
     engine = applyPokerAction(engine, engine.state.current, { type: legal.canAllIn ? 'all-in' : legal.canCheck ? 'check' : 'call' })
   }
+  return engine
+}
+const payoutFixture = (participants: ParticipantMedia[], sidePots = false): PokerEngine => {
+  let engine = allInFixture(participants, sidePots)
+  while (engine.state.phase === 'runout' && engine.state.street !== 'river') engine = advancePokerFlow(engine, engine.state.transitionAt)
+  engine.state.transitionAt = Date.now() + 800
   return engine
 }
 const resultFixture = (participants: ParticipantMedia[]): PokerEngine => {
@@ -102,6 +111,8 @@ export const PokerPreview = ({
           start,
           act: (action) => update((current) => applyPokerAction(current, localId, action)),
           nextHand: () => update(dealPokerHand),
+          rebuy: () => update((current) => rebuyPokerStack(current, localId)),
+          resume: () => update(resumePokerMatch),
           reset: () => {
             setEngine({ state: emptyPokerState('p0'), hands: {}, deck: [] })
             return true
@@ -143,6 +154,8 @@ export const PokerPreview = ({
               {auto ? 'Pausar' : 'Simular'} adversários
             </button>
             <button onClick={() => setEngine(allInFixture(participants.slice(0, count)))} type="button">All-in pré-flop</button>
+            <button onClick={() => setEngine(payoutFixture(participants.slice(0, count)))} type="button">Showdown no river</button>
+            <button onClick={() => { setCount(3); setEngine(payoutFixture(participants.slice(0, 3), true)) }} type="button">Dois vencedores / side pots</button>
             <button onClick={() => setEngine(resultFixture(participants.slice(0, count)))} type="button">Resultado com intervalo</button>
             <button onClick={() => setEngine({ state: emptyPokerState('p0'), hands: {}, deck: [] })} type="button">
               Lobby poker

@@ -8,11 +8,12 @@ export interface PokerSettings {
   turnSeconds: number
 }
 export const defaultPokerSettings: PokerSettings = { startingStack: 1000, bigBlind: 10, turnSeconds: 60 }
-export const POKER_FLOW_TIMING = { reveal: 1200, street: 1800, showdown: 2200, nextHand: 5000 } as const
+export const POKER_FLOW_TIMING = { reveal: 1200, street: 1800, showdown: 2200, nextHand: 7000 } as const
 export interface PokerPlayer {
   identity: string
   name: string
   stack: number
+  rebuys: number
   bet: number
   committed: number
   inHand: boolean
@@ -61,6 +62,7 @@ export interface PokerState {
   turnId: string
   turnExpiresAt: number
   transitionAt: number
+  championIdentity: string
   revealed: Record<string, PokerCard[]>
   returned: Record<string, number>
   result: PokerResult | null
@@ -129,6 +131,7 @@ export const emptyPokerState = (controllerIdentity: string, revision = 0): Poker
   turnId: '',
   turnExpiresAt: 0,
   transitionAt: 0,
+  championIdentity: '',
   revealed: {},
   returned: {},
   result: null,
@@ -421,7 +424,9 @@ const settle = (engine: PokerEngine, uncontested: boolean, now = Date.now()) => 
     p.committed = 0
     p.allIn = false
   })
-  state.phase = state.players.filter((p) => p.stack > 0 && !p.away).length < 2 ? 'finished' : 'hand-result'
+  const funded = state.players.filter((p) => p.stack > 0 && !p.away)
+  state.phase = funded.length < 2 ? 'finished' : 'hand-result'
+  state.championIdentity = state.phase === 'finished' ? funded[0]?.identity ?? '' : ''
   state.transitionAt = state.phase === 'hand-result' ? now + POKER_FLOW_TIMING.nextHand : 0
   state.current = ''
   state.pending = []
@@ -473,6 +478,7 @@ const finishAction = (engine: PokerEngine) => {
     })
     state.result = { payouts: {}, refunds, pots: [], hands: {}, bestCards: {}, uncontested: true }
     state.phase = 'finished'
+    state.championIdentity = ''
     state.transitionAt = 0
     state.pending = []
     setTurn(state)
@@ -518,6 +524,7 @@ export const dealPokerHand = (previous: PokerEngine, random?: () => number): Pok
   state.handNumber += 1
   state.phase = 'playing'
   state.transitionAt = 0
+  state.championIdentity = ''
   state.street = 'preflop'
   state.dealer = dealer.identity
   state.board = []
@@ -590,6 +597,7 @@ export const createPokerMatch = (
     players: members.map((p) => ({
       ...p,
       stack: parsed.startingStack,
+      rebuys: 0,
       bet: 0,
       committed: 0,
       inHand: false,
@@ -662,7 +670,37 @@ export const syncPokerMembers = (previous: PokerEngine, connected: Set<string>):
   if (state.phase === 'playing') finishAction(engine)
   if (state.phase === 'hand-result' && state.players.filter((p) => p.stack > 0 && !p.away).length < 2) {
     state.phase = 'finished'
+    state.championIdentity = state.players.find((p) => p.stack > 0 && !p.away)?.identity ?? ''
     state.transitionAt = 0
   }
   return engine
+}
+
+export const canPokerRebuy = (state: PokerState, identity: string): boolean => {
+  const player = state.players.find((p) => p.identity === identity)
+  return Boolean(state.gameId && player && !player.away && !player.stack && !player.allIn &&
+    (state.phase === 'hand-result' || state.phase === 'finished' || !player.inHand))
+}
+
+/** Fictitious chips only. A rebuy never changes the current pot, cards, turn, or a finished result. */
+export const rebuyPokerStack = (previous: PokerEngine, identity: string): PokerEngine => {
+  if (!canPokerRebuy(previous.state, identity)) throw new Error('A recompra fica disponível quando você está sem fichas e fora da mão.')
+  const total = previous.state.players.reduce((sum, p) => sum + p.stack + p.committed, 0)
+  if (total + previous.state.settings.startingStack > 600000) throw new Error('A mesa atingiu o limite de fichas. Iniciem uma nova partida.')
+  const engine = cloneEngine(previous), player = engine.state.players.find((p) => p.identity === identity)!
+  player.stack = engine.state.settings.startingStack
+  player.rebuys = (player.rebuys ?? 0) + 1
+  player.action = `Rebuy +${player.stack}`
+  event(engine.state, identity, `${player.name} recomprou ${player.stack} fichas. Entra na próxima mão.`)
+  return engine
+}
+
+/** Resuming a finished match is explicit and preserves all stacks, unlike starting a new match. */
+export const resumePokerMatch = (previous: PokerEngine, random?: () => number): PokerEngine => {
+  if (previous.state.phase !== 'finished') throw new Error('A mesa já está em andamento.')
+  if (previous.state.players.filter((p) => !p.away && p.stack > 0).length < 2)
+    throw new Error('É preciso ter duas pessoas com fichas. Quem zerou pode recomprar.')
+  const engine = cloneEngine(previous)
+  engine.state.phase = 'hand-result'
+  return dealPokerHand(engine, random)
 }

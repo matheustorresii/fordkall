@@ -1,5 +1,11 @@
 import type { PokerState } from './poker'
 
+export const POKER_PAYOUT_MOTION = { start: 250, winnerGap: 220, stackGap: 160, stacks: 3, travel: 1450, count: 450 } as const
+export const pokerPayoutArrival = (winnerIndex: number) =>
+  POKER_PAYOUT_MOTION.start + Math.max(0, winnerIndex) * POKER_PAYOUT_MOTION.winnerGap +
+  (POKER_PAYOUT_MOTION.stacks - 1) * POKER_PAYOUT_MOTION.stackGap + POKER_PAYOUT_MOTION.travel
+export const pokerPayoutDuration = (winners: number) => winners > 0 ? pokerPayoutArrival(winners - 1) + POKER_PAYOUT_MOTION.count + 150 : 0
+
 export type PokerMotion = {
   kind: 'bet' | 'collect' | 'pay' | 'fold' | 'deal' | 'dealer'
   from: string
@@ -36,8 +42,11 @@ export const pokerMotionEvents = (before: PokerState | null, after: PokerState):
     if (collecting && previous.bet > 0)
       events.push({ kind: 'collect', from: `bet:${player.identity}`, to: 'pot', amount: previous.bet, delay: 80 })
   }
-  if (settled) Object.entries(after.result!.payouts).forEach(([identity, amount], index) => {
-    if (amount > 0) events.push({ kind: 'pay', from: 'pot', to: identity, amount, delay: 460 + index * 160 })
+  if (settled) Object.entries(after.result!.payouts).filter(([, amount]) => amount > 0).forEach(([identity, amount], index) => {
+    if (amount > 0) for (let stack = 0; stack < POKER_PAYOUT_MOTION.stacks; stack++) events.push({
+      kind: 'pay', from: 'pot', to: identity, amount: stack === 0 ? amount : undefined,
+      delay: POKER_PAYOUT_MOTION.start + index * POKER_PAYOUT_MOTION.winnerGap + stack * POKER_PAYOUT_MOTION.stackGap,
+    })
   })
   return events
 }

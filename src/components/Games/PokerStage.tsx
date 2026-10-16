@@ -4,6 +4,7 @@ import type { useRoomPoker } from '../../hooks/useRoomPoker'
 import {
   defaultPokerSettings,
   describePokerHand,
+  canPokerRebuy,
   pokerLegalActions,
   pokerPotTotal,
   POKER_FLOW_TIMING,
@@ -18,11 +19,13 @@ import { PokerResultView } from './PokerResultView'
 import { PokerHandGuide } from './PokerHandGuide'
 import { AnimatedNumber } from './AnimatedNumber'
 import { PokerMotionLayer } from './PokerMotionLayer'
+import { usePokerPayout } from './usePokerPayout'
+import { pokerPayoutArrival } from '../../games/pokerMotion'
 import './PokerStage.css'
 
 type PokerGame = Pick<
   ReturnType<typeof useRoomPoker>,
-  'state' | 'hand' | 'error' | 'clearError' | 'participantCount' | 'start' | 'act' | 'nextHand' | 'reset'
+  'state' | 'hand' | 'error' | 'clearError' | 'participantCount' | 'start' | 'act' | 'nextHand' | 'rebuy' | 'resume' | 'reset'
 >
 interface Props {
   game: PokerGame
@@ -66,6 +69,7 @@ const positions: Record<number, Array<[number, number]>> = {
 }
 export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props) => {
   const { state } = game
+  const isPaying = usePokerPayout(state)
   const [modal, setModal] = useState<'rules' | 'guide' | 'settings' | 'history' | 'result' | 'end' | 'restart' | null>(null)
   const [lastResult, setLastResult] = useState<PokerState | null>(null)
   const [resultSnapshot, setResultSnapshot] = useState<PokerState | null>(null)
@@ -82,7 +86,9 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
   const result = state.result,
     ended = state.phase === 'hand-result' || state.phase === 'finished'
   const runningOut = state.phase === 'runout'
-  const champion = state.phase === 'finished' ? state.players.find((p) => p.stack > 0 && !p.away) : undefined
+  const champion = state.phase === 'finished' ? state.players.find((p) => p.identity === state.championIdentity) : undefined
+  const rebuyAvailable = canPokerRebuy(state, identity)
+  const canResume = state.phase === 'finished' && state.players.filter((p) => p.stack > 0 && !p.away).length >= 2
   const busy = submittedTurn === state.turnId && !game.error
   const raiseMin = Math.min(legal.minRaise, legal.maxTotal),
     raiseValue = Math.max(raiseMin, Math.min(raiseTotal, legal.maxTotal))
@@ -99,6 +105,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
   const seconds = state.turnExpiresAt ? Math.max(0, Math.ceil((state.turnExpiresAt - now) / 1000)) : null
   const nextSeconds = Math.max(0, Math.ceil((state.transitionAt - now) / 1000))
   const winners = state.players.filter((p) => (result?.payouts[p.identity] ?? 0) > 0)
+  const payoutOrder = Object.keys(result?.payouts ?? {}).filter((id) => result!.payouts[id]! > 0)
   const resultLabel =
     winners.length === 1
       ? `${winners[0]!.name} levou ${chips(result!.payouts[winners[0]!.identity]!)} fichas`
@@ -251,11 +258,11 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
               return (
                 <div
                   aria-label={`${player.name}, ${chips(player.stack)} fichas${active ? ', sua vez' : ''}${player.folded ? ', desistiu' : ''}`}
-                  className={`poker-seat ${active ? 'is-active' : ''} ${player.folded ? 'is-folded' : ''} ${won ? 'is-winner' : ''} ${player.identity === identity ? 'is-local' : ''}`}
+                  className={`poker-seat ${active ? 'is-active' : ''} ${player.folded ? 'is-folded' : ''} ${won ? 'is-winner' : ''} ${isPaying && won ? 'is-receiving' : ''} ${player.identity === identity ? 'is-local' : ''}`}
                   data-seat-index={index}
                   data-side={x > 60 ? 'right' : x < 40 ? 'left' : 'center'}
                   key={player.identity}
-                  style={{ '--seat-x': `${x}%`, '--seat-y': `${y}%` } as CSSProperties}
+                  style={{ '--seat-x': `${x}%`, '--seat-y': `${y}%`, '--receive-at': `${pokerPayoutArrival(payoutOrder.indexOf(player.identity))}ms` } as CSSProperties}
                 >
                   {(revealed || (player.identity !== identity && player.inHand && !player.folded)) && (
                     <span className="poker-seat__cards">
@@ -284,7 +291,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                     {player.name}
                   </strong>
                   <span className="poker-seat__stack">
-                    <AnimatedNumber value={player.stack} delay={won ? 800 : 0} />
+                    <AnimatedNumber value={player.stack} delay={won ? pokerPayoutArrival(payoutOrder.indexOf(player.identity)) : 0} />
                     <i aria-hidden="true" className="poker-chip" />
                   </span>
                   <span className={`poker-seat__action ${player.allIn ? 'is-all-in' : ''}`} key={`${state.gameId}-${player.action}-${won}`}>
@@ -316,7 +323,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
             <div className="poker-community">
               <button
                 aria-label={ended ? 'Ver resultado dos potes' : `Pote de ${chips(totalPot)} fichas. Ver histórico.`}
-                className="poker-pot"
+                className={`poker-pot ${isPaying ? 'is-paying' : ''} ${ended ? 'is-paid' : ''}`}
                 onClick={() => ended ? openResult() : setModal('history')}
                 type="button"
               >
@@ -326,7 +333,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                   <i />
                 </span>
                 <span>
-                  {ended ? 'POTE DISTRIBUÍDO' : 'POTE TOTAL'}
+                  {isPaying ? 'PAGANDO O POTE' : ended ? 'POTE DISTRIBUÍDO' : 'POTE TOTAL'}
                   <strong><AnimatedNumber value={totalPot} /></strong>
                 </span>
               </button>
@@ -354,7 +361,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                 className={`poker-table-message ${ended ? 'is-result' : ''}`}
                 key={ended ? `${state.gameId}-result` : state.events.at(-1)?.id}
               >
-                {ended ? resultLabel : state.events.at(-1)?.text}
+                {isPaying ? 'Distribuindo as fichas para os vencedores…' : ended ? resultLabel : state.events.at(-1)?.text}
               </p>
             </div>
           </div>
@@ -404,30 +411,34 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
                       : local?.inHand
                         ? 'Só você vê estas cartas'
                         : local
-                          ? 'Aguarde a próxima partida'
+                          ? local.stack > 0 ? 'Entra na próxima mão' : 'Recompre para voltar à mesa'
                           : 'Você não ocupa um assento')}
                 </small>
+                {rebuyAvailable && <button className="poker-rebuy" onClick={game.rebuy} type="button">Recomprar +{chips(state.settings.startingStack)} <span>fichas</span></button>}
               </span>
             </div>
             <div className="poker-actions">
               {ended ? (
                 <>
                   <p className="poker-action-caption">
-                    {state.phase === 'finished' ? 'PARTIDA ENCERRADA' : 'Mão encerrada'}
+                    {isPaying ? 'Pagamento dos potes' : state.phase === 'finished' ? 'PARTIDA ENCERRADA' : 'Mão encerrada'}
                     <button onClick={openResult} type="button">
                       Ver resultado <Icon name="chevron" />
                     </button>
                   </p>
-                  {state.phase === 'finished' ? <div className="poker-finale" key={state.matchId}>
+                  {isPaying ? <div className="poker-payment" role="status">
+                    <span aria-hidden="true" className="poker-payment__chip">◈</span>
+                    <div><strong>Fichas a caminho</strong><small>{winners.map((p) => `${p.name} +${chips(result!.payouts[p.identity]!)}`).join(' · ')}</small></div>
+                  </div> : state.phase === 'finished' ? <div className="poker-finale" key={state.matchId}>
                     <span aria-hidden="true">★</span>
                     <div><small>{champion ? 'CAMPEÃO DA MESA' : 'MESA ENCERRADA'}</small><strong title={champion?.name}>{champion?.name ?? 'Obrigado pela partida'}</strong></div>
                     {local && (
                       <button
                         className="game-action game-action--primary"
-                        onClick={() => setModal('restart')}
+                        onClick={() => canResume ? game.resume() : setModal('restart')}
                         type="button"
                       >
-                        Nova partida
+                        {canResume ? 'Continuar mesa' : 'Nova partida'}
                       </button>
                     )}
                   </div> : <div className="poker-next-hand" role="status">
@@ -648,6 +659,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
             </p>
             <button className="game-action" onClick={() => setModal('guide')} type="button">Ver tabela de combinações</button>
             <p>A próxima mão começa automaticamente após uma pausa para ver o resultado. Quando só resta uma pessoa com fichas, a partida termina: uma nova partida precisa ser iniciada pela mesa.</p>
+            <p>Ficou sem fichas? <strong>Recomprar</strong> repõe o valor inicial para a próxima mão, sem mexer no pote atual nem no saldo dos outros. Se a mesa terminou, <strong>Continuar mesa</strong> retoma os saldos após uma recompra; <strong>Nova partida</strong>, nas opções, zera os saldos e recomeça.</p>
             <p>
               De 2 a 6 pessoas. As fichas são fictícias e não ficam salvas entre partidas. Quem entrar depois assiste;
               sair da call dá fold, exceto se já estiver all-in. Se quem distribui as cartas sair, a mesa é encerrada.
@@ -698,6 +710,7 @@ export const PokerStage = ({ game, participants, onExit, onOpenGameHub }: Props)
           title="Opções da mesa"
         >
           <div className="poker-menu">
+            {state.phase === 'finished' && <button className="game-action" onClick={() => setModal('restart')} type="button">Nova partida · reiniciar fichas</button>}
             <button className="game-action" onClick={() => setModal('rules')} type="button">
               Como jogar
             </button>

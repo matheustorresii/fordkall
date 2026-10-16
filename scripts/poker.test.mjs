@@ -16,9 +16,12 @@ import {
   readPokerSettings,
   settlePokerPots,
   syncPokerMembers,
+  canPokerRebuy,
+  rebuyPokerStack,
+  resumePokerMatch,
 } from '../src/games/poker.ts'
 import { pokerHandGuide } from '../src/games/pokerGuide.ts'
-import { pokerMotionEvents } from '../src/games/pokerMotion.ts'
+import { POKER_PAYOUT_MOTION, pokerMotionEvents, pokerPayoutArrival, pokerPayoutDuration } from '../src/games/pokerMotion.ts'
 
 const cards = (text) => text.split(' ')
 const members = (count) => Array.from({ length: count }, (_, i) => ({ identity: `p${i}`, name: `Pessoa ${i}` }))
@@ -598,7 +601,126 @@ test('animações vêm de deltas públicos: aposta, fold, recolhimento, pagament
     e = next
   }
   const paid = runout(e), cues = pokerMotionEvents(e.state, paid.state)
-  assert.equal(cues.filter((event) => event.kind === 'pay').length, Object.keys(paid.state.result.payouts).length)
+  assert.equal(cues.filter((event) => event.kind === 'pay').length, Object.keys(paid.state.result.payouts).length * POKER_PAYOUT_MOTION.stacks)
   assert.ok(cues.every((event) => !('card' in event) && !('hand' in event)))
   assert.deepEqual(pokerMotionEvents(paid.state, paid.state), [], 'não repete animação em renderizações sem jogada')
+})
+
+test('pagamento visível: múltiplas pilhas por vencedor, side pots corretos e contagem após a chegada', () => {
+  let e = createPokerMatch(members(3), undefined, seeded(43))
+  e.state.players[2].stack = 100 - e.state.players[2].committed
+  while (e.state.phase === 'playing') {
+    const legal = pokerLegalActions(e.state, e.state.current)
+    e = applyPokerAction(e, e.state.current, { type: legal.canAllIn ? 'all-in' : 'call' })
+  }
+  while (e.state.street !== 'river') e = advancePokerFlow(e, e.state.transitionAt)
+  const paid = advancePokerFlow(e, e.state.transitionAt)
+  assert.deepEqual(paid.state.result.payouts, { p2: 300, p0: 1800 })
+  const payments = pokerMotionEvents(e.state, paid.state).filter((event) => event.kind === 'pay')
+  assert.equal(payments.length, 6)
+  assert.equal(payments.reduce((sum, event) => sum + (event.amount ?? 0), 0), 2100, 'o valor não duplica entre as pilhas')
+  for (const [index, winner] of Object.keys(paid.state.result.payouts).entries()) {
+    const stacks = payments.filter((event) => event.to === winner)
+    assert.equal(stacks.length, 3)
+    assert.ok(stacks.every((event) => event.from === 'pot'))
+    assert.ok(stacks[0].delay < stacks[1].delay && stacks[1].delay < stacks[2].delay)
+    assert.equal(stacks.at(-1).delay + POKER_PAYOUT_MOTION.travel, pokerPayoutArrival(index))
+  }
+  assert.ok(pokerPayoutDuration(2) >= Math.max(...payments.map((event) => event.delay + POKER_PAYOUT_MOTION.travel)) + POKER_PAYOUT_MOTION.count)
+  assert.ok(pokerPayoutDuration(6) < POKER_FLOW_TIMING.nextHand - 2000, 'até seis pagamentos terminam antes da próxima mão')
+})
+
+const bustedTable = () => {
+  let e = createPokerMatch(members(3), undefined, seeded(43))
+  while (e.state.phase === 'playing') {
+    const legal = pokerLegalActions(e.state, e.state.current)
+    e = applyPokerAction(e, e.state.current, { type: legal.canAllIn ? 'all-in' : 'call' })
+  }
+  return runout(e)
+}
+test('rebuy não funciona como top-up, não salva um all-in e não aceita espectador', () => {
+  let e = createPokerMatch(members(3), undefined, seeded(43))
+  const id = e.state.current
+  assert.equal(canPokerRebuy(e.state, id), false)
+  assert.throws(() => rebuyPokerStack(e, id))
+  assert.throws(() => rebuyPokerStack(e, 'outsider'))
+  e = applyPokerAction(e, id, { type: 'all-in' })
+  const before = JSON.stringify(e)
+  assert.equal(e.state.players.find((p) => p.identity === id).stack, 0)
+  assert.equal(canPokerRebuy(e.state, id), false)
+  assert.throws(() => rebuyPokerStack(e, id))
+  assert.equal(JSON.stringify(e), before)
+})
+test('rebuy após eliminação credita uma vez, preserva vencedor, resultado e saldo dos outros', () => {
+  const e = bustedTable(), before = JSON.stringify(e), winner = e.state.championIdentity
+  assert.equal(winner, 'p2')
+  const bought = rebuyPokerStack(e, 'p0')
+  assert.equal(bought.state.players.find((p) => p.identity === 'p0').stack, 1000)
+  assert.equal(bought.state.players.find((p) => p.identity === 'p0').rebuys, 1)
+  assert.equal(bought.state.players.find((p) => p.identity === 'p0').action, 'Rebuy +1000')
+  assert.equal(bought.state.players.find((p) => p.identity === winner).stack, 3000)
+  assert.equal(chips(bought), 4000)
+  assert.equal(bought.state.phase, 'finished')
+  assert.equal(bought.state.transitionAt, 0)
+  assert.equal(bought.state.championIdentity, winner, 'comprar não rouba o título do vencedor')
+  assert.deepEqual(bought.state.result, e.state.result)
+  assert.deepEqual(bought.deck, e.deck)
+  assert.deepEqual(bought.hands, e.hands)
+  assert.equal(JSON.stringify(e), before)
+  assert.throws(() => rebuyPokerStack(bought, 'p0'))
+  assert.throws(() => dealPokerHand(bought))
+  assert.throws(() => advancePokerFlow(bought, Date.now() + 100000))
+})
+test('retomar mesa após rebuy é explícito, preserva saldos e distribui só para quem tem fichas', () => {
+  const e = bustedTable()
+  assert.throws(() => resumePokerMatch(e))
+  const bought = rebuyPokerStack(e, 'p0'), resumed = resumePokerMatch(bought, seeded(49))
+  assert.equal(resumed.state.matchId, e.state.matchId)
+  assert.notEqual(resumed.state.gameId, e.state.gameId)
+  assert.equal(resumed.state.handNumber, 2)
+  assert.equal(resumed.state.championIdentity, '')
+  assert.equal(resumed.state.phase, 'playing')
+  assert.equal(resumed.state.result, null)
+  assert.equal(resumed.state.players.find((p) => p.identity === 'p0').rebuys, 1)
+  assert.equal(resumed.state.players.find((p) => p.identity === 'p1').inHand, false)
+  assert.equal(resumed.hands.p1, undefined)
+  for (const player of resumed.state.players)
+    assert.equal(player.stack + player.committed, bought.state.players.find((p) => p.identity === player.identity).stack)
+  assert.throws(() => resumePokerMatch(resumed))
+})
+test('quem já está fora pode recomprar durante outra mão, sem alterar cartas, pote ou vez', () => {
+  const playing = resumePokerMatch(rebuyPokerStack(bustedTable(), 'p0'), seeded(1))
+  assert.equal(canPokerRebuy(playing.state, 'p1'), true)
+  const before = JSON.stringify(playing), bought = rebuyPokerStack(playing, 'p1')
+  assert.equal(bought.state.players.find((p) => p.identity === 'p1').inHand, false)
+  assert.equal(bought.state.players.find((p) => p.identity === 'p1').stack, 1000)
+  assert.equal(bought.state.turnId, playing.state.turnId)
+  assert.equal(bought.state.turnExpiresAt, playing.state.turnExpiresAt)
+  assert.deepEqual(bought.state.pending, playing.state.pending)
+  assert.equal(pokerPotTotal(bought.state), pokerPotTotal(playing.state))
+  assert.deepEqual(bought.hands, playing.hands)
+  assert.deepEqual(bought.deck, playing.deck)
+  const ended = passive(bought), next = advancePokerFlow(ended, ended.state.transitionAt, seeded(2))
+  assert.equal(next.hands.p1.length, 2)
+  assert.equal(next.state.players.find((p) => p.identity === 'p1').inHand, true)
+  assert.equal(chips(next), 5000)
+  assert.equal(JSON.stringify(playing), before)
+})
+test('saída e limite de fichas impedem rebuy inválido sem duplicar crédito', () => {
+  const e = bustedTable()
+  const away = syncPokerMembers(e, new Set(['p1', 'p2']))
+  assert.equal(canPokerRebuy(away.state, 'p0'), false)
+  assert.throws(() => rebuyPokerStack(away, 'p0'))
+  e.state.players.find((p) => p.identity === 'p2').stack = 600000
+  const before = JSON.stringify(e)
+  assert.throws(() => rebuyPokerStack(e, 'p0'), /limite de fichas/)
+  assert.equal(JSON.stringify(e), before)
+})
+test('grupos da tabela explicativa cobrem cinco cartas e destacam só a combinação', () => {
+  for (const example of pokerHandGuide) {
+    assert.equal(example.groups.reduce((sum, group) => sum + group.count, 0), 5)
+    assert.ok(example.groups.every((group) => group.count > 0 && group.label))
+    const category = evaluatePokerFive(example.cards).category
+    assert.equal(example.groups.filter((group) => !group.kicker).reduce((sum, group) => sum + group.count, 0), [1, 2, 4, 3, 5, 5, 5, 4, 5][category])
+  }
 })

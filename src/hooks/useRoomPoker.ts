@@ -10,6 +10,8 @@ import {
   isPokerCard,
   readPokerSettings,
   syncPokerMembers,
+  rebuyPokerStack,
+  resumePokerMatch,
   type PokerAction,
   type PokerCard,
   type PokerEngine,
@@ -22,6 +24,8 @@ type Command =
   | { type: 'start'; matchId: string; settings: PokerSettings }
   | { type: 'action'; gameId: string; turnId: string; action: PokerAction }
   | { type: 'next'; gameId: string }
+  | { type: 'rebuy'; gameId: string }
+  | { type: 'resume'; gameId: string }
   | { type: 'timeout'; gameId: string; turnId: string }
   | { type: 'advance'; gameId: string; transitionAt: number }
   | { type: 'sync'; gameId: string }
@@ -79,6 +83,7 @@ export const parsePokerState = (value: unknown): PokerState | null => {
     text(p.name, 80) &&
     p.name &&
     number(p.stack) &&
+    number(p.rebuys ?? 0, 6000) &&
     number(p.bet) &&
     number(p.committed) &&
     p.committed >= p.bet &&
@@ -89,6 +94,7 @@ export const parsePokerState = (value: unknown): PokerState | null => {
           identity: p.identity,
           name: p.name,
           stack: p.stack,
+          rebuys: p.rebuys ?? 0,
           bet: p.bet,
           committed: p.committed,
           inHand: p.inHand,
@@ -198,6 +204,8 @@ export const parsePokerState = (value: unknown): PokerState | null => {
   )
     return null
   if (raw.phase !== 'playing' && (raw.turnId || raw.turnExpiresAt)) return null
+  const championIdentity = raw.championIdentity ?? (raw.phase === 'finished' ? validPlayers.find((p) => p.stack > 0 && !p.away)?.identity ?? '' : '')
+  if (!text(championIdentity) || (championIdentity && (!ids.has(championIdentity) || raw.phase !== 'finished'))) return null
   if (!['runout', 'hand-result'].includes(raw.phase) && raw.transitionAt) return null
   if (raw.phase === 'runout') {
     const contenders = validPlayers.filter((p) => p.inHand && !p.folded)
@@ -225,6 +233,7 @@ export const parsePokerState = (value: unknown): PokerState | null => {
     turnId: raw.turnId,
     turnExpiresAt: raw.turnExpiresAt,
     transitionAt: raw.transitionAt ?? 0,
+    championIdentity,
     revealed,
     returned: { ...raw.returned },
     result,
@@ -242,7 +251,7 @@ const parseCommand = (value: unknown): Command | null => {
   if (!text(raw.gameId, 80) || !raw.gameId) return null
   if (raw.type === 'advance' && number(raw.transitionAt, Number.MAX_SAFE_INTEGER) && raw.transitionAt > 0)
     return { type: 'advance', gameId: raw.gameId, transitionAt: raw.transitionAt }
-  if (raw.type === 'next' || raw.type === 'sync') return { type: raw.type, gameId: raw.gameId }
+  if (raw.type === 'next' || raw.type === 'sync' || raw.type === 'rebuy' || raw.type === 'resume') return { type: raw.type, gameId: raw.gameId }
   if (!text(raw.turnId, 80) || !raw.turnId) return null
   if (raw.type === 'timeout') return { type: 'timeout', gameId: raw.gameId, turnId: raw.turnId }
   const action = raw.action as PokerAction | undefined
@@ -328,6 +337,8 @@ export const useRoomPoker = (room: Room) => {
         }
         if (!current.players.some((p) => p.identity === sender) && command.type !== 'timeout')
           return 'Você está assistindo a esta partida.'
+        if (command.type === 'rebuy') return save(rebuyPokerStack(syncPokerMembers(engine, connected), sender))
+        if (command.type === 'resume') return save(resumePokerMatch(syncPokerMembers(engine, connected)))
         if (command.type === 'next') {
           if (current.phase !== 'hand-result') return 'A próxima mão é automática. Uma nova partida precisa ser iniciada.'
           const synced = syncPokerMembers(engine, connected)
@@ -390,6 +401,8 @@ export const useRoomPoker = (room: Room) => {
       dispatch({ type: 'start', matchId: state.matchId, settings }),
     act: (action: PokerAction) => dispatch({ type: 'action', gameId: state.gameId, turnId: state.turnId, action }),
     nextHand: () => dispatch({ type: 'next', gameId: state.gameId }),
+    rebuy: () => dispatch({ type: 'rebuy', gameId: state.gameId }),
+    resume: () => dispatch({ type: 'resume', gameId: state.gameId }),
     reset: () => dispatch({ type: 'reset' }),
   }
 }
