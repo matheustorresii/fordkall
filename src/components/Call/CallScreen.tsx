@@ -479,7 +479,7 @@ export const CallScreen = ({
       void (screenShare.isSharing ? screenShare.stop() : screenShare.start())
     },
     leave: () => void leaveCall(),
-  }, !settingsOpen && !(active && gamesOpen && gameMode === 'excalitower'))
+  }, !settingsOpen)
 
   const openParticipantMenu = (participantId: string, point: ContextMenuPoint) => {
     setLayoutMenuPoint(null)
