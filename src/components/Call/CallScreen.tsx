@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { RoomEvent, type Room } from 'livekit-client'
 import { useAudioDevices } from '../../hooks/useAudioDevices'
@@ -11,6 +11,7 @@ import { useRoomSnapshot } from '../../hooks/useRoomSnapshot'
 import { useMicrophoneProcessing } from '../../hooks/useMicrophoneProcessing'
 import { microphoneCaptureOptions } from '../../services/microphoneCapture'
 import { useRoomChat } from '../../hooks/useRoomChat'
+import { useRoomExcalitower } from '../../hooks/useRoomExcalitower'
 import { useRoomIto } from '../../hooks/useRoomIto'
 import { useRoomExplodingKiwi } from '../../hooks/useRoomExplodingKiwi'
 import { useRoomTruco } from '../../hooks/useRoomTruco'
@@ -53,6 +54,7 @@ import { PokerStage } from '../Games/PokerStage'
 import { CoupStage } from '../Games/CoupStage'
 import { CodenamesStage } from '../Games/CodenamesStage'
 import { RoomGamesHub } from '../Games/RoomGamesHub'
+import { ExcalitowerBoundary } from '../Excalitower/ExcalitowerBoundary'
 import { MusicPanel } from '../Music/MusicPanel'
 import { ParticipantAudioLayer } from '../Participants/ParticipantAudioLayer'
 import { ParticipantContextMenu } from '../Participants/ParticipantContextMenu'
@@ -63,6 +65,8 @@ import { ScreenShareStage } from '../ScreenShare/ScreenShareStage'
 import { SettingsModal } from '../Settings/SettingsModal'
 import { BrandMark } from '../ui/BrandMark'
 import { Icon, type IconName } from '../ui/Icon'
+
+const ExcalitowerStage = lazy(() => import('../Excalitower/ExcalitowerStage'))
 
 interface CallScreenProps {
   accountRole: AppRole
@@ -173,6 +177,8 @@ export const CallScreen = ({
     `${devices.selectedInput}:${microphoneProcessing.processorRevision}`,
   )
   const chat = useRoomChat(room)
+  const whiteboard = useRoomExcalitower(room)
+  const whiteboardNames = useMemo(() => Object.fromEntries(snapshot.participants.map((person) => [person.identity, person.name || person.identity])), [snapshot.participants])
   const gameParticipation = useRoomGameParticipation(room)
   const itoGame = useRoomIto(room, gameParticipation)
   const explodingKiwi = useRoomExplodingKiwi(room, gameParticipation)
@@ -200,7 +206,7 @@ export const CallScreen = ({
   const [gamesOpen, setGamesOpen] = useState(false)
   const [gameParticipationOpen, setGameParticipationOpen] = useState(false)
   const pendingGameStart = useRef<{ kind: GameKind; start: () => boolean } | null>(null)
-  const [gameMode, setGameMode] = useState<'hub' | 'ito' | 'kiwi' | 'truco' | 'mind' | 'poker' | 'coup' | 'codenames'>('hub')
+  const [gameMode, setGameMode] = useState<'hub' | 'excalitower' | 'ito' | 'kiwi' | 'truco' | 'mind' | 'poker' | 'coup' | 'codenames'>('hub')
   const [unreadMessages, setUnreadMessages] = useState(0)
   const lastSeenMessageId = useRef('')
   const [participantMenu, setParticipantMenu] = useState<{
@@ -473,7 +479,7 @@ export const CallScreen = ({
       void (screenShare.isSharing ? screenShare.stop() : screenShare.start())
     },
     leave: () => void leaveCall(),
-  }, !settingsOpen)
+  }, !settingsOpen && !(active && gamesOpen && gameMode === 'excalitower'))
 
   const openParticipantMenu = (participantId: string, point: ContextMenuPoint) => {
     setLayoutMenuPoint(null)
@@ -522,8 +528,8 @@ export const CallScreen = ({
     resetOtherGames(pending.kind)
     pending.start()
   }, [gameParticipation.state.revision, gameParticipation.error])
-  const selectedGameState = gameMode === 'hub' ? null : { ito: itoGame.state, kiwi: explodingKiwi.state, truco: trucoGame.state, mind: mindGame.state, poker: pokerGame.state, coup: coupGame.state, codenames: codenamesGame.state }[gameMode]
-  const gameParticipationUi = gameMode === 'hub' ? null : {
+  const selectedGameState = gameMode === 'hub' || gameMode === 'excalitower' ? null : { ito: itoGame.state, kiwi: explodingKiwi.state, truco: trucoGame.state, mind: mindGame.state, poker: pokerGame.state, coup: coupGame.state, codenames: codenamesGame.state }[gameMode]
+  const gameParticipationUi = gameMode === 'hub' || gameMode === 'excalitower' ? null : {
     kind: gameMode,
     participating: gameParticipation.allowed(gameMode, room.localParticipant.identity),
     count: gameParticipation.members(gameMode).length,
@@ -688,6 +694,9 @@ export const CallScreen = ({
               coupPlayers={coupGame.state.players.filter((p) => p.influence).length}
               codenamesActive={Boolean(codenamesGame.state.gameId)}
               codenamesPlayers={codenamesGame.state.players.filter((p) => p.team).length}
+              excalitowerActive={whiteboard.view.count > 0}
+              excalitowerPeople={whiteboard.view.people}
+              onSelectExcalitower={() => setGameMode('excalitower')}
               onExit={() => setGamesOpen(false)}
               onSelectIto={() => setGameMode('ito')}
               onSelectKiwi={() => setGameMode('kiwi')}
@@ -697,6 +706,12 @@ export const CallScreen = ({
               onSelectCoup={() => setGameMode('coup')}
               onSelectCodenames={() => setGameMode('codenames')}
             />
+          ) : gameMode === 'excalitower' ? (
+            <ExcalitowerBoundary onExit={() => setGamesOpen(false)}>
+              <Suspense fallback={<div className="excalitower-loading" role="status"><span className="spinner" />Abrindo Excalitower…</div>}>
+                <ExcalitowerStage session={whiteboard.session} names={whiteboardNames} active={active} onExit={() => setGamesOpen(false)} onOpenHub={() => setGameMode('hub')} />
+              </Suspense>
+            </ExcalitowerBoundary>
           ) : gameMode === 'codenames' ? (
             <CodenamesStage
               game={{ ...codenamesGame, start: (...args) => startGame('codenames', () => codenamesGame.start(...args)) }}

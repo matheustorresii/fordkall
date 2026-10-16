@@ -17,6 +17,9 @@ interface RoomGamesHubProps {
   coupPlayers: number
   codenamesActive: boolean
   codenamesPlayers: number
+  excalitowerActive?: boolean
+  excalitowerPeople?: number
+  onSelectExcalitower: () => void
   onSelectIto: () => void
   onSelectKiwi: () => void
   onSelectTruco: () => void
@@ -26,7 +29,7 @@ interface RoomGamesHubProps {
   onSelectCodenames: () => void
   onExit: () => void
 }
-type Category = 'all' | 'cards' | 'cooperative' | 'words'
+type Category = 'all' | 'cards' | 'cooperative' | 'words' | 'creative'
 const PAGE_SIZE = 6
 const normalize = (value: string) =>
   value
@@ -35,7 +38,9 @@ const normalize = (value: string) =>
     .toLowerCase()
 const CatalogArt = ({ kind }: { kind: string }) => (
   <span aria-hidden="true" className={`game-catalog-art game-catalog-art--${kind}`}>
-    {kind === 'codenames' ? (
+    {kind === 'excalitower' ? (
+      <svg viewBox="0 0 230 110" fill="none"><rect x="24" y="12" width="100" height="74" rx="10" fill="#eff3f5" stroke="#b3d0d0" strokeWidth="2" transform="rotate(-7 24 12)" /><path d="m40 62 23-28 17 16 18-17" stroke="#427779" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /><rect x="137" y="36" width="64" height="58" rx="5" fill="#eccf91" transform="rotate(8 137 36)" /><path d="m152 55 31 4m-32 7 21 3" stroke="#937240" strokeWidth="3" strokeLinecap="round" /><path d="m115 86 43-63 8 6-43 63-12 5 4-11Z" fill="#86b6bb" stroke="#315b63" strokeWidth="2" /><path d="m111 97 4-11 8 6-12 5Z" fill="#315b63" /><circle cx="207" cy="20" r="6" fill="#d99a90" /></svg>
+    ) : kind === 'codenames' ? (
       ['LUA', 'PONTE', 'ÓRBITA', 'CHAVE', 'MAR', 'ROSA', 'COROA', 'BANCO', 'FOLHA'].map((word, i) =>
         <i className="game-catalog-art__word" data-color={i % 4 === 0 ? 'red' : i % 3 === 0 ? 'blue' : 'neutral'} key={word}>{word}</i>,
       )
@@ -84,6 +89,17 @@ export const RoomGamesHub = (props: RoomGamesHubProps) => {
   const [page, setPage] = useState(0)
   // A catalog entry is all a new game needs here; pagination bounds the layout as it grows.
   const catalog = [
+    {
+      id: 'excalitower',
+      title: 'Excalitower',
+      subtitle: 'Ideias à mão livre',
+      description: 'Uma lousa para desenhar, escrever e criar juntos.',
+      category: 'creative',
+      players: '1+',
+      active: Boolean(props.excalitowerActive),
+      count: props.excalitowerPeople || 0,
+      open: props.onSelectExcalitower,
+    },
     {
       id: 'codenames',
       title: 'Codenames',
@@ -212,6 +228,7 @@ export const RoomGamesHub = (props: RoomGamesHubProps) => {
               { id: 'cards', title: 'Cartas' },
               { id: 'cooperative', title: 'Cooperativos' },
               { id: 'words', title: 'Palavras' },
+              { id: 'creative', title: 'Criar' },
             ] as const
           ).map((filter) => (
             <button
@@ -244,7 +261,7 @@ export const RoomGamesHub = (props: RoomGamesHubProps) => {
                 {game.active && (
                   <span className="game-catalog-card__live">
                     <i />
-                    Em jogo
+                    {game.id === 'excalitower' ? 'Nesta sessão' : 'Em jogo'}
                   </span>
                 )}
               </span>
@@ -256,10 +273,10 @@ export const RoomGamesHub = (props: RoomGamesHubProps) => {
               <span className="game-catalog-card__footer">
                 <span>
                   <Icon name="users" />
-                  {game.active ? `${game.count} na mesa` : `${game.players} pessoas`}
+                  {game.id === 'excalitower' ? 'Toda a sala' : game.active ? `${game.count} na mesa` : `${game.players} pessoas`}
                 </span>
                 <b>
-                  {game.active ? 'Retomar' : 'Jogar'}
+                  {game.id === 'excalitower' ? 'Abrir lousa' : game.active ? 'Retomar' : 'Jogar'}
                   <Icon name="chevron" />
                 </b>
               </span>

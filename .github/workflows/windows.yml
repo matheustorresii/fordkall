@@ -49,6 +49,9 @@ jobs:
       - name: Test room music synchronization and playback
         run: npm run test:music
 
+      - name: Test Excalitower replication and session lifetime
+        run: npm run test:excalitower
+
       - name: Build installer and portable app
         shell: pwsh
         run: |

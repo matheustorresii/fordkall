@@ -12,6 +12,7 @@ export type IconName =
   | 'controls'
   | 'deafen'
   | 'expand'
+  | 'edit'
   | 'eye'
   | 'eyeOff'
   | 'gamepad'
@@ -19,6 +20,7 @@ export type IconName =
   | 'hash'
   | 'home'
   | 'image'
+  | 'info'
   | 'keyboard'
   | 'layout'
   | 'leave'
@@ -48,6 +50,8 @@ interface IconProps extends SVGProps<SVGSVGElement> {
 }
 
 const paths: Record<IconName, React.ReactNode> = {
+  edit: <><path d="m15 4 5 5M4 20l4-1L20 7a2.1 2.1 0 0 0-3-3L5 16l-1 4Z" /><path d="M12 20h8" /></>,
+  info: <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7h.01" /></>,
   check: <path d="m5 12 4 4L19 6" />,
   audio: (
     <>

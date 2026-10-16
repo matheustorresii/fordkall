@@ -22,6 +22,7 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - seleção entre múltiplas transmissões simultâneas;
 - chat realtime de texto e imagens de até 4 MB durante a call;
 - central de jogos sincronizados na sala: Codenames, Coup, Poker, ITO, Exploding Kiwi, Truco Mineiro em duplas e The Mind cooperativo, com busca, categorias e catálogo paginado;
+- Excalitower na central: canvas infinito colaborativo com desenho, formas, setas, texto, imagens e exportação; sem pastas ou salvamento automático, somente durante a sessão da call;
 - optout independente nos sete jogos: ficar só assistindo sem sair da call, controle de participantes pelo organizador e confirmação para sair de partidas em andamento; só a própria pessoa pode voltar a participar;
 - Coup · Corte Kiwi de 2–6 pessoas, cinco personagens com arte original, blefes, contestações, bloqueios, troca secreta, eliminação e relógio configurável para decisões;
 - Poker Texas Hold’em No Limit de 2–6 pessoas, fichas fictícias, blinds e tempo configuráveis, all-in, potes paralelos e showdown;
@@ -50,6 +51,18 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - Supabase Auth + Postgres + Edge Functions
 - GitHub Pages + GitHub Actions
 - Electron + electron-builder (Windows)
+
+## Excalitower
+
+Abra **Central de jogos → Excalitower**. Não há rodada para começar: cada pessoa pode editar ou escolher **Só assistir**, com zoom e ferramentas locais. A lousa continua ativa ao minimizar, navegar para a home ou abrir outro jogo; não força os demais a mudar de tela. Quando a última pessoa sai da call, o conteúdo é descartado. Exporte uma imagem pelo menu se quiser guardar uma cópia.
+
+O editor é o `@excalidraw/excalidraw` (MIT), carregado sob demanda, com fontes locais também no desktop. A referência de experiência é o whiteboard do projeto `github.io`, sem trazer sua organização em pastas, IndexedDB ou sincronização com GitHub. As bibliotecas de edição são dependências de build: o instalador recebe o bundle compilado, sem duplicar o pacote inteiro em `node_modules`.
+
+Cada cliente mantém uma réplica em memória. Deltas usam streams confiáveis do LiveKit, com chunking/backpressure; cursores usam pacotes pequenos e descartáveis. Versões por elemento, tombstones e épocas de limpeza evitam perda de edições simultâneas e reaparecimento de desenhos apagados. Quem chega depois ou reconecta recebe o estado dos participantes presentes, sem um novo servidor ou tabela no Supabase.
+
+Limites por lousa: 3.000 elementos, 4 MB de dados vetoriais, imagens PNG/JPG/WebP/GIF de até 2 MB cada e 8 MB no total. Nenhuma imagem é enviada a um serviço externo de arquivos; apenas aos participantes da sala.
+
+`npm run test:excalitower` cobre convergência, concorrência, exclusão/desfazer, imagens, payloads grandes, reconexão e ciclo de vida. Em desenvolvimento, `?excalitower-preview` abre o editor com dois participantes simulados e seis testes de integração do hook de transporte. `?game-preview=hub&clean` permite conferir o catálogo. As rotas de teste não são incluídas no build de produção.
 
 ## Requisitos
 
