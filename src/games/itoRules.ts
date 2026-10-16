@@ -37,5 +37,41 @@ export const itoCardCounts = (players: number, extras: number, targetCards: numb
 export const itoNextProgress = (extras: number, succeeded: boolean, rule: ItoLossRule, maximum: number) =>
   succeeded ? Math.min(maximum, extras + 1) : rule === 'reset' ? 0 : rule === 'remove-one' ? Math.max(0, extras - 1) : extras
 
-export const isItoOrderCorrect = (order: string[], numbers: Record<string, number>) =>
-  order.length > 0 && order.every((id, index) => Number.isInteger(numbers[id]) && (index === 0 || numbers[order[index - 1]!]! < numbers[id]!))
+export type ItoOrder = Array<string | null>
+export const ITO_TOPIC_MAX_LENGTH = 120
+export const itoSuggestedTopics = [
+  'De quase nada urgente a precisa resolver agora', 'De péssima a ótima ideia para um domingo',
+  'De pouco a muito constrangedor', 'De superpoder inútil a indispensável',
+  'De nada assustador a dá medo de verdade', 'De lanche sem graça a lanche perfeito',
+  'De tarefa fácil a missão impossível', 'De pouco a muito difícil de explicar',
+  'De rolê tranquilo a história para contar', 'De pequeno incômodo a caos completo',
+] as const
+
+export const itoWrittenTopic = (topic: string) => topic.replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, ITO_TOPIC_MAX_LENGTH)
+
+/** A suggestion is a fallback, never a replacement for a topic written by the table. */
+export const itoRoundTopic = (topic: string, previous = '', random = Math.random) => {
+  const custom = itoWrittenTopic(topic)
+  if (custom) return custom
+  const available = itoSuggestedTopics.filter((suggestion) => suggestion !== previous)
+  return available[Math.floor(random() * available.length)]!
+}
+
+/** One visible slot per card. Moving a placed card swaps; an unplaced card can displace another. */
+export const itoPlaceCard = (order: ItoOrder, cardId: string, slot: number): ItoOrder | null => {
+  if (!cardId || !Number.isInteger(slot) || slot < 0 || slot >= order.length) return null
+  const source = order.indexOf(cardId)
+  if (source === slot) return order
+  const next = [...order]
+  if (source >= 0) next[source] = next[slot]!
+  next[slot] = cardId
+  return next
+}
+
+export const itoTableReady = (cards: Array<{ id: string; clue: string }>, order: ItoOrder) =>
+  cards.length > 0 && cards.length === order.length && cards.every((card) => card.clue.trim() && order.includes(card.id)) &&
+  new Set(order).size === cards.length && order.every((id) => id !== null)
+
+export const isItoOrderCorrect = (order: ItoOrder, numbers: Record<string, number>) =>
+  order.length > 0 && order.every((id, index) => typeof id === 'string' && Number.isInteger(numbers[id]) &&
+    (index === 0 || numbers[order[index - 1]!]! < numbers[id]!))

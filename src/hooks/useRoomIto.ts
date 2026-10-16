@@ -1,10 +1,10 @@
 import { useCallback } from 'react'
 import type { Room } from 'livekit-client'
 import { useRoomGameProtocol, type RoomGameProtocolContext } from './useRoomGameProtocol'
-import { defaultItoSettings, isItoOrderCorrect, itoCardCounts, itoNextProgress, itoRequiredVotes, readItoSettings, type ItoSettings } from '../games/itoRules'
+import { defaultItoSettings, isItoOrderCorrect, itoCardCounts, itoNextProgress, itoPlaceCard, itoRequiredVotes, itoRoundTopic, itoTableReady, itoWrittenTopic, readItoSettings, type ItoOrder, type ItoSettings } from '../games/itoRules'
 
-// Multi-card rounds are not compatible with the old single-number protocol.
-export const ITO_TOPIC = 'ford-kall.ito.v2'
+// Empty slots and player-written topics need the same rules on every client.
+export const ITO_TOPIC = 'ford-kall.ito.v3'
 const MAX_PLAYERS = 8
 const MAX_CLUE_LENGTH = 80
 
@@ -19,7 +19,7 @@ export interface ItoRoomState {
   topic: string
   players: ItoPlayer[]
   cards: ItoCard[]
-  order: string[]
+  order: ItoOrder
   orderVersion: number
   revealVotes: string[]
   roundNumber: number
@@ -31,20 +31,14 @@ export interface ItoRoomState {
 }
 
 type ItoCommand =
-  | { type: 'start'; settings: ItoSettings }
+  | { type: 'start'; settings: ItoSettings; topic: string }
   | { type: 'clue'; gameId: string; cardId: string; clue: string }
   | { type: 'move'; gameId: string; cardId: string; offset: -1 | 1; orderVersion: number }
+  | { type: 'place'; gameId: string; cardId: string; slot: number; sourceSlot: number; targetCardId: string | null; orderVersion: number }
   | { type: 'vote'; gameId: string; approved: boolean; orderVersion: number }
-  | { type: 'next-round'; gameId: string }
+  | { type: 'next-round'; gameId: string; topic: string }
   | { type: 'reset' }
 
-const topics = [
-  'De quase nada urgente a precisa resolver agora', 'De péssima a ótima ideia para um domingo',
-  'De pouco a muito constrangedor', 'De superpoder inútil a indispensável',
-  'De nada assustador a dá medo de verdade', 'De lanche sem graça a lanche perfeito',
-  'De tarefa fácil a missão impossível', 'De pouco a muito difícil de explicar',
-  'De rolê tranquilo a história para contar', 'De pequeno incômodo a caos completo',
-]
 const cleanText = (value: unknown, max: number) => typeof value === 'string' ? value.replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, max) : ''
 const integer = (value: unknown, min: number, max: number): value is number => Number.isInteger(value) && Number(value) >= min && Number(value) <= max
 const emptyPrivate: ItoPrivateCard[] = []
@@ -57,11 +51,13 @@ const parseState = (value: unknown): ItoRoomState | null => {
   if (!value || typeof value !== 'object') return null
   const raw = value as Partial<ItoRoomState>
   const settings = readItoSettings(raw.settings)
-  if (!settings || typeof raw.gameId !== 'string' || typeof raw.controllerIdentity !== 'string' ||
+  if (!settings || typeof raw.gameId !== 'string' || typeof raw.controllerIdentity !== 'string' || typeof raw.topic !== 'string' ||
     !integer(raw.revision, 0, Number.MAX_SAFE_INTEGER) || !['lobby', 'clue', 'order', 'revealed'].includes(raw.phase ?? '') ||
     !integer(raw.roundNumber, 0, Number.MAX_SAFE_INTEGER) || !integer(raw.extraCards, 0, MAX_PLAYERS * 4) ||
     !integer(raw.orderVersion, 0, Number.MAX_SAFE_INTEGER) || !Array.isArray(raw.players) || raw.players.length > MAX_PLAYERS ||
     !Array.isArray(raw.cards) || raw.cards.length > 40 || !Array.isArray(raw.order) || !Array.isArray(raw.revealVotes)) return null
+  const topic = itoWrittenTopic(raw.topic)
+  if (raw.phase !== 'lobby' && !topic) return null
   const players = raw.players.flatMap((player) => {
     if (!player || typeof player !== 'object') return []
     const identity = cleanText(player.identity, 128), name = cleanText(player.name, 80)
@@ -75,16 +71,19 @@ const parseState = (value: unknown): ItoRoomState | null => {
     return id && playerIds.has(ownerIdentity) && typeof card.clue === 'string' ? [{ id, ownerIdentity, clue: cleanText(card.clue, MAX_CLUE_LENGTH) }] : []
   })
   const cardIds = new Set(cards.map((card) => card.id))
-  const order = raw.order.map((id) => cleanText(id, 128))
+  const order = raw.order.map((id) => id === null ? null : cleanText(id, 128))
+  const placed = order.filter((id): id is string => id !== null)
   const revealVotes = raw.revealVotes.map((id) => cleanText(id, 128))
   const expectedCounts = itoCardCounts(players.length, raw.extraCards, settings.targetCards)
   if (cards.length !== raw.cards.length || cardIds.size !== cards.length ||
-    order.length !== cards.length || new Set(order).size !== order.length || order.some((id) => !cardIds.has(id)) ||
+    order.length !== cards.length || new Set(placed).size !== placed.length || placed.some((id) => !cardIds.has(id)) ||
     new Set(revealVotes).size !== revealVotes.length || revealVotes.some((id) => !playerIds.has(id)) ||
     players.some((player, index) => player.cardCount !== expectedCounts[index] || cards.filter((card) => card.ownerIdentity === player.identity).length !== player.cardCount)) return null
   if (raw.phase === 'lobby' ? raw.gameId || players.length || cards.length || raw.roundNumber || raw.extraCards :
     !raw.gameId || players.length < 2 || raw.roundNumber < 1 || raw.extraCards > players.length * (settings.targetCards - 1)) return null
-  if ((raw.phase === 'order' || raw.phase === 'revealed') && cards.some((card) => !card.clue)) return null
+  if (placed.some((id) => !cards.find((card) => card.id === id)?.clue) ||
+    ((raw.phase === 'order' || raw.phase === 'revealed') && !itoTableReady(cards, order)) ||
+    (raw.phase === 'clue' && (itoTableReady(cards, order) || revealVotes.length > 0))) return null
   let numbers: Record<string, number> | undefined
   if (raw.phase === 'revealed') {
     if (!raw.numbers || typeof raw.numbers !== 'object') return null
@@ -97,7 +96,7 @@ const parseState = (value: unknown): ItoRoomState | null => {
   } else if (raw.numbers !== undefined) return null
   return {
     gameId: cleanText(raw.gameId, 80), controllerIdentity: cleanText(raw.controllerIdentity, 128), revision: raw.revision,
-    phase: raw.phase!, topic: cleanText(raw.topic, 120), players, cards, order, orderVersion: raw.orderVersion,
+    phase: raw.phase!, topic, players, cards, order, orderVersion: raw.orderVersion,
     revealVotes, roundNumber: raw.roundNumber, extraCards: raw.extraCards, settings,
     ...(numbers ? { numbers, succeeded: isItoOrderCorrect(order, numbers), campaignWon: isItoOrderCorrect(order, numbers) && raw.extraCards === players.length * (settings.targetCards - 1) } : {}),
   }
@@ -112,14 +111,17 @@ const parseCommand = (value: unknown): ItoCommand | null => {
   if (!value || typeof value !== 'object') return null
   const raw = value as Record<string, unknown>
   if (raw.type === 'reset') return { type: 'reset' }
-  if (raw.type === 'start') { const settings = readItoSettings(raw.settings); return settings ? { type: 'start', settings } : null }
+  if (raw.type === 'start') { const settings = readItoSettings(raw.settings); return settings && typeof raw.topic === 'string' ? { type: 'start', settings, topic: itoWrittenTopic(raw.topic) } : null }
   const gameId = cleanText(raw.gameId, 80)
   if (!gameId) return null
-  if (raw.type === 'next-round') return { type: 'next-round', gameId }
+  if (raw.type === 'next-round' && typeof raw.topic === 'string') return { type: 'next-round', gameId, topic: itoWrittenTopic(raw.topic) }
   if (raw.type === 'vote' && typeof raw.approved === 'boolean' && integer(raw.orderVersion, 0, Number.MAX_SAFE_INTEGER)) return { type: 'vote', gameId, approved: raw.approved, orderVersion: raw.orderVersion }
   const cardId = cleanText(raw.cardId, 128)
   if (!cardId) return null
   if (raw.type === 'clue') { const clue = cleanText(raw.clue, MAX_CLUE_LENGTH); return clue ? { type: 'clue', gameId, cardId, clue } : null }
+  if (raw.type === 'place' && integer(raw.slot, 0, 39) && integer(raw.sourceSlot, -1, 39) &&
+    (raw.targetCardId === null || typeof raw.targetCardId === 'string' && Boolean(cleanText(raw.targetCardId, 128))) &&
+    integer(raw.orderVersion, 0, Number.MAX_SAFE_INTEGER)) return { type: 'place', gameId, cardId, slot: raw.slot, sourceSlot: raw.sourceSlot, targetCardId: raw.targetCardId === null ? null : cleanText(raw.targetCardId, 128), orderVersion: raw.orderVersion }
   return raw.type === 'move' && (raw.offset === -1 || raw.offset === 1) && integer(raw.orderVersion, 0, Number.MAX_SAFE_INTEGER) ? { type: 'move', gameId, cardId, offset: raw.offset, orderVersion: raw.orderVersion } : null
 }
 const shuffle = <T,>(values: T[]) => {
@@ -135,7 +137,7 @@ export const useRoomIto = (room: Room) => {
     const player = current.players.find((person) => person.identity === senderIdentity)
     const connected = new Set([room.localParticipant.identity, ...room.remoteParticipants.keys()])
     if (!connected.has(senderIdentity)) return 'Você não está nesta sala.'
-    const dealRound = (players: ItoPlayer[], extraCards: number, roundNumber: number, settings: ItoSettings) => {
+    const dealRound = (players: ItoPlayer[], extraCards: number, roundNumber: number, settings: ItoSettings, topic: string) => {
       const counts = itoCardCounts(players.length, extraCards, settings.targetCards)
       const values = shuffle(Array.from({ length: 100 }, (_, index) => index + 1))
       const secrets: Record<string, ItoPrivateCard[]> = {}
@@ -149,12 +151,11 @@ export const useRoomIto = (room: Room) => {
         }
       })
       const gameId = crypto.randomUUID()
-      const availableTopics = topics.filter((topic) => topic !== current.topic)
       context.commit(() => ({
         ...emptyState(room.localParticipant.identity), gameId, phase: 'clue', settings: { ...settings }, roundNumber, extraCards,
-        topic: availableTopics[Math.floor(Math.random() * availableTopics.length)]!,
+        topic: itoRoundTopic(topic, current.topic),
         players: players.map((person, index) => ({ ...person, cardCount: counts[index]! })), cards,
-        order: shuffle(cards.map((card) => card.id)),
+        order: cards.map(() => null),
       }))
       context.replaceSecrets(gameId, secrets)
     }
@@ -163,7 +164,7 @@ export const useRoomIto = (room: Room) => {
       if (current.phase !== 'lobby' && !current.campaignWon) return 'Encerre a partida atual antes de mudar suas regras.'
       const members = [room.localParticipant, ...room.remoteParticipants.values()]
       if (members.length < 2 || members.length > MAX_PLAYERS) return 'ITO precisa de 2 a 8 pessoas.'
-      dealRound(shuffle(members).map((person) => ({ identity: person.identity, name: cleanText(person.name || person.identity, 80), cardCount: 1 })), 0, 1, command.settings)
+      dealRound(shuffle(members).map((person) => ({ identity: person.identity, name: cleanText(person.name || person.identity, 80), cardCount: 1 })), 0, 1, command.settings, command.topic)
       return null
     }
     if (!player) return 'Você está assistindo, não participa desta partida.'
@@ -172,7 +173,7 @@ export const useRoomIto = (room: Room) => {
       if (current.phase !== 'revealed' || current.campaignWon) return 'Esta rodada ainda não terminou ou a partida já foi vencida.'
       if (current.players.some((person) => !connected.has(person.identity))) return 'Uma pessoa da mesa saiu. Encerrem e iniciem uma nova partida com quem está na sala.'
       const extras = itoNextProgress(current.extraCards, Boolean(current.succeeded), current.settings.lossRule, current.players.length * (current.settings.targetCards - 1))
-      dealRound(current.players, extras, current.roundNumber + 1, current.settings)
+      dealRound(current.players, extras, current.roundNumber + 1, current.settings, command.topic)
       return null
     }
     if (command.type === 'clue') {
@@ -180,18 +181,24 @@ export const useRoomIto = (room: Room) => {
       const card = current.cards.find((item) => item.id === command.cardId && item.ownerIdentity === senderIdentity)
       if (!card || !context.getSecrets()[senderIdentity]?.some((item) => item.cardId === card.id)) return 'Esta carta não está na sua mão.'
       const cards = current.cards.map((item) => item.id === card.id ? { ...item, clue: command.clue } : item)
-      context.commit((latest) => ({ ...latest, cards, phase: cards.every((item) => item.clue) ? 'order' : 'clue', revealVotes: [] }))
+      context.commit((latest) => ({ ...latest, cards, phase: itoTableReady(cards, latest.order) ? 'order' : 'clue', orderVersion: latest.orderVersion + 1, revealVotes: [] }))
       return null
     }
-    if (current.phase !== 'order') return 'Esperem todas as dicas antes de organizar ou votar.'
-    if (command.orderVersion !== current.orderVersion) return 'A ordem mudou. Confira a mesa antes de votar ou mover outra carta.'
-    if (command.type === 'move') {
-      const index = current.order.indexOf(command.cardId), other = index + command.offset
-      if (index < 0 || other < 0 || other >= current.order.length) return null
-      const order = [...current.order]; [order[index], order[other]] = [order[other]!, order[index]!]
-      context.commit((latest) => ({ ...latest, order, orderVersion: latest.orderVersion + 1, revealVotes: [] }))
+    if (current.phase === 'revealed' || current.phase === 'lobby') return 'Esta rodada não está recebendo cartas.'
+    // Independent absolute placements can arrive together. Only rebase if neither end changed.
+    const independentPlacement = command.type === 'place' && current.order.indexOf(command.cardId) === command.sourceSlot && current.order[command.slot] === command.targetCardId
+    if (command.orderVersion !== current.orderVersion && !independentPlacement) return 'A ordem mudou. Confira a mesa antes de votar ou mover outra carta.'
+    if (command.type === 'move' || command.type === 'place') {
+      if (!current.cards.some((card) => card.id === command.cardId && card.clue)) return 'Envie a dica desta carta antes de posicioná-la.'
+      const index = current.order.indexOf(command.cardId)
+      if (command.type === 'move' && index < 0) return 'Escolha um espaço para colocar esta carta primeiro.'
+      const slot = command.type === 'place' ? command.slot : index + command.offset
+      const order = itoPlaceCard(current.order, command.cardId, slot)
+      if (!order || order === current.order) return null
+      context.commit((latest) => ({ ...latest, order, phase: itoTableReady(latest.cards, order) ? 'order' : 'clue', orderVersion: latest.orderVersion + 1, revealVotes: [] }))
       return null
     }
+    if (current.phase !== 'order') return 'Ainda faltam dicas ou cartas nos espaços da mesa.'
     const votes = current.revealVotes.filter((identity) => identity !== senderIdentity)
     if (command.approved) votes.push(senderIdentity)
     if (votes.length < itoRequiredVotes(current.settings.revealRule, current.players.length)) {
@@ -205,17 +212,18 @@ export const useRoomIto = (room: Room) => {
     return null
   }, [room])
 
-  const protocol = useRoomGameProtocol<ItoRoomState, ItoCommand, ItoPrivateCard[]>({ room, topic: ITO_TOPIC, emptyState, parseState, parseCommand, parsePrivate, emptyPrivate, handleCommand })
+  const protocol = useRoomGameProtocol<ItoRoomState, ItoCommand, ItoPrivateCard[]>({ room, topic: ITO_TOPIC, emptyState, parseState, parseCommand, parsePrivate, emptyPrivate, handleCommand, strictAuthority: true })
   const { state, dispatch } = protocol
   return {
     state, localCards: protocol.localPrivate, error: protocol.error, clearError: protocol.clearError,
     isController: protocol.isController, participantCount: protocol.participantCount,
     isParticipating: state.players.some((player) => player.identity === room.localParticipant.identity),
-    start: (settings: ItoSettings = defaultItoSettings) => dispatch({ type: 'start', settings }),
+    start: (settings: ItoSettings = defaultItoSettings, topic = '') => dispatch({ type: 'start', settings, topic }),
     submitClue: (cardId: string, clue: string) => dispatch({ type: 'clue', gameId: state.gameId, cardId, clue }),
     moveCard: (cardId: string, offset: -1 | 1) => dispatch({ type: 'move', gameId: state.gameId, cardId, offset, orderVersion: state.orderVersion }),
+    placeCard: (cardId: string, slot: number) => dispatch({ type: 'place', gameId: state.gameId, cardId, slot, sourceSlot: state.order.indexOf(cardId), targetCardId: state.order[slot] ?? null, orderVersion: state.orderVersion }),
     voteReveal: (approved: boolean) => dispatch({ type: 'vote', gameId: state.gameId, approved, orderVersion: state.orderVersion }),
-    nextRound: () => dispatch({ type: 'next-round', gameId: state.gameId }),
+    nextRound: (topic = '') => dispatch({ type: 'next-round', gameId: state.gameId, topic }),
     reset: () => dispatch({ type: 'reset' }),
   }
 }

@@ -11,7 +11,7 @@ import { ItoGameStage } from '../components/Games/ItoGameStage'
 import type { MindRoomState } from '../hooks/useRoomMind'
 import type { ItoRoomState } from '../hooks/useRoomIto'
 import { KiwiNetworkChecks } from './KiwiNetworkChecks'
-import { defaultItoSettings, itoCardCounts, itoNextProgress, itoRequiredVotes } from '../games/itoRules'
+import { defaultItoSettings, isItoOrderCorrect, itoCardCounts, itoNextProgress, itoPlaceCard, itoRequiredVotes, itoRoundTopic, itoTableReady, type ItoSettings } from '../games/itoRules'
 import { ItoNetworkChecks } from './ItoNetworkChecks'
 import { PokerPreview } from './PokerPreview'
 import { CoupPreview } from './CoupPreview'
@@ -38,13 +38,14 @@ const initialState = (count: number): KiwiRoomState => ({
   barkingOwnerIdentity: '', winnerIdentity: '', lastAction: 'Jogue uma ação ou compre para encerrar seu turno.',
 })
 const initialMind = (count: number): MindRoomState => ({ gameId: 'mind-preview', controllerIdentity: 'p0', revision: 1, phase: 'playing', players: previewParticipants.slice(0, Math.min(count, 4)).map((person, index) => ({ identity: person.id, name: person.name, cardsRemaining: index === 1 ? 1 : 2 })), level: 2, maxLevel: 12, lives: 2, maxLives: 4, shurikens: 1, played: [8, 17, 35], shurikenVotes: [], lastMistake: null, lastEvent: 'luisalgaelalves76 jogou uma carta.' })
-const initialIto = (count: number, extras = 2): ItoRoomState => {
-  const counts = itoCardCounts(count, extras, 2)
+const initialIto = (count: number, extras = 2, settings: ItoSettings = defaultItoSettings): ItoRoomState => {
+  const counts = itoCardCounts(count, extras, settings.targetCards)
   const players = previewParticipants.slice(0, count).map((person, index) => ({ identity: person.id, name: person.name, cardCount: counts[index]! }))
   const clues = ['Mandar mensagem no grupo errado', 'Dar tchau para quem não estava falando com você', 'Cair na frente de todo mundo', 'Errar o nome da pessoa', 'Microfone aberto na reunião', 'Tropeçar', 'Esquecer a fala', 'Áudio no viva-voz']
   const cards = players.flatMap((person, index) => Array.from({ length: person.cardCount }, (_, card) => ({ id: `${person.identity}-card-${card}`, ownerIdentity: person.identity, clue: card ? 'Fazer isso de novo, com todo mundo olhando' : clues[index]! })))
-  return { gameId: crypto.randomUUID(), controllerIdentity: 'p0', revision: 1, phase: 'order', topic: 'De pouco a muito constrangedor', players, cards, order: cards.map((card) => card.id), orderVersion: 0, revealVotes: [], roundNumber: extras + 1, extraCards: extras, settings: { ...defaultItoSettings } }
+  return { gameId: crypto.randomUUID(), controllerIdentity: 'p0', revision: 1, phase: 'order', topic: 'De pouco a muito constrangedor', players, cards, order: cards.map((card) => card.id), orderVersion: 0, revealVotes: [], roundNumber: extras + 1, extraCards: extras, settings: { ...settings } }
 }
+const itoPreviewNumbers = (state: ItoRoomState) => Object.fromEntries(state.cards.map((card, index) => [card.id, Math.round((index + 1) * 100 / (state.cards.length + 1))]))
 
 export const GamePreview = () => {
   const [kind, setKind] = useState(new URLSearchParams(window.location.search).get('game-preview') || 'kiwi')
@@ -77,13 +78,14 @@ export const GamePreview = () => {
   }
   const mindGame: ComponentProps<typeof TheMindStage>['game'] = { state: mindState, hand: mindHand, error: '', clearError: () => {}, participantCount: mindState.players.length, start: () => { setMindState(initialMind(count)); setMindHand([61,92]); return true }, play: (value) => { setMindHand((items) => items.filter((item) => item !== value)); setMindState((current) => ({ ...current, played: [...current.played, value], players: current.players.map((player) => player.identity === 'p0' ? { ...player, cardsRemaining: player.cardsRemaining - 1 } : player) })); return true }, voteShuriken: () => { setMindState((current) => ({ ...current, shurikenVotes: ['p0'] })); return true }, nextLevel: () => { setMindState((current) => ({ ...current, phase: 'playing', level: current.level + 1, played: [] })); return true }, reset: () => { setMindState((current) => ({ ...current, phase: 'lobby' })); return true } }
   const itoGame: ComponentProps<typeof ItoGameStage>['game'] = {
-    state: itoState, localCards: itoState.cards.filter((card) => card.ownerIdentity === 'p0').map((card, index) => ({ cardId: card.id, value: [31, 58, 72, 89, 95][index]! })), error: '', clearError: () => {}, isController: true, participantCount: count, isParticipating: true,
-    start: (settings = defaultItoSettings) => { const next = initialIto(count, 0); setItoState({ ...next, settings, phase: 'clue', cards: next.cards.map((card) => ({ ...card, clue: '' })) }); return true },
-    submitClue: (cardId, clue) => { setItoState((current) => { const cards = current.cards.map((card) => card.id === cardId ? { ...card, clue } : card); return { ...current, cards, phase: cards.every((card) => card.clue) ? 'order' : 'clue' } }); return true },
-    moveCard: (cardId, offset) => { setItoState((current) => { const order = [...current.order]; const index = order.indexOf(cardId); [order[index], order[index + offset]] = [order[index + offset]!, order[index]!]; return { ...current, order, orderVersion: current.orderVersion + 1, revealVotes: [] } }); return true },
-    voteReveal: (approved) => { setItoState((current) => { const revealVotes = current.revealVotes.filter((id) => id !== 'p0'); if (approved) revealVotes.push('p0'); return revealVotes.length < itoRequiredVotes(current.settings.revealRule, count) ? { ...current, revealVotes } : { ...current, revealVotes, phase: 'revealed', succeeded: true, campaignWon: current.extraCards === count * (current.settings.targetCards - 1), numbers: Object.fromEntries(current.order.map((id, index) => [id, 5 + index * 6])) } }); return true },
-    nextRound: () => { const extras = itoNextProgress(itoState.extraCards, Boolean(itoState.succeeded), itoState.settings.lossRule, count * (itoState.settings.targetCards - 1)); const next = initialIto(count, extras); setItoState({ ...next, settings: itoState.settings, roundNumber: itoState.roundNumber + 1, phase: 'clue', cards: next.cards.map((card) => ({ ...card, clue: '' })) }); return true },
-    reset: () => { setItoState((current) => ({ ...current, phase: 'lobby' })); return true },
+    state: itoState, localCards: itoState.cards.filter((card) => card.ownerIdentity === 'p0').map((card) => ({ cardId: card.id, value: itoPreviewNumbers(itoState)[card.id]! })), error: '', clearError: () => {}, isController: true, participantCount: count, isParticipating: true,
+    start: (settings = defaultItoSettings, topic = '') => { const next = initialIto(count, 0, settings); setItoState({ ...next, topic: itoRoundTopic(topic), phase: 'clue', order: next.cards.map(() => null), cards: next.cards.map((card) => ({ ...card, clue: '' })) }); return true },
+    submitClue: (cardId, clue) => { setItoState((current) => { const cards = current.cards.map((card) => card.id === cardId ? { ...card, clue } : card); return { ...current, cards, phase: itoTableReady(cards, current.order) ? 'order' : 'clue', orderVersion: current.orderVersion + 1, revealVotes: [] } }); return true },
+    placeCard: (cardId, slot) => { setItoState((current) => { const order = itoPlaceCard(current.order, cardId, slot); return !order ? current : { ...current, order, phase: itoTableReady(current.cards, order) ? 'order' : 'clue', orderVersion: current.orderVersion + 1, revealVotes: [] } }); return true },
+    moveCard: (cardId, offset) => { setItoState((current) => { const order = itoPlaceCard(current.order, cardId, current.order.indexOf(cardId) + offset); return !order ? current : { ...current, order, phase: itoTableReady(current.cards, order) ? 'order' : 'clue', orderVersion: current.orderVersion + 1, revealVotes: [] } }); return true },
+    voteReveal: (approved) => { setItoState((current) => { const revealVotes = current.revealVotes.filter((id) => id !== 'p0'); if (approved) revealVotes.push('p0'); const numbers = itoPreviewNumbers(current), succeeded = isItoOrderCorrect(current.order, numbers); return revealVotes.length < itoRequiredVotes(current.settings.revealRule, count) ? { ...current, revealVotes } : { ...current, revealVotes, phase: 'revealed', succeeded, campaignWon: succeeded && current.extraCards === count * (current.settings.targetCards - 1), numbers } }); return true },
+    nextRound: (topic = '') => { const extras = itoNextProgress(itoState.extraCards, Boolean(itoState.succeeded), itoState.settings.lossRule, count * (itoState.settings.targetCards - 1)); const next = initialIto(count, extras, itoState.settings); setItoState({ ...next, topic: itoRoundTopic(topic, itoState.topic), roundNumber: itoState.roundNumber + 1, phase: 'clue', order: next.cards.map(() => null), cards: next.cards.map((card) => ({ ...card, clue: '' })) }); return true },
+    reset: () => { setItoState((current) => ({ ...current, gameId: '', phase: 'lobby', cards: [], order: [], players: [] })); return true },
   }
   if (kind === 'checks') return <KiwiNetworkChecks />
   if (kind === 'ito-checks') return <ItoNetworkChecks />
@@ -104,9 +106,10 @@ export const GamePreview = () => {
       <button onClick={() => setState((value) => ({ ...value, pendingDefenseIdentity: 'p0', pendingDefenseType: 'kiwi-burst', players: value.players.map((person) => person.identity === 'p0' ? { ...person, explosionCard: card('kiwi-burst', 55) } : person) }))} type="button">Defesa</button>
       <button onClick={() => setState((value) => ({ ...value, prompt: { kind: 'favor', actorIdentity: 'p1', targetIdentity: 'p0', queue: [], label: 'Escolha uma carta para entregar.', count: 1 } }))} type="button">Favor</button>
       <button onClick={() => setHand([...startingHand, ...startingHand.map((item) => ({ ...item, id: `${item.id}-extra` }))])} type="button">16 cartas</button>
-      <button onClick={() => { setMindState((current) => ({ ...current, phase: 'level-result' })); setItoState((current) => ({ ...current, phase: 'clue', cards: current.cards.map((card) => ({ ...card, clue: '' })) })) }} type="button">Próxima fase</button>
+      <button onClick={() => { setMindState((current) => ({ ...current, phase: 'level-result' })); setItoState((current) => ({ ...current, phase: 'clue', order: current.cards.map(() => null), cards: current.cards.map((card) => ({ ...card, clue: '' })) })) }} type="button">Próxima fase</button>
       <button onClick={() => setItoState((current) => ({ ...current, revealVotes: current.players.slice(1, itoRequiredVotes(current.settings.revealRule, count)).map((player) => player.identity) }))} type="button">Votos dos outros</button>
-      <button onClick={() => { const next = initialIto(count, count); setItoState({ ...next, phase: 'clue', cards: next.cards.map((card) => ({ ...card, clue: card.ownerIdentity === 'p0' ? '' : card.clue })) }) }} type="button">Duas cartas cada</button>
+      <button onClick={() => { const next = initialIto(count, count); setItoState({ ...next, phase: 'clue', order: next.cards.map(() => null), cards: next.cards.map((card) => ({ ...card, clue: card.ownerIdentity === 'p0' ? '' : card.clue })) }) }} type="button">Duas cartas cada</button>
+      <button onClick={() => setItoState((current) => { const cards = current.cards.map((card) => card.ownerIdentity === 'p0' ? card : { ...card, clue: initialIto(count, current.extraCards, current.settings).cards.find((item) => item.id === card.id)?.clue ?? 'Dica da outra pessoa' }); let order = [...current.order]; for (const card of cards.filter((card) => card.ownerIdentity !== 'p0' && !order.includes(card.id))) order = itoPlaceCard(order, card.id, order.indexOf(null)) ?? order; return { ...current, cards, order, phase: itoTableReady(cards, order) ? 'order' : 'clue' } })} type="button">Dicas dos outros</button>
     </div><output style={{ display: 'block', marginTop: 6 }}>{lastCommand}</output></details>}
   </main>
 }
