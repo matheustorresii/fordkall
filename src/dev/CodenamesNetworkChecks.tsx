@@ -45,7 +45,7 @@ export const CodenamesNetworkChecks = () => {
     const secret = () => (game('p0').key.length ? game('p0').key : game('p1').key)
     const choose = (kind: string) => state().board.find((c, i) => !c.revealed && secret()[i] === kind)!.id
     const sendClue = async (count: number | 'unlimited' = 3) =>
-      move(master(), { type: 'clue', word: 'CONEXÃO', count })
+      move(master(), { type: 'clue', word: state().clueMode === 'multiple' ? 'GALAXIAX DISTANTEX' : 'CONEXÃO', count })
     const same = (n: number) =>
       ids(n).every(
         (id) =>
@@ -55,6 +55,7 @@ export const CodenamesNetworkChecks = () => {
     try {
       await pause(250)
       for (const n of [4, 6, 8, 12]) {
+        const clueMode = n === 6 || n === 12 ? 'multiple' : 'single'
         mesh.membership(ids(n))
         await pause(200)
         game().reset()
@@ -65,12 +66,13 @@ export const CodenamesNetworkChecks = () => {
             team: i % 2 ? 'blue' : 'red',
             role: i < 2 ? 'spymaster' : 'operative',
           })
-        game('p2').start()
+        game('p2').start({ customWords: [], clueMode })
         await pause(180)
         assert(
           state().phase === 'clue' && state().board.length === 25 && same(n),
           `${n} pessoas recebem o mesmo tabuleiro e equipes`,
         )
+        assert(ids(n).every((id) => game(id).state.clueMode === clueMode), `${n} pessoas recebem a mesma regra: ${clueMode === 'single' ? 'uma palavra' : 'várias palavras'}`)
         assert(
           ids(n).every((id, i) => game(id).key.length === (i < 2 ? 25 : 0)),
           `${n} pessoas: somente mestres recebem a chave privada`,
@@ -93,8 +95,14 @@ export const CodenamesNetworkChecks = () => {
           state().revision === previous && Boolean(game(wrong).error),
           `${n} pessoas: agente não envia pista`,
         )
+        if (clueMode === 'single') {
+          const before = state().stepId
+          await move(master(), { type: 'clue', word: 'GALAXIAX DISTANTEX', count: 2 })
+          assert(state().stepId === before && state().phase === 'clue' && Boolean(game(master()).error) && same(n), `${n} pessoas: regra de uma palavra rejeita frase sem avançar o turno`)
+        }
         await sendClue()
         assert(state().phase === 'guess' && same(n), `${n} pessoas recebem a mesma pista`)
+        assert(ids(n).every((id) => game(id).state.clues.at(-1)?.word === (clueMode === 'multiple' ? 'GALAXIAX DISTANTEX' : 'CONEXÃO')), `${n} pessoas: texto completo da pista é preservado em todos os clientes`)
         const who = operative(),
           good = choose(state().turnTeam)
         await move(who, { type: 'suggest', cardId: good })
@@ -148,6 +156,7 @@ export const CodenamesNetworkChecks = () => {
         await move(who, { type: 'pass' })
         await sendClue(0)
         assert(state().phase === 'guess' && same(n), `${n} pessoas: nova equipe recebe pista zero`)
+        assert(state().clueMode === clueMode && ids(n).every((id) => game(id).state.clueMode === clueMode), `${n} pessoas: a mesma regra vale também para o segundo mestre`)
         const losing = state().turnTeam
         await move(operative(), { type: 'guess', cardId: choose('assassin') })
         assert(
@@ -163,6 +172,7 @@ export const CodenamesNetworkChecks = () => {
           !state().gameId && ids(n).every((id) => !game(id).key.length),
           `${n} pessoas: encerrar apaga chaves antigas`,
         )
+        assert(ids(n).every((id) => game(id).state.clueMode === clueMode), `${n} pessoas: voltar ao lobby preserva a regra para a próxima partida`)
         const lobbyRevision = state().revision
         mesh.deliver('p2', 'p0', {
           type: 'command',

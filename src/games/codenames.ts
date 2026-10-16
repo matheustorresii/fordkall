@@ -3,6 +3,7 @@ import { CODENAMES_WORDS } from './codenamesWords.ts'
 export type CodenamesTeam = 'red' | 'blue'
 export type CodenamesKind = CodenamesTeam | 'neutral' | 'assassin'
 export type CodenamesRole = 'spymaster' | 'operative'
+export type CodenamesClueMode = 'single' | 'multiple'
 export interface CodenamesPlayer {
   identity: string
   name: string
@@ -25,12 +26,14 @@ export interface CodenamesClue {
 }
 export interface CodenamesSettings {
   customWords: string[]
+  clueMode: CodenamesClueMode
 }
 export interface CodenamesState {
   gameId: string
   controllerIdentity: string
   revision: number
   phase: 'lobby' | 'clue' | 'guess' | 'finished'
+  clueMode: CodenamesClueMode
   players: CodenamesPlayer[]
   board: CodenamesCard[]
   startingTeam: CodenamesTeam
@@ -61,6 +64,8 @@ export type CodenamesMove =
   | { type: 'pass' }
 
 export const CODENAMES_MAX_PLAYERS = 12
+export const defaultCodenamesSettings: CodenamesSettings = { customWords: [], clueMode: 'single' }
+export const codenamesClueLimit = (mode: CodenamesClueMode) => mode === 'multiple' ? 48 : 24
 export const codenamesTeamName = (team: CodenamesTeam) => (team === 'red' ? 'Vermelha' : 'Azul')
 export const otherCodenamesTeam = (team: CodenamesTeam): CodenamesTeam => (team === 'red' ? 'blue' : 'red')
 export const normalizeCodenamesWord = (word: string) =>
@@ -73,22 +78,31 @@ export const codenamesWord = (value: unknown): value is string =>
   value.length >= 1 &&
   value.length <= 24 &&
   /^[\p{L}\p{N}]+(?:['’-][\p{L}\p{N}]+)*$/u.test(value)
+/** Canonical text is validated before committing, including uppercase expansions such as ß → SS. */
+export const readCodenamesClue = (value: unknown, mode: CodenamesClueMode): string | null => {
+  if (typeof value !== 'string' || /[\u0000-\u001f\u007f]/.test(value) || value.length > 256) return null
+  const text = value.trim().normalize('NFC').toLocaleUpperCase('pt-BR').replace(/ +/g, ' ')
+  const words = text.split(' ')
+  return text.length <= codenamesClueLimit(mode) && (mode === 'multiple' || words.length === 1) && words.every(codenamesWord) ? text : null
+}
 export const readCodenamesSettings = (value: unknown): CodenamesSettings | null => {
-  if (value === undefined) return { customWords: [] }
+  if (value === undefined) return { ...defaultCodenamesSettings, customWords: [] }
   if (!value || typeof value !== 'object') return null
-  const words = (value as Record<string, unknown>).customWords
+  const raw = value as Record<string, unknown>, words = raw.customWords, clueMode = raw.clueMode === undefined ? 'single' : raw.clueMode
+  if (clueMode !== 'single' && clueMode !== 'multiple') return null
   if (!Array.isArray(words) || words.length > 300 || words.some((w) => !codenamesWord(w))) return null
   const unique = new Map<string, string>()
   for (const word of words as string[])
     unique.set(normalizeCodenamesWord(word), word.toLocaleUpperCase('pt-BR'))
   if (new TextEncoder().encode(JSON.stringify([...unique.values()])).length > 10_000) return null
-  return unique.size && unique.size < 25 ? null : { customWords: [...unique.values()] }
+  return unique.size && unique.size < 25 ? null : { customWords: [...unique.values()], clueMode }
 }
 export const emptyCodenamesState = (controllerIdentity: string, revision = 0): CodenamesState => ({
   gameId: '',
   controllerIdentity,
   revision,
   phase: 'lobby',
+  clueMode: 'single',
   players: [],
   board: [],
   startingTeam: 'red',
@@ -212,7 +226,7 @@ export const syncCodenamesMembers = (
 }
 export const createCodenamesMatch = (
   lobby: CodenamesState,
-  settings: CodenamesSettings = { customWords: [] },
+  settings: CodenamesSettings = defaultCodenamesSettings,
   random?: () => number,
 ): CodenamesEngine => {
   if (!['lobby', 'finished'].includes(lobby.phase)) throw new Error('Já existe uma partida em andamento.')
@@ -238,6 +252,7 @@ export const createCodenamesMatch = (
     gameId: crypto.randomUUID(),
     stepId: crypto.randomUUID(),
     phase: 'clue',
+    clueMode: valid.clueMode,
     players: lobby.players.filter((p) => p.team && p.connected).map((p) => ({ ...p })),
     board: shuffled(pool, random)
       .slice(0, 25)
@@ -309,15 +324,17 @@ export const applyCodenamesMove = (
   if (move.type === 'clue') {
     if (state.phase !== 'clue' || player.role !== 'spymaster')
       throw new Error('Somente o mestre da vez pode enviar a pista.')
-    const word = move.word.trim().normalize('NFC')
-    if (!codenamesWord(word)) throw new Error('A pista precisa ser uma única palavra, com até 24 caracteres.')
-    const normalized = normalizeCodenamesWord(word)
+    const word = readCodenamesClue(move.word, state.clueMode)
+    if (!word) throw new Error(state.clueMode === 'multiple'
+      ? 'Use uma palavra ou frase de até 48 caracteres, com até 24 por palavra, sem pontuação extra.'
+      : 'Esta partida usa pistas de uma única palavra, com até 24 caracteres.')
+    const normalized = new Set(word.split(/[ '’-]/).map(normalizeCodenamesWord))
     if (
       state.board.some(
         (c) =>
           !c.revealed &&
-          (normalizeCodenamesWord(c.word) === normalized ||
-            c.word.split(/['’-]/).some((part) => normalizeCodenamesWord(part) === normalized)),
+          (normalized.has(normalizeCodenamesWord(c.word)) ||
+            c.word.split(/['’-]/).some((part) => normalized.has(normalizeCodenamesWord(part)))),
       )
     )
       throw new Error(
@@ -328,7 +345,7 @@ export const applyCodenamesMove = (
     state.clues.push({
       turn: state.turn,
       team: player.team,
-      word: word.toLocaleUpperCase('pt-BR'),
+      word,
       count: move.count,
       by: identity,
       guesses: [],

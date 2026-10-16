@@ -8,11 +8,14 @@ import {
   codenamesPrivateFor,
   codenamesStartError,
   codenamesWord,
+  codenamesClueLimit,
   createCodenamesMatch,
+  defaultCodenamesSettings,
   emptyCodenamesState,
   normalizeCodenamesWord,
   otherCodenamesTeam,
   readCodenamesSettings,
+  readCodenamesClue,
   syncCodenamesMembers,
 } from '../src/games/codenames.ts'
 import { parseCodenamesMove, parseCodenamesPrivate, parseCodenamesState } from '../src/games/codenamesWire.ts'
@@ -34,7 +37,7 @@ const lobby = (count = 4) => {
     })
   return engine
 }
-const match = (seed = 1, count = 4) => createCodenamesMatch(lobby(count).state, undefined, seeded(seed))
+const match = (seed = 1, count = 4, clueMode = 'single') => createCodenamesMatch(lobby(count).state, { customWords: [], clueMode }, seeded(seed))
 const spy = (e, team = e.state.turnTeam) =>
   e.state.players.find((p) => p.team === team && p.role === 'spymaster').identity
 const agent = (e, team = e.state.turnTeam) =>
@@ -284,7 +287,7 @@ test('entrada tardia é espectador; reconexão preserva papel e chave; ausência
 test('palavras personalizadas: 25–300 únicas, acentos normalizados e entradas ruins rejeitadas', () => {
   const words = Array.from({ length: 25 }, (_, i) => `PALAVRA${i}`)
   assert.equal(readCodenamesSettings({ customWords: words }).customWords.length, 25)
-  assert.deepEqual(readCodenamesSettings(undefined), { customWords: [] })
+  assert.deepEqual(readCodenamesSettings(undefined), defaultCodenamesSettings)
   for (const value of [
     null,
     {},
@@ -299,6 +302,72 @@ test('palavras personalizadas: 25–300 únicas, acentos normalizados e entradas
   const e = createCodenamesMatch(lobby().state, { customWords: words }, seeded(5))
   assert.ok(e.state.board.every((c) => words.includes(c.word)))
   roundTrip(e)
+})
+test('regra da pista: uma palavra por padrão, várias opcionais e banco personalizado continua independente', () => {
+  assert.equal(match().state.clueMode, 'single')
+  assert.equal(readCodenamesSettings({ customWords: [] }).clueMode, 'single')
+  assert.equal(readCodenamesSettings({ customWords: [], clueMode: 'multiple' }).clueMode, 'multiple')
+  for (const clueMode of [null, '', 'free', 2, true, ['multiple']]) assert.equal(readCodenamesSettings({ customWords: [], clueMode }), null)
+  const settings = { customWords: Array.from({ length: 25 }, (_, i) => `ITEM${i}`), clueMode: 'multiple' }
+  const e = createCodenamesMatch(lobby().state, settings, seeded(1))
+  assert.equal(e.state.clueMode, 'multiple')
+  assert.ok(e.state.board.every((c) => settings.customWords.includes(c.word)))
+  assert.equal(readCodenamesSettings({ customWords: [...settings.customWords, 'DUAS PALAVRAS'], clueMode: 'multiple' }), null)
+  assert.deepEqual(settings.customWords, Array.from({ length: 25 }, (_, i) => `ITEM${i}`))
+  roundTrip(e)
+})
+test('pistas com várias palavras normalizam espaços, acentos e caixa; uma palavra segue válida nos dois modos', () => {
+  for (const mode of ['single', 'multiple']) {
+    assert.equal(readCodenamesClue('  conexa\u0303o  ', mode), 'CONEXÃO')
+    for (const bad of ['', ' ', '<script>', 'um\ndois', 'um\tdois', 'zero\u200bwidth', 'fala!', 'a'.repeat(25)]) assert.equal(readCodenamesClue(bad, mode), null)
+  }
+  assert.equal(readCodenamesClue('  sistema   solar  ', 'multiple'), 'SISTEMA SOLAR')
+  assert.equal(readCodenamesClue('sistema solar', 'single'), null)
+  const maximum = `${'a'.repeat(24)} ${'b'.repeat(23)}`
+  assert.equal(readCodenamesClue(maximum, 'multiple'), maximum.toUpperCase())
+  assert.equal(readCodenamesClue(maximum + 'b', 'multiple'), null)
+  assert.equal(readCodenamesClue('ß'.repeat(24), 'single'), null, 'valida depois da expansão de caixa para não publicar estado inválido')
+  assert.equal(codenamesClueLimit('single'), 24)
+  assert.equal(codenamesClueLimit('multiple'), 48)
+})
+test('só o modo múltiplo aceita frase; regra e pista canônica chegam juntas ao estado público sem expor chave', () => {
+  const e = match(1, 4, 'multiple'), master = spy(e)
+  const before = JSON.stringify(e)
+  const next = clue(e, 3, '  galaxiax   distantex  ')
+  assert.equal(next.state.phase, 'guess')
+  assert.equal(next.state.clueMode, 'multiple')
+  assert.equal(codenamesCurrentClue(next.state).word, 'GALAXIAX DISTANTEX')
+  assert.equal(codenamesGuessesLeft(next.state), 4, 'quantidade de palpites não é o tamanho da frase')
+  assert.equal(JSON.stringify(e), before, 'não muda a engine anterior')
+  assert.deepEqual(next.key, e.key)
+  assert.deepEqual(codenamesPrivateFor(next, agent(next)), { key: [] })
+  assert.equal(codenamesPrivateFor(next, master).key.length, 25)
+  assert.throws(() => clue(match(), 3, 'galaxiax distantex'), /única palavra/)
+  assert.throws(() => applyCodenamesMove(e, agent(e), { type: 'clue', word: 'galaxiax distantex', count: 3 }))
+  roundTrip(next)
+})
+test('frases não escondem palavra ainda visível: verifica cada termo, acentos e partes de compostas', () => {
+  const e = match(1, 4, 'multiple')
+  e.state.board[0].word = 'ÂNCORA'
+  for (const text of ['ancora', 'ancora galaxiax', 'galaxiax ancora', 'galaxiax âncora distantex', 'ancora-galaxiax']) assert.throws(() => clue(e, 1, text), /ainda está na mesa/)
+  e.state.board[0].word = 'PÉ-DE-MOLEQUE'
+  assert.throws(() => clue(e, 1, 'galaxiax moleque'), /ainda está na mesa/)
+  e.state.board[0] = { ...e.state.board[0], word: 'ÂNCORA', revealed: 'neutral' }
+  assert.equal(clue(e, 1, 'galaxiax ancora').state.phase, 'guess', 'palavra revelada continua permitida')
+})
+test('wire preserva modo/frase, não aceita frase na regra de uma palavra e mantém compatibilidade com estado padrão antigo', () => {
+  const e = clue(match(1, 4, 'multiple'), 2, 'galaxiax distantex')
+  roundTrip(e)
+  assert.equal(parseCodenamesState({ ...e.state, clueMode: 'single' }), null)
+  for (const clueMode of ['unknown', null, 2, false]) assert.equal(parseCodenamesState({ ...e.state, clueMode }), null)
+  for (const word of [null, {}, '<script>', 'GALAXIAX\nDISTANTEX', 'A'.repeat(49), 'galaxiax distantex']) {
+    const bad = structuredClone(e.state); bad.clues[0].word = word
+    assert.equal(parseCodenamesState(bad), null)
+  }
+  const legacy = structuredClone(clue(match()).state)
+  delete legacy.clueMode
+  assert.equal(parseCodenamesState(legacy).clueMode, 'single')
+  assert.deepEqual(parseCodenamesMove({ type: 'clue', word: 'galaxiax distantex', count: 2, clueMode: 'single' }), { type: 'clue', word: 'galaxiax distantex', count: 2 })
 })
 test('wire rejeita estados incoerentes, chave precoce, entidades desconhecidas e ações inválidas', () => {
   const e = match(),
@@ -349,14 +418,14 @@ test('wire rejeita estados incoerentes, chave precoce, entidades desconhecidas e
 })
 test('300 partidas de 4–12: turnos, privacidade, cartas únicas e conclusão sem travar', () => {
   for (let seed = 0; seed < 300; seed++) {
-    let e = match(seed, 4 + (seed % 9)),
+    let e = match(seed, 4 + (seed % 9), seed % 2 ? 'multiple' : 'single'),
       steps = 0
     const random = seeded(seed + 801)
     while (e.state.phase !== 'finished') {
       assert.ok(steps++ < 100)
       assert.deepEqual(e.state.solution, [])
       roundTrip(e)
-      if (e.state.phase === 'clue') e = clue(e, [0, 1, 2, 3, 'unlimited'][Math.floor(random() * 5)])
+      if (e.state.phase === 'clue') e = clue(e, [0, 1, 2, 3, 'unlimited'][Math.floor(random() * 5)], e.state.clueMode === 'multiple' ? 'GALAXIAX DISTANTEX' : 'EXEMPLO')
       else {
         const available = e.state.board.filter((c) => !c.revealed)
         const chosen = available[Math.floor(random() * available.length)]
@@ -369,6 +438,7 @@ test('300 partidas de 4–12: turnos, privacidade, cartas únicas e conclusão s
   }
 })
 test('partida longa com 12 perfis extensos e espectadores continua abaixo de 15 KiB por pacote', () => {
+  for (const clueMode of ['single', 'multiple']) {
   const members = Array.from({ length: 32 }, (_, i) => ({
     identity: `00000000-0000-0000-0000-${String(i).padStart(12, '0')}`,
     name: `${'界'.repeat(78)}${String(i).padStart(2, '0')}`,
@@ -387,7 +457,7 @@ test('partida longa com 12 perfis extensos e espectadores continua abaixo de 15 
     })
   e = createCodenamesMatch(
     e.state,
-    { customWords: Array.from({ length: 25 }, (_, i) => `${'界'.repeat(20)}${i}`) },
+    { customWords: Array.from({ length: 25 }, (_, i) => `${'界'.repeat(20)}${i}`), clueMode },
     seeded(42),
   )
   assert.equal(e.state.players.length, 12, 'espectadores não incham o estado de uma partida ativa')
@@ -395,7 +465,7 @@ test('partida longa com 12 perfis extensos e espectadores continua abaixo de 15 
   while (e.state.phase !== 'finished') {
     assert.ok(steps++ < 100)
     check()
-    if (e.state.phase === 'clue') e = clue(e, 1, '詩'.repeat(24))
+    if (e.state.phase === 'clue') e = clue(e, 1, clueMode === 'multiple' ? `${'詩'.repeat(24)} ${'吟'.repeat(23)}` : '詩'.repeat(24))
     else {
       const target =
         card(e, 'neutral') ??
@@ -412,4 +482,5 @@ test('partida longa com 12 perfis extensos e espectadores continua abaixo de 15 
   assert.equal(e.state.events.length, 1)
   const tooLarge = Array.from({ length: 300 }, (_, i) => `${'界'.repeat(19)}${i}`)
   assert.equal(readCodenamesSettings({ customWords: tooLarge }), null)
+  }
 })

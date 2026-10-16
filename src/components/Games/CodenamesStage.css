@@ -926,6 +926,40 @@
   color: #9fafbd;
   font-size: 11px;
 }
+.cn-clue-setting {
+  display: grid;
+  gap: 8px;
+  margin: 0 0 14px;
+  padding: 0;
+  border: 0;
+}
+.cn-clue-setting legend {
+  margin-bottom: 10px;
+  color: #e6ebeb;
+  font-size: 14px;
+  font-weight: 650;
+}
+.cn-clue-setting label {
+  display: flex;
+  min-height: 64px;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #c5d8e52c;
+  border-radius: 10px;
+  background: #24323e;
+  cursor: pointer;
+}
+.cn-clue-setting label:has(input:checked) { border-color: #c8ddad; background: #c8ddad12; }
+.cn-clue-setting input { width: 18px; height: 18px; margin: 0; accent-color: #c8ddad; }
+.cn-clue-setting label > span { display: grid; gap: 5px; }
+.cn-clue-setting strong { color: #e6ebeb; font-size: 14px; }
+.cn-clue-setting small { color: #aebdc6; font-size: 12px; line-height: 1.4; }
+.cn-custom-words { padding-top: 14px; border-top: 1px solid #c5d8e524; }
+.cn-custom-words summary { padding: 5px 0 12px; color: #e1e8eb; font-size: 13px; cursor: pointer; }
+.cn-custom-words summary > span { color: #aebdc6; font-size: 12px; }
+.cn-custom-words > small { color: #a6bbc9; font-size: 12px; line-height: 1.4; }
+.cn-custom-words > small.is-error { color: #efb098; }
 .cn-settings textarea {
   display: block;
   width: 100%;

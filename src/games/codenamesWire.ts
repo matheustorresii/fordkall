@@ -1,4 +1,4 @@
-import { codenamesWord, normalizeCodenamesWord } from './codenames.ts'
+import { codenamesWord, normalizeCodenamesWord, readCodenamesClue } from './codenames.ts'
 import type {
   CodenamesClue,
   CodenamesKind,
@@ -43,7 +43,7 @@ export const parseCodenamesMove = (value: unknown): CodenamesMove | null => {
     ['spymaster', 'operative'].includes(value.role as string)
   )
     return { type: 'seat', team: value.team, role: value.role as CodenamesPlayer['role'] }
-  if (value.type === 'clue' && text(value.word, 48) && clueCount(value.count))
+  if (value.type === 'clue' && text(value.word, 256) && clueCount(value.count))
     return { type: 'clue', word: value.word, count: value.count }
   if (
     value.type === 'suggest' &&
@@ -57,6 +57,8 @@ export const parseCodenamesMove = (value: unknown): CodenamesMove | null => {
 export const parseCodenamesState = (value: unknown): CodenamesState | null => {
   if (!record(value)) return null
   const s = value
+  const clueMode = s.clueMode === undefined ? 'single' : s.clueMode
+  if (clueMode !== 'single' && clueMode !== 'multiple') return null
   if (
     !text(s.gameId) ||
     !text(s.controllerIdentity) ||
@@ -132,7 +134,7 @@ export const parseCodenamesState = (value: unknown): CodenamesState | null => {
       !integer(c.turn, s.turn) ||
       !c.turn ||
       !team(c.team) ||
-      !codenamesWord(c.word) ||
+      (typeof c.word !== 'string' || readCodenamesClue(c.word, clueMode) !== c.word) ||
       !clueCount(c.count) ||
       !text(c.by) ||
       !identities.has(c.by) ||
@@ -209,6 +211,7 @@ export const parseCodenamesState = (value: unknown): CodenamesState | null => {
     controllerIdentity: s.controllerIdentity,
     revision: s.revision,
     phase: s.phase as CodenamesState['phase'],
+    clueMode,
     stepId: s.stepId,
     turn: s.turn,
     players,

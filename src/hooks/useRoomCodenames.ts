@@ -5,6 +5,7 @@ import {
   applyCodenamesMove,
   codenamesPrivateFor,
   createCodenamesMatch,
+  defaultCodenamesSettings,
   emptyCodenamesState,
   readCodenamesSettings,
   syncCodenamesMembers,
@@ -18,7 +19,7 @@ import type {
 } from '../games/codenames'
 import { parseCodenamesMove, parseCodenamesPrivate, parseCodenamesState } from '../games/codenamesWire'
 
-export const CODENAMES_TOPIC = 'ford-kall.codenames.v1'
+export const CODENAMES_TOPIC = 'ford-kall.codenames.v2'
 type Command =
   | { type: 'start'; gameId: string; settings: CodenamesSettings }
   | { type: 'move'; gameId: string; stepId: string; move: CodenamesMove }
@@ -77,6 +78,7 @@ export const useRoomCodenames = (room: Room) => {
         if (command.type === 'reset') {
           // Return to team selection; discard the old key, including for former spymasters.
           const lobby = emptyCodenamesState(room.localParticipant.identity)
+          lobby.clueMode = current.clueMode
           lobby.players = current.players
             .filter((p) => members.some((m) => m.identity === p.identity))
             .map((p) => ({ ...p, connected: true }))
@@ -127,7 +129,7 @@ export const useRoomCodenames = (room: Room) => {
     clearError: protocol.clearError,
     isController,
     participantCount: protocol.participantCount,
-    start: (settings: CodenamesSettings = { customWords: [] }) =>
+    start: (settings: CodenamesSettings = defaultCodenamesSettings) =>
       dispatch({ type: 'start', gameId: state.gameId, settings }),
     move: (move: CodenamesMove) =>
       dispatch({ type: 'move', gameId: state.gameId, stepId: state.stepId, move }),

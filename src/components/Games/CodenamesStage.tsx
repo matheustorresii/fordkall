@@ -3,13 +3,16 @@ import type { ParticipantMedia } from '../../types'
 import type { useRoomCodenames } from '../../hooks/useRoomCodenames'
 import {
   codenamesCurrentClue,
+  codenamesClueLimit,
   codenamesGuessesLeft,
   codenamesPauseReason,
   codenamesStartError,
   codenamesTeamName,
+  defaultCodenamesSettings,
+  readCodenamesClue,
   readCodenamesSettings,
 } from '../../games/codenames'
-import type { CodenamesKind, CodenamesPlayer, CodenamesSettings, CodenamesTeam } from '../../games/codenames'
+import type { CodenamesClueMode, CodenamesKind, CodenamesPlayer, CodenamesSettings, CodenamesTeam } from '../../games/codenames'
 import { GameError, GameHud, GameModal } from './GameTable'
 import { Icon } from '../ui/Icon'
 import './CodenamesStage.css'
@@ -65,7 +68,8 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
     [count, setCount] = useState('2')
   const [customText, setCustomText] = useState(''),
     [hideKey, setHideKey] = useState(false)
-  const [savedSettings, setSavedSettings] = useState<CodenamesSettings>({ customWords: [] })
+  const [savedSettings, setSavedSettings] = useState<CodenamesSettings>({ ...defaultCodenamesSettings, clueMode: state.clueMode })
+  const [draftClueMode, setDraftClueMode] = useState<CodenamesClueMode>(state.clueMode)
   const [pendingStep, setPendingStep] = useState('')
   const clue = codenamesCurrentClue(state),
     guessesLeft = codenamesGuessesLeft(state)
@@ -86,8 +90,10 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
     .split(/[\n,;]+/)
     .map((s) => s.trim())
     .filter(Boolean)
-  const settings = readCodenamesSettings({ customWords }),
+  const settings = readCodenamesSettings({ customWords, clueMode: draftClueMode }),
     settingsError = !settings
+  const clueMode = lobby ? savedSettings.clueMode : state.clueMode
+  const validClue = readCodenamesClue(word, state.clueMode)
   const roleLabel = !local?.team ? 'Assistindo' : isMaster ? 'Mestre' : 'Agente'
   useEffect(() => {
     setWord('')
@@ -97,9 +103,12 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
   useEffect(() => {
     setHideKey(false)
   }, [state.gameId])
+  useEffect(() => {
+    setSavedSettings((saved) => ({ ...saved, clueMode: state.clueMode }))
+  }, [state.clueMode])
   const sendClue = () => {
     if (
-      mayGiveClue &&
+      mayGiveClue && validClue &&
       game.move({ type: 'clue', word, count: count === 'unlimited' ? count : Number(count) })
     )
       setPendingStep(state.stepId)
@@ -244,19 +253,20 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
           <footer className="cn-lobby__actions">
             <div>
               <strong>Um mestre e pelo menos um agente por equipe.</strong>
-              <span>{startError || 'Equipes prontas. Podemos começar.'}</span>
+              <span>{startError || `Equipes prontas · pistas ${savedSettings.clueMode === 'single' ? 'de uma palavra' : 'com várias palavras'}.`}</span>
             </div>
             <div>
               <button
                 className="cn-button"
                 onClick={() => {
                   setCustomText(savedSettings.customWords.join('\n'))
+                  setDraftClueMode(savedSettings.clueMode)
                   setModal('settings')
                 }}
                 type="button"
               >
                 <Icon name="controls" />
-                <span>Palavras</span>
+                <span>Configurações</span>
               </button>
               <button
                 className="cn-button"
@@ -429,22 +439,22 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
                     }}
                   >
                     <label>
-                      <span>Sua pista</span>
+                      <span>{state.clueMode === 'single' ? 'Sua pista · uma palavra' : 'Sua pista · várias palavras'}</span>
                       <input
-                        aria-label="Palavra da pista"
+                        aria-label="Texto da pista"
                         autoComplete="off"
                         autoCorrect="off"
-                        maxLength={24}
+                        maxLength={codenamesClueLimit(state.clueMode)}
                         onChange={(e) => setWord(e.target.value)}
-                        placeholder="Uma palavra…"
+                        placeholder={state.clueMode === 'single' ? 'Uma palavra…' : 'Uma palavra ou frase curta…'}
                         spellCheck={false}
                         value={word}
                       />
                     </label>
                     <label>
-                      <span>Palavras</span>
+                      <span>Cartas</span>
                       <select
-                        aria-label="Número de palavras da pista"
+                        aria-label="Número de cartas relacionadas à pista"
                         onChange={(e) => setCount(e.target.value)}
                         value={count}
                       >
@@ -459,7 +469,7 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
                     </label>
                     <button
                       className="cn-button cn-button--primary"
-                      disabled={!word.trim() || busy}
+                      disabled={!validClue || busy}
                       type="submit"
                     >
                       Enviar pista <Icon name="chevron" />
@@ -477,7 +487,7 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
               <div className="cn-guess-controls">
                 <div className="cn-clue-chip">
                   <small>PISTA</small>
-                  <strong>{clue?.word}</strong>
+                  <strong title={clue?.word}>{clue?.word}</strong>
                   <b>{clue?.count === 'unlimited' ? '∞' : clue?.count}</b>
                 </div>
                 <span className="cn-attempts">
@@ -553,7 +563,7 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
           title={
             {
               rules: 'Como jogar',
-              settings: 'Palavras da partida',
+              settings: 'Configurações do Codenames',
               history: 'Pistas e jogadas',
               teams: 'As equipes',
               reset: 'Opções da partida',
@@ -568,9 +578,10 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
                 <strong>agentes</strong>. Só os mestres veem a identidade das 25 palavras.
               </p>
               <p>
-                Na sua vez, o mestre envia <strong>uma palavra e um número</strong>. O número indica quantas
+                Na sua vez, o mestre envia <strong>{clueMode === 'single' ? 'uma palavra' : 'uma palavra ou frase curta'} e um número</strong>. O número indica quantas
                 palavras ele relacionou à pista. Não use palavras ainda visíveis na mesa como pista.
               </p>
+              <p>O formato da pista é escolhido antes da partida e vale para as duas equipes. No modo com várias palavras, a pista pode ter até 48 caracteres, com até 24 por palavra.</p>
               <p>
                 Os agentes marcam sugestões, conversam e confirmam uma palavra por vez. Acertar permite
                 continuar; encontrar um civil ou um agente rival encerra o turno. Uma carta rival também ajuda
@@ -594,6 +605,20 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
             </div>
           ) : modal === 'settings' ? (
             <div className="cn-settings">
+              <fieldset className="cn-clue-setting">
+                <legend>Palavras na pista</legend>
+                <label>
+                  <input type="radio" name="cn-clue-mode" value="single" checked={draftClueMode === 'single'} onChange={() => setDraftClueMode('single')} />
+                  <span><strong>Uma palavra</strong><small>Ex.: Órbita · até 24 caracteres</small></span>
+                </label>
+                <label>
+                  <input type="radio" name="cn-clue-mode" value="multiple" checked={draftClueMode === 'multiple'} onChange={() => setDraftClueMode('multiple')} />
+                  <span><strong>Várias palavras</strong><small>Ex.: Sistema solar · até 48 caracteres</small></span>
+                </label>
+              </fieldset>
+              <p>A regra escolhida vale para as duas equipes nesta partida.</p>
+              <details className="cn-custom-words">
+                <summary>Banco de palavras <span>{customWords.length ? `· ${customWords.length} personalizadas` : '· padrão'}</span></summary>
               <p>
                 {customText.trim()
                   ? 'Seu banco substitui o padrão nesta partida.'
@@ -619,6 +644,7 @@ export const CodenamesStage = ({ game, participants, onExit, onOpenGameHub }: Pr
                     ? `${settings!.customWords.length} palavras prontas para sortear.`
                     : 'O banco padrão será usado.'}
               </small>
+              </details>
               <div className="game-modal__actions">
                 <button className="cn-button" type="button" onClick={() => setCustomText('')}>
                   Usar banco padrão
