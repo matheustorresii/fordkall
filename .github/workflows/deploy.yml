@@ -78,8 +78,7 @@ jobs:
 
       - name: Verify Android association is included in the uploaded site
         run: |
-          tar -tf "$RUNNER_TEMP/artifact.tar" | rg -Fx './.well-known/assetlinks.json'
-          tar -tf "$RUNNER_TEMP/artifact.tar" | rg -Fx './.nojekyll'
+          tar -tf "$RUNNER_TEMP/artifact.tar" './.well-known/assetlinks.json' './.nojekyll'
 
   deploy:
     environment:
