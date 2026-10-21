@@ -70,11 +70,16 @@ jobs:
           VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_UEUoALzMExdSiWwFOOi2pw_WvIjcrfZ
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./dist
           # Android verifies this public file at the exact .well-known URL.
           include-hidden-files: true
+
+      - name: Verify Android association is included in the uploaded site
+        run: |
+          tar -tf "$RUNNER_TEMP/artifact.tar" | rg -Fx './.well-known/assetlinks.json'
+          tar -tf "$RUNNER_TEMP/artifact.tar" | rg -Fx './.nojekyll'
 
   deploy:
     environment:
