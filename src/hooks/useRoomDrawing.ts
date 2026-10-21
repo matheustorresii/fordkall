@@ -1,22 +1,14 @@
 import { useEffect, useMemo, useSyncExternalStore } from 'react'
 import { RoomEvent, type Room, type RemoteParticipant } from 'livekit-client'
-import {
-  BOARD_CONTROL_TOPIC,
-  BOARD_SCENE_TOPIC,
-  ExcalitowerSession,
-} from '../whiteboard/session'
-import { MAX_BOARD_MESSAGE_BYTES } from '../whiteboard/replica'
+import { DrawingSession } from '../games/drawing/session'
+import { MAX_DRAWING_MESSAGE_BYTES } from '../games/drawing/replica'
 
-export const useRoomExcalitower = (room: Room, scope = '', artist = '') => {
-  const controlTopic = scope
-    ? `ford-kall.sketch.${scope}.control`
-    : BOARD_CONTROL_TOPIC
-  const sceneTopic = scope
-    ? `ford-kall.sketch.${scope}.scene`
-    : BOARD_SCENE_TOPIC
+export const useRoomDrawing = (room: Room, scope: string, artist: string) => {
+  const controlTopic = `ford-kall.sketch.v2.${scope}.control`
+  const sceneTopic = `ford-kall.sketch.v2.${scope}.scene`
   const session = useMemo(
     () =>
-      new ExcalitowerSession({
+      new DrawingSession({
         identity: room.localParticipant.identity,
         peers: () => [...room.remoteParticipants.keys()],
         control: (message, to, reliable = true) =>
@@ -28,7 +20,7 @@ export const useRoomExcalitower = (room: Room, scope = '', artist = '') => {
               ...(to ? { destinationIdentities: [to] } : {}),
             },
           ),
-        // LiveKit streams handle chunking and backpressure; scenes/images never go in a 15-KiB data packet.
+        // Completed strokes use reliable streams with chunking/backpressure.
         scene: (message, to) =>
           room.localParticipant.sendText(JSON.stringify(message), {
             topic: sceneTopic,
@@ -37,20 +29,12 @@ export const useRoomExcalitower = (room: Room, scope = '', artist = '') => {
       }),
     [room, controlTopic, sceneTopic],
   )
-  // Pointer movement should only repaint the editor, never the entire voice/camera screen.
-  const summary = useSyncExternalStore(session.subscribe, () =>
-    JSON.stringify([
-      session.getView().count,
-      session.getView().presence.length,
-      session.getView().openId,
-    ]),
+  const count = useSyncExternalStore(
+    session.subscribe,
+    () => session.getView().count,
   )
-  const [count, people, openId] = JSON.parse(summary) as [
-    number,
-    number,
-    string,
-  ]
   useEffect(() => {
+    if (!scope) return
     let stopped = false
     const readers = new Set<AbortController>()
     const receive = async (
@@ -61,7 +45,7 @@ export const useRoomExcalitower = (room: Room, scope = '', artist = '') => {
         stopped ||
         (artist && peer.identity !== artist) ||
         !room.remoteParticipants.has(peer.identity) ||
-        (reader.info.size || 0) > MAX_BOARD_MESSAGE_BYTES ||
+        (reader.info.size || 0) > MAX_DRAWING_MESSAGE_BYTES ||
         readers.size >= 8
       )
         return
@@ -73,15 +57,15 @@ export const useRoomExcalitower = (room: Room, scope = '', artist = '') => {
           bytes = 0
         for await (const chunk of reader.withAbortSignal(controller.signal)) {
           bytes += new TextEncoder().encode(chunk).byteLength
-          if (bytes > MAX_BOARD_MESSAGE_BYTES)
-            throw new Error('Lousa recebida excede o limite.')
+          if (bytes > MAX_DRAWING_MESSAGE_BYTES)
+            throw new Error('Desenho recebida excede o limite.')
           text += chunk
         }
         if (!stopped) session.receiveScene(peer.identity, JSON.parse(text))
       } catch {
         if (!stopped)
           session.setError(
-            'A lousa não chegou por completo. Clique em sincronizar para tentar novamente.',
+            'O desenho não chegou por completo. Tente sincronizar novamente.',
           )
       } finally {
         clearTimeout(timeout)
@@ -121,6 +105,6 @@ export const useRoomExcalitower = (room: Room, scope = '', artist = '') => {
       room.off(RoomEvent.ParticipantDisconnected, session.peersChanged)
       room.off(RoomEvent.Reconnected, session.sync)
     }
-  }, [room, session, controlTopic, sceneTopic, artist])
-  return { session, view: { count, people, openId } }
+  }, [room, session, controlTopic, sceneTopic, artist, scope])
+  return { session, view: { count } }
 }

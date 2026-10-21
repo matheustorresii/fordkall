@@ -422,6 +422,7 @@
   background: #dbe2eb;
 }
 .sketch-board {
+  display: block;
   position: absolute;
   top: 50%;
   left: 50%;
@@ -429,8 +430,25 @@
   overflow: hidden;
   background: #f3f5f9;
 }
-.sketch-board > canvas {
-  display: block;
+.sketch-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #fff1ce;
+  color: #64512d;
+  font-size: 12px;
+}
+.sketch-error > span {
+  flex: 1;
+}
+.sketch-error > button {
+  padding: 5px 8px;
+  border: 1px solid #64512d33;
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
 }
 .sketch-tools {
   display: flex;

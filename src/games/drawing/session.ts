@@ -1,14 +1,12 @@
-import type { Element, Viewport } from './core/types/model'
+import type { DrawingStroke } from './model.ts'
 import {
-  BoardReplica,
+  DrawingReplica,
   compareEpoch,
-  type BoardDelta,
-  type BoardElement,
+  type DrawingDelta,
+  type DrawingElement,
 } from './replica.ts'
 
-export const BOARD_CONTROL_TOPIC = 'ford-kall.excalitower.control.v2'
-export const BOARD_SCENE_TOPIC = 'ford-kall.excalitower.scene.v2'
-export interface BoardTransport {
+export interface DrawingTransport {
   identity: string
   peers: () => string[]
   control: (
@@ -16,41 +14,23 @@ export interface BoardTransport {
     to?: string,
     reliable?: boolean,
   ) => Promise<unknown>
-  scene: (message: BoardDelta, to?: string) => Promise<unknown>
+  scene: (message: DrawingDelta, to?: string) => Promise<unknown>
 }
-export type BoardCursor = {
-  x: number
-  y: number
-  tool: 'pointer' | 'laser'
-  button: 'up' | 'down'
-}
-export type BoardPresence = {
-  identity: string
-  editing: boolean
-  cursor: BoardCursor | null
-  seen: number
-}
-export type BoardView = {
+export type DrawingView = {
   revision: number
   sceneRevision: number
   count: number
-  presence: BoardPresence[]
   pending: boolean
   error: string
-  openId: string
 }
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   Boolean(value && typeof value === 'object' && !Array.isArray(value))
 
-/** Reliable scene streams + lossy cursors. Every peer retains a replica, even with the UI closed. */
-export class ExcalitowerSession {
-  readonly replica = new BoardReplica()
-  // Per-viewer camera/tool preferences are memory-only and never sent to other participants.
-  localViewport: Viewport = { scale: 1, offsetX: 0, offsetY: 0 }
-  readOnly = false
+/** Session-only Gartic strokes. No document tools, cursors or shared activity controls. */
+export class DrawingSession {
+  readonly replica = new DrawingReplica()
   private listeners = new Set<() => void>()
-  private presence = new Map<string, BoardPresence>()
-  private pendingElements = new Map<string, BoardElement>()
+  private pendingElements = new Map<string, DrawingElement>()
   private pendingClear = false
   private timer: ReturnType<typeof setTimeout> | undefined
   private heartbeat: ReturnType<typeof setInterval> | undefined
@@ -59,27 +39,19 @@ export class ExcalitowerSession {
   private sending = false
   private sendFailed = false
   private retryAfter = 0
-  private visible = false
-  private editing = true
-  private lastCursor = 0
   private requests = new Map<string, number>()
   private lastSnapshot = new Map<string, number>()
-  // Keep closed activities as tombstones too: a delayed hello/open must not
-  // bring the board back over a game that the room has already started.
-  private activityId = ''
   private sendWaiters = new Set<() => void>()
-  private view: BoardView = {
+  private view: DrawingView = {
     revision: 0,
     sceneRevision: 0,
     count: 0,
-    presence: [],
     pending: false,
     error: '',
-    openId: '',
   }
 
-  readonly transport: BoardTransport
-  constructor(transport: BoardTransport) {
+  readonly transport: DrawingTransport
+  constructor(transport: DrawingTransport) {
     this.transport = transport
   }
   subscribe = (listener: () => void) => {
@@ -90,18 +62,11 @@ export class ExcalitowerSession {
   }
   getView = () => this.view
   private emit(sceneChanged = false) {
-    const peers = [...this.presence.values()]
-    const presence =
-      peers.length === this.view.presence.length &&
-      peers.every((peer, i) => peer === this.view.presence[i])
-        ? this.view.presence
-        : peers
     this.view = {
       ...this.view,
       revision: this.view.revision + 1,
       sceneRevision: this.view.sceneRevision + Number(sceneChanged),
       count: this.replica.count,
-      presence,
       pending:
         this.sending || this.pendingClear || this.pendingElements.size > 0,
     }
@@ -111,25 +76,6 @@ export class ExcalitowerSession {
     if (this.view.error === error) return
     this.view = { ...this.view, error }
     this.emit()
-  }
-  open = () => {
-    this.activityId = this.nextActivityId()
-    this.view = {
-      ...this.view,
-      openId: this.activityId,
-    }
-    this.safeControl({ kind: 'open', id: this.view.openId })
-    this.emit()
-  }
-  closeForAll = () => {
-    this.activityId = this.nextActivityId()
-    this.view = { ...this.view, openId: '' }
-    this.safeControl({ kind: 'close', id: this.activityId })
-    this.emit()
-  }
-  private nextActivityId() {
-    const previousTime = Number(this.activityId.split(':')[0]) || 0
-    return `${Math.max(Date.now(), previousTime + 1)}:${this.transport.identity}`
   }
   private safeControl(message: unknown, to?: string, reliable = true) {
     if (!this.running) return
@@ -143,17 +89,10 @@ export class ExcalitowerSession {
     this.sync()
     this.retry = setTimeout(() => this.sync(), 1_200)
     this.heartbeat = setInterval(() => {
-      const now = Date.now()
-      for (const [id, peer] of this.presence)
-        if (now - peer.seen > 20_000 || !this.transport.peers().includes(id))
-          this.presence.delete(id)
-      if (this.visible) this.sendPresence()
       if (this.replica.hasContent) this.sync()
-      if (this.presence.size || this.view.presence.length) this.emit()
     }, 8_000)
   }
   stop() {
-    this.setVisible(false)
     this.running = false
     clearTimeout(this.timer)
     clearTimeout(this.retry)
@@ -166,41 +105,13 @@ export class ExcalitowerSession {
     this.retryAfter = 0
     this.requests.clear()
     this.safeControl({ kind: 'hello', digest: this.replica.digest() })
-    if (this.visible) this.sendPresence()
     this.schedule()
   }
   peersChanged = () => {
-    const peers = this.transport.peers()
-    for (const id of this.presence.keys())
-      if (!peers.includes(id)) this.presence.delete(id)
     this.requests.clear()
     this.emit()
     this.sync()
   }
-  setVisible = (visible: boolean, editing = this.editing) => {
-    this.visible = visible
-    this.editing = editing
-    this.sendPresence()
-    if (visible) this.sync()
-  }
-  private sendPresence(cursor?: BoardCursor | null) {
-    this.safeControl(
-      {
-        kind: 'presence',
-        visible: this.visible,
-        editing: this.editing,
-        ...(cursor === undefined ? {} : { cursor }),
-      },
-      undefined,
-      false,
-    )
-  }
-  pointer = (cursor: BoardCursor | null) => {
-    if (!this.visible || Date.now() - this.lastCursor < 80) return
-    this.lastCursor = Date.now()
-    this.sendPresence(cursor)
-  }
-
   receiveControl = (sender: string, message: unknown) => {
     if (
       !this.running ||
@@ -209,11 +120,6 @@ export class ExcalitowerSession {
     )
       return
     if (message.kind === 'hello') {
-      if (this.view.openId)
-        this.safeControl({ kind: 'open', id: this.view.openId }, sender)
-      else if (this.activityId)
-        this.safeControl({ kind: 'close', id: this.activityId }, sender)
-      if (this.visible) this.sendPresence()
       if (message.digest !== this.replica.digest() && this.replica.hasContent)
         this.safeControl(
           { kind: 'offer', digest: this.replica.digest() },
@@ -233,55 +139,7 @@ export class ExcalitowerSession {
       this.lastSnapshot.set(sender, Date.now())
       void this.transport
         .scene(this.replica.snapshot(), sender)
-        .catch(() =>
-          this.setError(
-            'Não foi possível sincronizar a lousa. Tentaremos novamente.',
-          ),
-        )
-    } else if (
-      (message.kind === 'open' || message.kind === 'close') &&
-      typeof message.id === 'string' &&
-      /^\d{13}:.{1,180}$/.test(message.id)
-    ) {
-      if (message.id > this.activityId) {
-        this.activityId = message.id
-        this.view = {
-          ...this.view,
-          openId: message.kind === 'open' ? message.id : '',
-        }
-        this.emit()
-      }
-    } else if (message.kind === 'presence') {
-      if (message.visible !== true) this.presence.delete(sender)
-      else {
-        let cursor: BoardCursor | null =
-          message.cursor === null
-            ? null
-            : this.presence.get(sender)?.cursor || null
-        if (
-          isRecord(message.cursor) &&
-          typeof message.cursor.x === 'number' &&
-          typeof message.cursor.y === 'number' &&
-          Number.isFinite(message.cursor.x) &&
-          Number.isFinite(message.cursor.y) &&
-          Math.abs(message.cursor.x) < 1e9 &&
-          Math.abs(message.cursor.y) < 1e9
-        ) {
-          cursor = {
-            x: message.cursor.x,
-            y: message.cursor.y,
-            tool: message.cursor.tool === 'laser' ? 'laser' : 'pointer',
-            button: message.cursor.button === 'down' ? 'down' : 'up',
-          }
-        }
-        this.presence.set(sender, {
-          identity: sender,
-          editing: message.editing === true,
-          cursor,
-          seen: Date.now(),
-        })
-      }
-      this.emit()
+        .catch(() => this.setError('Não foi possível sincronizar o desenho.'))
     }
   }
   receiveScene = (sender: string, value: unknown) => {
@@ -299,16 +157,16 @@ export class ExcalitowerSession {
       this.setError(
         error instanceof Error
           ? error.message
-          : 'Não foi possível ler a lousa.',
+          : 'Não foi possível ler o desenho.',
       )
     }
   }
   update = (
-    elements: Element[],
+    elements: DrawingStroke[],
     removed: string[] = [],
     epoch = this.replica.epoch,
   ) => {
-    // An old mounted editor must not resurrect a document that another peer just cleared.
+    // A gesture from before clear must not resurrect the previous drawing.
     if (compareEpoch(epoch, this.replica.epoch) !== 0) return
     try {
       const local = this.replica.localDelta(
@@ -323,6 +181,7 @@ export class ExcalitowerSession {
         this.pendingElements.set(element.id, element)
       this.emit(true)
       this.schedule()
+      return true
     } catch (error) {
       this.setError(
         error instanceof Error
@@ -365,7 +224,7 @@ export class ExcalitowerSession {
   }
   private async flush() {
     if (!this.running || this.sending) return
-    const delta: BoardDelta = {
+    const delta: DrawingDelta = {
       epoch: { ...this.replica.epoch },
       elements: [...this.pendingElements.values()],
     }
@@ -395,7 +254,7 @@ export class ExcalitowerSession {
         this.pendingClear ||= wasClear
       }
       this.setError(
-        'Sem conexão com a lousa. Suas alterações estão nesta sessão; tente sincronizar novamente.',
+        'Sem conexão com o desenho. Suas alterações estão nesta sessão; tente sincronizar novamente.',
       )
     } finally {
       this.sending = false

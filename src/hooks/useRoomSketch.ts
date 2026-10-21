@@ -1,17 +1,13 @@
 import { useEffect, useRef } from 'react'
 import type { Room } from 'livekit-client'
 import type { GarticState } from '../games/partyGames'
-import type { Element } from '../whiteboard/core/types/model'
-import { useRoomExcalitower } from './useRoomExcalitower'
+import type { DrawingStroke } from '../games/drawing/model'
+import { useRoomDrawing } from './useRoomDrawing'
 
 /** Retain the live drawing outside its UI, including while the artist minimizes it. */
 export const useRoomSketch = (room: Room, state: GarticState) => {
-  const board = useRoomExcalitower(
-    room,
-    `gartic-${state.boardId || 'idle'}`,
-    state.boardArtist,
-  )
-  const archive = useRef(new Map<string, Element[]>())
+  const board = useRoomDrawing(room, state.boardId, state.boardArtist)
+  const archive = useRef(new Map<string, DrawingStroke[]>())
   useEffect(() => {
     archive.current.clear()
   }, [state.gameId])

@@ -29,17 +29,6 @@ if (
   )
 } else if (
   import.meta.env.DEV &&
-  new URLSearchParams(window.location.search).has('excalitower-preview')
-) {
-  void import('./dev/ExcalitowerPreview').then(({ ExcalitowerPreview }) =>
-    root.render(
-      <StrictMode>
-        <ExcalitowerPreview />
-      </StrictMode>,
-    ),
-  )
-} else if (
-  import.meta.env.DEV &&
   new URLSearchParams(window.location.search).has('microphone-preview')
 ) {
   void import('./dev/MicrophonePreview').then(({ MicrophonePreview }) =>

@@ -1,12 +1,4 @@
-import {
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { RoomEvent, type Room } from 'livekit-client'
 import { useAudioDevices } from '../../hooks/useAudioDevices'
@@ -19,7 +11,6 @@ import { useRoomSnapshot } from '../../hooks/useRoomSnapshot'
 import { useMicrophoneProcessing } from '../../hooks/useMicrophoneProcessing'
 import { microphoneCaptureOptions } from '../../services/microphoneCapture'
 import { useRoomChat } from '../../hooks/useRoomChat'
-import { useRoomExcalitower } from '../../hooks/useRoomExcalitower'
 import { useRoomSketch } from '../../hooks/useRoomSketch'
 import { useRoomIto } from '../../hooks/useRoomIto'
 import { useRoomExplodingKiwi } from '../../hooks/useRoomExplodingKiwi'
@@ -67,7 +58,6 @@ import { PokerStage } from '../Games/PokerStage'
 import { CoupStage } from '../Games/CoupStage'
 import { CodenamesStage } from '../Games/CodenamesStage'
 import { RoomGamesHub } from '../Games/RoomGamesHub'
-import { ExcalitowerBoundary } from '../Excalitower/ExcalitowerBoundary'
 import { MusicPanel } from '../Music/MusicPanel'
 import { ParticipantAudioLayer } from '../Participants/ParticipantAudioLayer'
 import { ParticipantContextMenu } from '../Participants/ParticipantContextMenu'
@@ -79,7 +69,6 @@ import { SettingsModal } from '../Settings/SettingsModal'
 import { BrandMark } from '../ui/BrandMark'
 import { Icon, type IconName } from '../ui/Icon'
 
-const ExcalitowerStage = lazy(() => import('../Excalitower/ExcalitowerStage'))
 const GarticStage = lazy(() =>
   import('../Games/GarticStage').then((m) => ({ default: m.GarticStage })),
 )
@@ -210,17 +199,6 @@ export const CallScreen = ({
     `${devices.selectedInput}:${microphoneProcessing.processorRevision}`,
   )
   const chat = useRoomChat(room)
-  const whiteboard = useRoomExcalitower(room)
-  const whiteboardNames = useMemo(
-    () =>
-      Object.fromEntries(
-        snapshot.participants.map((person) => [
-          person.identity,
-          person.name || person.identity,
-        ]),
-      ),
-    [snapshot.participants],
-  )
   const gameParticipation = useRoomGameParticipation(room)
   const itoGame = useRoomIto(room, gameParticipation)
   const explodingKiwi = useRoomExplodingKiwi(room, gameParticipation)
@@ -262,9 +240,7 @@ export const CallScreen = ({
     kind: GameKind
     start: () => boolean
   } | null>(null)
-  const [gameMode, setGameMode] = useState<'hub' | 'excalitower' | GameKind>(
-    'hub',
-  )
+  const [gameMode, setGameMode] = useState<'hub' | GameKind>('hub')
   const [unreadMessages, setUnreadMessages] = useState(0)
   const lastSeenMessageId = useRef('')
   const [participantMenu, setParticipantMenu] = useState<{
@@ -304,16 +280,6 @@ export const CallScreen = ({
       setMusicOpen(false)
     }
   }, [impostorGame.state.gameId])
-  useEffect(() => {
-    if (whiteboard.view.openId) {
-      setGameMode('excalitower')
-      setGamesOpen(true)
-      setParticipantsOpen(false)
-      setChatOpen(false)
-      setMusicOpen(false)
-      onNavigateCall?.()
-    }
-  }, [whiteboard.view.openId])
 
   useEffect(() => {
     if (active) return
@@ -670,7 +636,6 @@ export const CallScreen = ({
     : undefined
 
   const resetOtherGames = (selected: GameKind) => {
-    whiteboard.session.closeForAll()
     if (selected !== 'ito' && itoGame.state.gameId) void itoGame.reset()
     if (selected !== 'kiwi' && explodingKiwi.state.gameId)
       void explodingKiwi.reset()
@@ -725,7 +690,7 @@ export const CallScreen = ({
     pending.start()
   }, [gameParticipation.state.revision, gameParticipation.error])
   const selectedGameState =
-    gameMode === 'hub' || gameMode === 'excalitower'
+    gameMode === 'hub'
       ? null
       : {
           ito: itoGame.state,
@@ -739,7 +704,7 @@ export const CallScreen = ({
           impostor: impostorGame.state,
         }[gameMode]
   const gameParticipationUi =
-    gameMode === 'hub' || gameMode === 'excalitower'
+    gameMode === 'hub'
       ? null
       : {
           kind: gameMode,
@@ -948,18 +913,12 @@ export const CallScreen = ({
                 codenamesPlayers={
                   codenamesGame.state.players.filter((p) => p.team).length
                 }
-                excalitowerActive={whiteboard.view.count > 0}
-                excalitowerPeople={whiteboard.view.people}
                 garticActive={Boolean(garticGame.state.gameId)}
                 garticPlayers={garticGame.state.players.length}
                 impostorActive={Boolean(impostorGame.state.gameId)}
                 impostorPlayers={impostorGame.state.players.length}
                 onSelectGartic={() => setGameMode('gartic')}
                 onSelectImpostor={() => setGameMode('impostor')}
-                onSelectExcalitower={() => {
-                  whiteboard.session.open()
-                  setGameMode('excalitower')
-                }}
                 onExit={() => setGamesOpen(false)}
                 onSelectIto={() => setGameMode('ito')}
                 onSelectKiwi={() => setGameMode('kiwi')}
@@ -969,29 +928,10 @@ export const CallScreen = ({
                 onSelectCoup={() => setGameMode('coup')}
                 onSelectCodenames={() => setGameMode('codenames')}
               />
-            ) : gameMode === 'excalitower' ? (
-              <ExcalitowerBoundary onExit={() => setGamesOpen(false)}>
-                <Suspense
-                  fallback={
-                    <div className="excalitower-loading" role="status">
-                      <span className="spinner" />
-                      Abrindo Excalitower…
-                    </div>
-                  }
-                >
-                  <ExcalitowerStage
-                    session={whiteboard.session}
-                    names={whiteboardNames}
-                    active={active}
-                    onExit={() => setGamesOpen(false)}
-                    onOpenHub={() => setGameMode('hub')}
-                  />
-                </Suspense>
-              </ExcalitowerBoundary>
             ) : gameMode === 'gartic' ? (
               <Suspense
                 fallback={
-                  <div className="excalitower-loading">
+                  <div className="game-loading" role="status">
                     Abrindo Gartic Kiwi…
                   </div>
                 }
@@ -1011,7 +951,9 @@ export const CallScreen = ({
             ) : gameMode === 'impostor' ? (
               <Suspense
                 fallback={
-                  <div className="excalitower-loading">Abrindo Impostor…</div>
+                  <div className="game-loading" role="status">
+                    Abrindo Impostor…
+                  </div>
                 }
               >
                 <ImpostorStage

@@ -22,7 +22,6 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - seleção entre múltiplas transmissões simultâneas;
 - chat realtime de texto e imagens de até 4 MB durante a call;
 - central de jogos sincronizados na sala: Codenames, Coup, Poker, ITO, Exploding Kiwi, Truco Mineiro em duplas e The Mind cooperativo, com busca, categorias e catálogo paginado;
-- Excalitower na central: canvas infinito colaborativo com desenho, formas, setas, texto, imagens e exportação; sem pastas ou salvamento automático, somente durante a sessão da call;
 - optout independente nos sete jogos: ficar só assistindo sem sair da call, controle de participantes pelo organizador e confirmação para sair de partidas em andamento; só a própria pessoa pode voltar a participar;
 - Coup · Corte Kiwi de 2–6 pessoas, cinco personagens com arte original, blefes, contestações, bloqueios, troca secreta, eliminação e relógio configurável para decisões;
 - Poker Texas Hold’em No Limit de 2–6 pessoas, fichas fictícias, blinds e tempo configuráveis, all-in, potes paralelos e showdown;
@@ -52,17 +51,15 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 - GitHub Pages + GitHub Actions
 - Electron + electron-builder (Windows)
 
-## Excalitower
+## Desenho dos jogos
 
-Abra **Central de jogos → Excalitower**. A abertura leva a sala para a lousa uma vez; depois cada pessoa pode minimizar e navegar livremente. Zoom e ferramentas são locais. O desenho só vive nesta sessão e é descartado quando a última pessoa sai. Exporte uma imagem se quiser guardar uma cópia.
+O Gartic usa um canvas próprio e simples, limitado aos traços da rodada: cores, tamanho do pincel, desfazer e limpar. Não há editor de documentos, formas, texto, imagens, ícones ou arquivos externos. O canvas mantém a proporção em telas diferentes, preserva desenhos ao minimizar e replica os traços pelo LiveKit.
 
-O editor é o canvas original do **11A3/Excalitower**, importado de `github.io` para `src/whiteboard/core`, com seleção, formas, desenho, texto/código, imagens e biblioteca de ícones. Não usa mais o SDK do Excalidraw e não inclui pastas, IndexedDB ou GitHub Sync. O editor e os ícones são carregados sob demanda.
+`npm run test:drawing` cobre validação, convergência, desfazer, limpeza, reconexão e envio do último traço. A prévia `?party-preview=gartic` permite verificar quatro clientes sem entrar numa call real.
 
-Cada cliente mantém uma réplica em memória. Deltas usam streams confiáveis do LiveKit, com chunking/backpressure; cursores usam pacotes pequenos e descartáveis. Versões por elemento, tombstones e épocas de limpeza evitam perda de edições simultâneas e reaparecimento de desenhos apagados. Quem chega depois ou reconecta recebe o estado dos participantes presentes, sem um novo servidor ou tabela no Supabase.
+## Versão 1.1.1
 
-Alterações são transações por elemento. Patches remotos esperam o gesto/texto local terminar e nunca recarregam o editor durante um desenho. Limites: 3.000 elementos e 12 MB de cena; imagens raster de até 2 MB. Nenhuma imagem vai para um serviço externo de arquivos; apenas para os participantes.
-
-`npm run test:excalitower` cobre convergência, concorrência, exclusão/desfazer, imagens, reconexão e ciclo de vida. `?excalitower-preview` permite desenhar enquanto outro cliente altera a cena. As rotas de teste não entram na produção.
+Excalitower removido por completo da central e da call, incluindo o editor, rotas de prévia, sincronização da atividade e dependências específicas. O desenho do Gartic é independente; os outros jogos não mudaram. Arquivos removidos permanecem recuperáveis pelo histórico Git.
 
 ## Versão 1.1.0
 
