@@ -246,6 +246,37 @@ Todos os atalhos começam vazios e são configurados em **Configurações → At
 
 O workflow [`.github/workflows/windows.yml`](.github/workflows/windows.yml) gera os executáveis e os metadados do updater ao enviar uma tag `v*`. Em seguida, [`.github/workflows/macos.yml`](.github/workflows/macos.yml) publica um DMG e um ZIP universal, compatíveis com Macs Intel e Apple Silicon. O app macOS ainda não tem assinatura Developer ID nem notarização Apple, então o Gatekeeper pode exigir autorização manual na primeira abertura. A atualização automática continua disponível somente no instalador Windows.
 
+## Mobile: PWA e Android
+
+**Baixar app**, antes do login e na home, permite instalar a PWA ou baixar os pacotes. No Android, use o Chrome atualizado e o botão de instalação (ou o menu do navegador). No iPhone/iPad, use Safari → Compartilhar → Adicionar à Tela de Início. O APK `Ford-Kall-<versão>-android.apk` é uma **Trusted Web Activity**: o conteúdo continua sendo servido por `https://fordkall.11a3.dev`, usando o navegador do sistema, não uma WebView nem um SDK nativo de chamadas. Android mínimo: 8 / API 26.
+
+O manifesto tem identidade estável, ícones comuns/adaptativos, orientação livre e uma captura real da interface mobile. `npm run build` gera `dist/sw.js` e `pwa-version.json`, com identidade derivada de todos os arquivos da shell e do próprio worker. O desenvolvimento Vite e o Electron não registram o service worker.
+
+O cache contém somente HTML público, JS/CSS, manifesto, ícones e até 90 artes públicas usadas. Supabase, autenticação, tokens, mensagens, chamadas, YouTube, requests com Authorization/no-store e métodos que não sejam GET ficam fora. Nenhum código de convite ou sala vira uma entrada de cache. A abertura offline não torna conversas/calls/partidas disponíveis sem internet.
+
+Atualizações não chamam `skipWaiting` durante a instalação. **Atualizar e reabrir** consulta todas as abas da origem; qualquer call ativa, conexão em andamento ou aba sem resposta bloqueia a ativação. Só a aba que consentiu é recarregada. Duas shells anteriores ficam disponíveis para imports de jogos em abas antigas. O painel também está em Configurações → Aplicativo na call.
+
+### Gerar o APK
+
+Requisitos: JDK 17, Android SDK 36/build-tools 36, Node do projeto. O Gradle Wrapper tem checksum fixado. Defina `ANDROID_HOME` com a localização do SDK.
+
+```bash
+# Somente no primeiro APK de um aplicativo NOVO. Nunca recrie para atualizar um app publicado.
+node scripts/android-build.mjs --init-signing
+# Depois: mantenha a mesma chave.
+npm run android:build
+```
+
+A primeira etapa gera chave e senha aleatórias em `.android-signing/`, ignorada pelo Git. Faça backup seguro dessa pasta; perder a chave impede atualizar o aplicativo instalado. O certificado público deve corresponder ao fingerprint em `public/.well-known/assetlinks.json`. O build se recusa a publicar com outra assinatura, executa testes de links e Android Lint, gera APK release e SHA-256 em `release/`. O APK não usa a chave de debug.
+
+O workflow `android.yml` anexa o APK ao release após o Windows. Ele exige autorização/configuração dos secrets criptografados `ANDROID_KEYSTORE_BASE64`, `ANDROID_KEYSTORE_PASSWORD`, `ANDROID_KEY_ALIAS`, `ANDROID_KEY_PASSWORD`; a chave privada nunca deve entrar no Git nem no site. Até essa configuração, o APK pode ser gerado e publicado localmente. Só a associação pública do certificado é distribuída em `.well-known`.
+
+### Limites mobile
+
+O pacote TWA não transforma WebRTC web em serviço Android. Tela bloqueada, microfone em segundo plano, Bluetooth, suspensão por economia de bateria e captura da própria tela continuam dependendo do navegador/dispositivo. Não há serviço nativo de chamadas, overlay, Firebase push de DMs ou reprodução YouTube em segundo plano neste release. Esses recursos exigem outra etapa nativa; não devem ser anunciados como resolvidos pela instalação. Permissões de câmera/microfone são concedidas à origem HTTPS pelo navegador na call, não na home.
+
+Validação automatizada: `npm run test:pwa` cobre instalação atômica, APIs fora do cache, navegação offline, preservação de chunks, limites de cache, atualização multiaba com calls e instruções por plataforma. O build Android executa os testes Java e lint antes de assinar/copiar o APK. Testes em aparelhos físicos ainda são necessários para áudio, tela bloqueada e Bluetooth.
+
 ## Deploy no GitHub Pages
 
 O workflow [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) executa em todo push para `main`:

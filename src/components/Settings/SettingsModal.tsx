@@ -13,6 +13,8 @@ import {
 } from '../../storage/preferences'
 import { Icon, type IconName } from '../ui/Icon'
 import type { MicrophonePreset } from '../../services/microphoneSettings'
+import { PwaUpdateCard } from '../ui/PwaControls'
+import { DesktopDownloads } from '../ui/DesktopDownloads'
 
 type AppUpdaterState = ReturnType<typeof useAppUpdater>
 type AudioDevicesState = ReturnType<typeof useAudioDevices>
@@ -478,6 +480,10 @@ export const SettingsModal = ({
 
             {page === 'app' && (
               <div className="settings-page">
+                {!window.fordKallDesktop && <>
+                  <PwaUpdateCard />
+                  <DesktopDownloads />
+                </>}
                 <SettingsCard description="Feedback local para presença e controles da call." title="Experiência">
                   <label className="setting-switch">
                     <span>

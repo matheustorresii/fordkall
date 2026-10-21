@@ -4,7 +4,7 @@ import type { AppUpdateState } from '../types'
 const webState: AppUpdateState = {
   status: 'unsupported',
   currentVersion: '',
-  message: 'O navegador usa sempre a versão mais recente publicada.',
+  message: 'Atualizações da versão web são preparadas em segundo plano, sem interromper sua call.',
 }
 
 export const useAppUpdater = () => {

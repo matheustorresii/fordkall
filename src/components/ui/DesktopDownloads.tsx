@@ -2,9 +2,14 @@ import { useState } from 'react'
 import { version } from '../../../package.json'
 import { GameModal } from '../Games/GameTable'
 import { Icon } from './Icon'
+import { usePwa } from '../../pwa/store'
+import { installInstructions } from '../../pwa/policy'
+import { PwaInstallButton, PwaUpdateCard } from './PwaControls'
 export const DesktopDownloads = () => {
   const [open, setOpen] = useState(false)
+  const pwa = usePwa()
   if (window.fordKallDesktop) return null
+  const guide = installInstructions(navigator.userAgent)
   const base = `https://github.com/matheustorresii/fordkall/releases/download/v${version}/`
   return (
     <>
@@ -12,19 +17,38 @@ export const DesktopDownloads = () => {
         className="desktop-download-trigger"
         type="button"
         aria-label="Baixar app"
-        title="Baixar app para Windows ou macOS"
+        title="Instalar no celular ou baixar para Android, Windows e macOS"
         onClick={() => setOpen(true)}
       >
-        <Icon name="popout" />
+        <Icon name="download" />
         <span>Baixar app</span>
       </button>
       {open && (
         <GameModal
-          title="Ford Kall no desktop"
-          detail={`Versão ${version} · Sua conta e suas salas, no app.`}
+          title="Ford Kall no seu dispositivo"
+          detail="A mesma conta. Suas calls, conversas e jogos."
           onClose={() => setOpen(false)}
         >
+          <div className="pwa-downloads">
+            {pwa.installed ? <p className="pwa-install-status"><Icon name="check" />Ford Kall já está aberto como aplicativo.</p> : <>
+              <PwaInstallButton />
+              <section className="pwa-install-help">
+                <h3>{guide.platform === 'ios' ? 'Instalar no iPhone ou iPad' : 'Instalar pelo navegador'}</h3>
+                <p>Sem loja de aplicativos. Abre em uma janela própria e recebe as atualizações do site.</p>
+                <ol>{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+              </section>
+            </>}
+            <PwaUpdateCard />
+          </div>
+          <div className="pwa-download-divider">Ou baixe um instalador</div>
           <div className="desktop-download-options">
+            <a href={`${base}Ford-Kall-${version}-android.apk`}>
+              <Icon name="download" />
+              <strong>
+                Android<small>APK · Android 8 ou superior · Navegador atualizado</small>
+              </strong>
+              <span>Baixar .apk ↗</span>
+            </a>
             <a href={`${base}Ford-Kall-Setup-${version}-x64.exe`}>
               <Icon name="popout" />
               <strong>
@@ -40,6 +64,11 @@ export const DesktopDownloads = () => {
               <span>Baixar .dmg ↗</span>
             </a>
           </div>
+          <p className="desktop-download-note">
+            Android: o APK abre a PWA com o navegador do sistema. As atualizações
+            do conteúdo chegam pelo site. Calls em segundo plano e transmissão da
+            tela dependem do suporte do navegador; o APK não remove essas limitações.
+          </p>
           <p className="desktop-download-note">
             Windows: atualizações pelo próprio app. macOS: instale a nova versão
             por cima da anterior. Se o macOS pedir confirmação de segurança,

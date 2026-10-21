@@ -1,0 +1,10 @@
+[
+  {
+    "relation": ["delegate_permission/common.handle_all_urls"],
+    "target": {
+      "namespace": "android_app",
+      "package_name": "dev.elevena3.fordkall",
+      "sha256_cert_fingerprints": ["54:B0:49:D8:0B:56:2C:AA:10:FE:EE:4F:F5:3C:95:97:DB:82:5A:B6:A4:47:64:FD:37:06:7A:C4:4D:C4:AC:63"]
+    }
+  }
+]

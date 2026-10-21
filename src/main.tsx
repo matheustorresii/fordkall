@@ -3,6 +3,13 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './styles.css'
 import './styles-v110.css'
+import './pwa/pwa.css'
+import { startPwa } from './pwa/store'
+import { PwaNotices } from './components/ui/PwaControls'
+import { loadDisplayFonts } from './pwa/fonts'
+
+startPwa()
+loadDisplayFonts()
 
 const root = createRoot(document.getElementById('root')!)
 if (
@@ -75,6 +82,7 @@ if (
   root.render(
     <StrictMode>
       <App />
+      <PwaNotices />
     </StrictMode>,
   )
 }

@@ -1,0 +1,50 @@
+.pwa-install-button { display:flex; width:100%; justify-content:center; align-items:center; gap:10px; min-height:48px; padding:12px 18px; border:1px solid var(--accent-border); border-radius:12px; color:#1e2a13; background:var(--accent); font-size:14px; font-weight:650; cursor:pointer; }
+.pwa-install-help { padding:18px; border:1px solid var(--border-default); border-radius:14px; background:var(--surface-1); }
+.pwa-install-help > h3 { margin:0 0 8px; font-size:15px; }
+.pwa-install-help p,.pwa-install-help li { color:var(--text-secondary); font-size:14px; line-height:1.65; }
+.pwa-install-help ol { margin:12px 0 0; padding-left:20px; }
+.pwa-install-help p { margin:8px 0; }
+.pwa-install-status { display:flex; align-items:center; gap:9px; margin:0 0 14px; color:var(--accent-strong); font-size:14px; }
+.pwa-update-card { display:grid; gap:12px; padding:18px; border:1px solid var(--border-default); border-radius:14px; background:var(--surface-1); }
+.pwa-update-card__heading { display:flex; align-items:center; gap:12px; }
+.pwa-update-card__heading > svg { color:var(--accent); }
+.pwa-update-card__heading > div { display:grid; gap:4px; }
+.pwa-update-card__heading strong { font-size:15px; }
+.pwa-update-card__heading small,.pwa-update-card__actions > span { color:var(--text-muted); font-size:12px; }
+.pwa-update-card > p { margin:0; color:var(--text-secondary); font-size:14px; line-height:1.6; }
+.pwa-update-card__actions { display:flex; flex-wrap:wrap; align-items:center; gap:12px; }
+.pwa-update-card__actions button { min-height:44px; padding:11px 15px; font-size:14px; }
+.pwa-update-message { color:var(--warning); line-height:1.6; }
+.pwa-download-divider { display:flex; align-items:center; gap:12px; margin:20px 0; color:var(--text-muted); font-size:12px; }
+.pwa-download-divider::before,.pwa-download-divider::after { content:''; height:1px; flex:1; background:var(--border-default); }
+.pwa-downloads { display:grid; gap:14px; }
+.access-panel > .desktop-download-trigger { justify-content:center; min-height:44px; }
+.access-panel > .desktop-download-trigger span { display:inline; }
+.auth-shell--minimal { height:100dvh; min-height:0; overflow-y:auto; align-items:safe center; }
+.pwa-notice { position:fixed; z-index:10000; right:max(20px,env(safe-area-inset-right)); bottom:max(20px,env(safe-area-inset-bottom)); display:flex; align-items:center; gap:12px; width:max-content; max-width:calc(100vw - 32px); padding:14px; border:1px solid var(--border-strong); border-radius:14px; background:#263246; box-shadow:0 12px 44px #0006; color:var(--text-primary); }
+.pwa-notice > svg { color:var(--accent); }
+.pwa-notice > div { display:grid; gap:4px; }
+.pwa-notice strong { font-size:13px; }
+.pwa-notice span { font-size:12px; color:var(--text-secondary); }
+.pwa-notice button { display:flex; flex-shrink:0; align-items:center; justify-content:center; min-width:36px; min-height:40px; padding:8px; border:1px solid var(--border-default); border-radius:9px; color:var(--text-primary); background:var(--surface-3); cursor:pointer; font-size:12px; }
+.pwa-notice--offline { bottom:auto; top:max(12px,env(safe-area-inset-top)); left:50%; right:auto; transform:translateX(-50%); }
+.pwa-offline-screen { position:fixed; inset:0; z-index:20000; display:flex; flex-direction:column; align-items:center; justify-content:center; padding:32px max(24px,env(safe-area-inset-right)) max(32px,env(safe-area-inset-bottom)); background:#171d29; color:#f2f4f8; text-align:center; }
+.pwa-offline-screen img { border-radius:20px; }
+.pwa-offline-screen h1 { margin:24px 0 10px; font:650 27px/1.2 var(--font-sans); letter-spacing:-.04em; }
+.pwa-offline-screen p { max-width:360px; margin:0 0 26px; color:#aab6c9; font-size:15px; line-height:1.7; }
+.pwa-offline-screen button { display:flex; min-height:48px; align-items:center; gap:10px; padding:12px 22px; border:0; border-radius:12px; color:#1e2a13; background:var(--accent); font:650 14px/1.4 var(--font-sans); cursor:pointer; }
+@media(max-width:700px) {
+  /* Prevent iOS input zoom without disabling user zoom or accessibility scaling. */
+  input:not([type=range]):not([type=checkbox]):not([type=radio]),select,textarea { font-size:16px; }
+  .access-panel { padding-top:max(20px,env(safe-area-inset-top)); padding-bottom:max(20px,env(safe-area-inset-bottom)); }
+  .social-topbar { height:calc(64px + env(safe-area-inset-top)); min-height:calc(64px + env(safe-area-inset-top)); padding-top:env(safe-area-inset-top); }
+  .social-sidebar { padding-top:max(22px,env(safe-area-inset-top)); padding-bottom:max(14px,env(safe-area-inset-bottom)); }
+  .social-composer { margin-bottom:max(22px,env(safe-area-inset-bottom)); }
+  .call-dock { margin-bottom:env(safe-area-inset-bottom); }
+  .pwa-notice { right:12px; bottom:max(12px,env(safe-area-inset-bottom)); max-width:calc(100vw - 24px); gap:8px; padding:12px; }
+  .pwa-notice--offline { right:auto; bottom:auto; }
+  .pwa-notice > svg { display:none; }
+  .pwa-update-card__actions { align-items:flex-start; flex-direction:column; }
+}
+@media(prefers-reduced-motion:reduce) { .pwa-notice { animation:none; transition:none; } }
+@media(pointer:coarse) { input:not([type=range]):not([type=checkbox]):not([type=radio]),select,textarea { font-size:16px; } }

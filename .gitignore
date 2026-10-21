@@ -9,3 +9,10 @@ release
 vite.config.js
 vite.config.d.ts
 supabase/.temp/
+android/.gradle/
+android/**/build/
+android/local.properties
+.android-signing/
+.android-build/
+*.jks
+*.keystore

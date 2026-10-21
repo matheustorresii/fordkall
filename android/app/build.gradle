@@ -1,0 +1,53 @@
+import groovy.json.JsonSlurper
+
+plugins { id 'com.android.application' }
+
+def pkg = new JsonSlurper().parse(rootProject.file('../package.json'))
+def parts = pkg.version.tokenize('.').collect { it.toInteger() }
+def releaseStore = System.getenv('FK_ANDROID_KEYSTORE')
+
+android {
+    namespace 'dev.elevena3.fordkall'
+    compileSdk 36
+    defaultConfig {
+        applicationId 'dev.elevena3.fordkall'
+        minSdk 26
+        targetSdk 36
+        versionCode parts[0] * 1000000 + parts[1] * 1000 + parts[2]
+        versionName pkg.version
+    }
+    if (releaseStore) {
+        signingConfigs {
+            release {
+                storeFile file(releaseStore)
+                storePassword System.getenv('FK_ANDROID_STORE_PASSWORD')
+                keyAlias System.getenv('FK_ANDROID_KEY_ALIAS') ?: 'fordkall'
+                keyPassword System.getenv('FK_ANDROID_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            if (releaseStore) signingConfig signingConfigs.release
+            minifyEnabled false
+            shrinkResources false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+    lint { abortOnError true }
+}
+
+dependencies {
+    implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.7.4'
+    testImplementation 'junit:junit:4.13.2'
+}
+
+tasks.register('requireReleaseSigning') {
+    doLast {
+        if (!releaseStore) throw new GradleException('Release signing is required. Run npm run android:build.')
+    }
+}
+tasks.matching { it.name == 'preReleaseBuild' }.configureEach { dependsOn 'requireReleaseSigning' }

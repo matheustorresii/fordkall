@@ -1,0 +1,28 @@
+{
+  "id": "/",
+  "name": "Ford Kall",
+  "short_name": "Ford Kall",
+  "description": "Suas calls, conversas e jogos, no mesmo lugar.",
+  "lang": "pt-BR",
+  "start_url": "/?source=pwa",
+  "scope": "/",
+  "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
+  "orientation": "any",
+  "theme_color": "#171d29",
+  "background_color": "#171d29",
+  "categories": ["social", "communication", "games"],
+  "prefer_related_applications": false,
+  "icons": [
+    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "/icons/maskable-192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Salas e conversas", "short_name": "Abrir Ford Kall", "url": "/?source=shortcut", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+  ],
+  "screenshots": [
+    { "src": "/icons/install-mobile.png", "sizes": "480x800", "type": "image/png", "form_factor": "narrow", "label": "Ford Kall — calls, conversas e jogos" }
+  ]
+}

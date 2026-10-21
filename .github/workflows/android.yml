@@ -1,0 +1,98 @@
+name: Build Android PWA app
+
+on:
+  workflow_run:
+    workflows: [Build Windows desktop app]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Existing release tag to attach the Android APK to
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-android:
+    if: >-
+      ${{ github.event_name == 'workflow_dispatch' ||
+        (github.event.workflow_run.conclusion == 'success' &&
+         github.event.workflow_run.head_repository.full_name == github.repository &&
+         startsWith(github.event.workflow_run.head_branch, 'v')) }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout release source
+        uses: actions/checkout@v6
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || inputs.release_tag }}
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Resolve release tag
+        id: release
+        env:
+          MANUAL_RELEASE_TAG: ${{ inputs.release_tag }}
+          UPSTREAM_RELEASE_TAG: ${{ github.event.workflow_run.head_branch }}
+        run: |
+          release_tag="${MANUAL_RELEASE_TAG:-$UPSTREAM_RELEASE_TAG}"
+          [[ "$release_tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || exit 1
+          package_version="$(node -p "require('./package.json').version")"
+          [[ "$release_tag" == "v$package_version" ]] || exit 1
+          echo "tag=$release_tag" >> "$GITHUB_OUTPUT"
+      - name: Install dependencies
+        run: npm ci
+      - name: Test PWA installation, offline cache and safe updates
+        run: npm run test:pwa
+      - name: Check release signing availability
+        id: signing
+        env:
+          SIGNING_KEY: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          SIGNING_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+        run: |
+          if [[ -n "$SIGNING_KEY" && -n "$SIGNING_PASSWORD" ]]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Android signing secrets are not configured. Publish the locally signed APK; never generate a replacement release key."
+          fi
+      - name: Install Android build tools
+        if: steps.signing.outputs.enabled == 'true'
+        run: sdkmanager 'platforms;android-36' 'build-tools;36.0.0'
+      - name: Build, test, lint and sign Android APK
+        if: steps.signing.outputs.enabled == 'true'
+        run: npm run android:build
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      - name: Verify APK signing certificate
+        if: steps.signing.outputs.enabled == 'true'
+        run: "$ANDROID_HOME/build-tools/36.0.0/apksigner verify --verbose --print-certs release/*.apk"
+      - name: Upload Android artifact
+        if: steps.signing.outputs.enabled == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ford-Kall-Android-${{ steps.release.outputs.tag }}
+          path: |
+            release/*-android.apk
+            release/*-android.apk.sha256
+          if-no-files-found: error
+          compression-level: 0
+      - name: Attach Android APK to existing release
+        if: steps.signing.outputs.enabled == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+        run: |
+          gh release view "$RELEASE_TAG" --json url >/dev/null
+          gh release upload "$RELEASE_TAG" release/*-android.apk release/*-android.apk.sha256 --clobber

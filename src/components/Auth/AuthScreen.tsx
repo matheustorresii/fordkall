@@ -125,7 +125,7 @@ export const AuthScreen = ({
                 <input
                   autoCapitalize="characters"
                   autoComplete="off"
-                  autoFocus
+                  autoFocus={!window.matchMedia('(pointer: coarse)').matches}
                   onChange={(event) => setInviteCode(event.target.value)}
                   placeholder="FK-XXXX-XXXX-XXXX-XXXX"
                   spellCheck={false}

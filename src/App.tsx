@@ -12,6 +12,7 @@ import {
 } from './services/livekit'
 import type { LocalProfile } from './types'
 import { supabase } from './services/supabase'
+import { setPwaCallActive } from './pwa/store'
 
 function App() {
   const account = useAccount()
@@ -23,6 +24,11 @@ function App() {
   const [roomCode, setRoomCode] = useState(getRoomCodeFromUrl)
   const [adminOpen, setAdminOpen] = useState(false)
   const [activeView, setActiveView] = useState<'home' | 'call'>('home')
+
+  useEffect(() => {
+    setPwaCallActive(Boolean(liveKit.room) || liveKit.status === 'connecting' || liveKit.status === 'reconnecting')
+    return () => setPwaCallActive(false)
+  }, [liveKit.room, liveKit.status])
 
   useEffect(() => {
     const desktop = window.fordKallDesktop
