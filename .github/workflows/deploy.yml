@@ -73,6 +73,8 @@ jobs:
         uses: actions/upload-pages-artifact@v4
         with:
           path: ./dist
+          # Android verifies this public file at the exact .well-known URL.
+          include-hidden-files: true
 
   deploy:
     environment:
