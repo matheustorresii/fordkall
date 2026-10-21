@@ -11,6 +11,16 @@ export const DesktopDownloads = () => {
   if (window.fordKallDesktop) return null
   const guide = installInstructions(navigator.userAgent)
   const base = `https://github.com/matheustorresii/fordkall/releases/download/v${version}/`
+  if (pwa.installed) return (
+    <>
+      <button className="desktop-download-trigger" type="button" aria-label="Aplicativo" title="Aplicativo e atualizações" onClick={() => setOpen(true)}>
+        <Icon name="settings" /><span>Aplicativo</span>
+      </button>
+      {open && <GameModal title="Aplicativo" detail="Ford Kall neste dispositivo" onClose={() => setOpen(false)}>
+        <PwaUpdateCard />
+      </GameModal>}
+    </>
+  )
   return (
     <>
       <button
@@ -30,14 +40,12 @@ export const DesktopDownloads = () => {
           onClose={() => setOpen(false)}
         >
           <div className="pwa-downloads">
-            {pwa.installed ? <p className="pwa-install-status"><Icon name="check" />Ford Kall já está aberto como aplicativo.</p> : <>
-              <PwaInstallButton />
-              <section className="pwa-install-help">
-                <h3>{guide.platform === 'ios' ? 'Instalar no iPhone ou iPad' : 'Instalar pelo navegador'}</h3>
-                <p>Sem loja de aplicativos. Abre em uma janela própria e recebe as atualizações do site.</p>
-                <ol>{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
-              </section>
-            </>}
+            <PwaInstallButton />
+            <section className="pwa-install-help">
+              <h3>{guide.platform === 'ios' ? 'Instalar no iPhone ou iPad' : 'Instalar pelo navegador'}</h3>
+              <p>Sem loja de aplicativos. Abre em uma janela própria e recebe as atualizações do site.</p>
+              <ol>{guide.steps.map((step) => <li key={step}>{step}</li>)}</ol>
+            </section>
             <PwaUpdateCard />
           </div>
           <div className="pwa-download-divider">Ou baixe um instalador</div>

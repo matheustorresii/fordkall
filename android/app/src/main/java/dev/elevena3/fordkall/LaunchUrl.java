@@ -18,7 +18,12 @@ public final class LaunchUrl {
                     && "fordkall.11a3.dev".equalsIgnoreCase(uri.getHost())
                     && uri.getUserInfo() == null && (uri.getPort() == -1 || uri.getPort() == 443)
                     && (uri.getPath().isEmpty() || "/".equals(uri.getPath()) || "/index.html".equals(uri.getPath()))) {
-                return uri.toASCIIString();
+                // A verified App Link must use app UI too, even if the browser omits the TWA referrer.
+                String link = uri.toASCIIString();
+                int hash = link.indexOf('#');
+                String page = hash < 0 ? link : link.substring(0, hash);
+                String fragment = hash < 0 ? "" : link.substring(hash);
+                return page + (uri.getRawQuery() == null ? "?" : "&") + "source=android" + fragment;
             }
             if ("fordkall".equalsIgnoreCase(uri.getScheme())) {
                 String room = null;

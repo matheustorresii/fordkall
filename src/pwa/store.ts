@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from 'react'
 import { version } from '../../package.json'
-import { canApplyUpdate, isInstalledDisplay } from './policy'
+import { appLaunchHint, canApplyUpdate, isInstalledDisplay } from './policy'
 
 interface InstallPromptEvent extends Event {
   prompt(): Promise<{ outcome: 'accepted' | 'dismissed' } | void>
@@ -148,7 +148,14 @@ export function startPwa() {
     return
   }
   const display = window.matchMedia('(display-mode: standalone), (display-mode: fullscreen), (display-mode: minimal-ui)')
-  const readDisplay = () => emit({ installed: isInstalledDisplay(display.matches, Boolean((navigator as Navigator & { standalone?: boolean }).standalone), document.referrer) })
+  let launchHint = appLaunchHint(window.location.href, null)
+  try {
+    launchHint = appLaunchHint(window.location.href, sessionStorage.getItem('fordkall.app-window'))
+    if (launchHint || isInstalledDisplay(display.matches, Boolean((navigator as Navigator & { standalone?: boolean }).standalone), document.referrer)) {
+      sessionStorage.setItem('fordkall.app-window', launchHint || 'pwa')
+    }
+  } catch { /* Private browsing/storage restrictions must not break app boot. */ }
+  const readDisplay = () => emit({ installed: Boolean(launchHint) || isInstalledDisplay(display.matches, Boolean((navigator as Navigator & { standalone?: boolean }).standalone), document.referrer) })
   readDisplay()
   display.addEventListener('change', readDisplay)
   window.addEventListener('beforeinstallprompt', (event) => {

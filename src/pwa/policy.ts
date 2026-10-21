@@ -1,5 +1,14 @@
 export const isInstalledDisplay = (standalone: boolean, iosStandalone: boolean, referrer: string) =>
-  standalone || iosStandalone || referrer === 'android-app://dev.elevena3.fordkall'
+  standalone || iosStandalone || /^android-app:\/\/dev\.elevena3\.fordkall\/?$/.test(referrer)
+
+// Presentation only, never authentication. TWA referrers/display mode can disappear on reload;
+// the launcher/start_url hint is retained per window, not across unrelated browser tabs.
+export const appLaunchHint = (href: string, previous: string | null) => {
+  const sources = new URL(href).searchParams.getAll('source')
+  if (sources.includes('android')) return 'android'
+  if (sources.includes('pwa')) return 'pwa'
+  return previous === 'android' || previous === 'pwa' ? previous : ''
+}
 
 export const canApplyUpdate = (inCall: boolean, applying: boolean, online: boolean) =>
   !inCall && !applying && online

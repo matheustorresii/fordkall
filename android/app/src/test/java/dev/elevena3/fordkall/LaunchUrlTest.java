@@ -7,7 +7,12 @@ public class LaunchUrlTest {
     @Test public void opensFixedHomeWithoutData() { assertEquals(LaunchUrl.HOME, LaunchUrl.resolve(null)); }
     @Test public void preservesRoomAndInviteLinks() {
         String link = "https://fordkall.11a3.dev/?room=KIWI-123&invite=FK-test";
-        assertEquals(link, LaunchUrl.resolve(link));
+        assertEquals(link + "&source=android", LaunchUrl.resolve(link));
+    }
+    @Test public void appLinksRetainEncodedQueriesAndFragmentWithAppContext() {
+        assertEquals("https://fordkall.11a3.dev/?source=android", LaunchUrl.resolve("https://fordkall.11a3.dev/"));
+        assertEquals("https://fordkall.11a3.dev/?room=KIWI&invite=FK%2Btest&source=android#join", LaunchUrl.resolve("https://fordkall.11a3.dev/?room=KIWI&invite=FK%2Btest#join"));
+        assertEquals("https://fordkall.11a3.dev/?source=pwa&source=android", LaunchUrl.resolve("https://fordkall.11a3.dev/?source=pwa"));
     }
     @Test public void mapsDesktopRoomScheme() {
         assertEquals("https://fordkall.11a3.dev/?room=KIWI-123&source=android", LaunchUrl.resolve("fordkall://join/kiwi-123"));

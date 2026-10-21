@@ -4,7 +4,7 @@ import vm from 'node:vm'
 import { readFile, access } from 'node:fs/promises'
 import { MessageChannel } from 'node:worker_threads'
 import { resolve } from 'node:path'
-import { isInstalledDisplay, canApplyUpdate, installInstructions } from '../src/pwa/policy.ts'
+import { appLaunchHint, isInstalledDisplay, canApplyUpdate, installInstructions } from '../src/pwa/policy.ts'
 
 const root = resolve(import.meta.dirname, '..')
 const origin = 'https://fordkall.11a3.dev'
@@ -179,12 +179,24 @@ test('install instructions distinguish Android, iPhone/iPad and desktop', () => 
   assert.equal(installInstructions('Mozilla/5.0 (Macintosh; Intel Mac OS X) Mobile/15E148').platform, 'ios')
   assert.equal(installInstructions('Mozilla/5.0 (Windows NT 10.0)').platform, 'desktop')
 })
-test('installed state never trusts a source query parameter or arbitrary app referrer', () => {
+test('native display detection accepts only app display modes and the exact Android referrer', () => {
   assert.equal(isInstalledDisplay(false, false, 'android-app://dev.elevena3.fordkall'), true)
+  assert.equal(isInstalledDisplay(false, false, 'android-app://dev.elevena3.fordkall/'), true)
   assert.equal(isInstalledDisplay(false, false, 'android-app://evil.example'), false)
+  assert.equal(isInstalledDisplay(false, false, 'android-app://dev.elevena3.fordkall.evil/'), false)
   assert.equal(isInstalledDisplay(false, false, 'https://fordkall.11a3.dev/?source=android'), false)
   assert.equal(isInstalledDisplay(true, false, ''), true)
   assert.equal(isInstalledDisplay(false, true, ''), true)
+})
+test('launcher hints affect presentation only and persist only valid per-window app contexts', () => {
+  const site = 'https://fordkall.11a3.dev/'
+  assert.equal(appLaunchHint(site + '?source=android', null), 'android')
+  assert.equal(appLaunchHint(site + '?source=pwa', null), 'pwa')
+  assert.equal(appLaunchHint(site + '?room=KIWI', 'android'), 'android')
+  assert.equal(appLaunchHint(site + '?source=unknown&source=android#join', null), 'android')
+  assert.equal(appLaunchHint(site + '?source=unknown', null), '')
+  assert.equal(appLaunchHint(site, 'true'), '')
+  assert.equal(appLaunchHint(site, null), '')
 })
 test('local update policy refuses active calls, duplicate activation and offline restart', () => {
   assert.equal(canApplyUpdate(true, false, true), false)

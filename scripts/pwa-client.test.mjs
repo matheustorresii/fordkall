@@ -4,7 +4,7 @@ import vm from 'node:vm'
 import { readFile } from 'node:fs/promises'
 import { stripTypeScriptTypes } from 'node:module'
 import { MessageChannel } from 'node:worker_threads'
-import { isInstalledDisplay, canApplyUpdate } from '../src/pwa/policy.ts'
+import { appLaunchHint, isInstalledDisplay, canApplyUpdate } from '../src/pwa/policy.ts'
 
 const raw = await readFile(new URL('../src/pwa/store.ts', import.meta.url), 'utf8')
 const source = stripTypeScriptTypes(raw).replace(/^import .*$/gm, '').replaceAll('export ', '').replaceAll('import.meta.env.PROD', 'PRODUCTION') + '\nthis.api = { startPwa, usePwa, setPwaCallActive, checkPwaUpdate, applyPwaUpdate, promptPwaInstall };'
@@ -17,7 +17,7 @@ function events(extra = {}) {
   }, fire(type, event = {}) { listeners.get(type)?.forEach((listener) => listener(event)) } }
 }
 
-async function harness({ desktop = false, production = true, protocol = 'https:', waiting = false, blocked = false, registrationFails = false } = {}) {
+async function harness({ desktop = false, production = true, protocol = 'https:', waiting = false, blocked = false, registrationFails = false, href = 'https://fordkall.11a3.dev/', storedLaunchHint = null, referrer = '', standalone = false, storageBlocked = false } = {}) {
   let reloads = 0, registrations = 0, registerOptions, activateRequests = 0
   const manager = events({ controller: {} })
   const worker = events({ state: 'installed', postMessage(message, [port]) {
@@ -33,16 +33,21 @@ async function harness({ desktop = false, production = true, protocol = 'https:'
   manager.register = async (_url, options) => { registrations++; registerOptions = options; if (registrationFails) throw new Error('temporarily unavailable'); return registration }
   const win = events({
     fordKallDesktop: desktop ? {} : undefined, isSecureContext: true,
-    location: { reload() { reloads++ } },
-    matchMedia() { return events({ matches: false }) },
+    location: { href, reload() { reloads++ } },
+    matchMedia() { return events({ matches: standalone }) },
     setTimeout, clearTimeout, setInterval() {},
   })
-  const doc = events({ referrer: '', readyState: 'complete', visibilityState: 'visible' })
+  const doc = events({ referrer, readyState: 'complete', visibilityState: 'visible' })
   const navigator = { onLine: true, serviceWorker: manager }
+  const stored = new Map(storedLaunchHint ? [['fordkall.app-window', storedLaunchHint]] : [])
+  const sessionStorage = {
+    getItem(key) { if (storageBlocked) throw new Error('storage denied'); return stored.get(key) ?? null },
+    setItem(key, value) { if (storageBlocked) throw new Error('storage denied'); stored.set(key, value) },
+  }
   const scope = {
     version: '1.2.0', window: win, document: doc, navigator,
     location: { protocol }, PRODUCTION: production, MessageChannel,
-    canApplyUpdate, isInstalledDisplay,
+    canApplyUpdate, isInstalledDisplay, appLaunchHint, sessionStorage, URL,
     useSyncExternalStore(_subscribe, snapshot) { return snapshot() },
     setTimeout, clearTimeout, fetch: async () => { throw new Error('offline') }, AbortSignal,
   }
@@ -50,7 +55,7 @@ async function harness({ desktop = false, production = true, protocol = 'https:'
   scope.api.startPwa()
   await tick()
   for (let attempt = 0; attempt < 100 && ['starting', 'checking'].some((value) => [scope.api.usePwa().worker, scope.api.usePwa().update].includes(value)); attempt++) await tick()
-  return { ...scope.api, win, doc, navigator, manager, worker, registration,
+  return { ...scope.api, win, doc, navigator, manager, worker, registration, stored,
     get reloads() { return reloads }, get registrations() { return registrations }, get registerOptions() { return registerOptions }, get activateRequests() { return activateRequests },
   }
 }
@@ -61,6 +66,38 @@ test('desktop Electron, file URLs and Vite development never register a worker',
     assert.equal(h.registrations, 0)
     assert.equal(h.usePwa().worker, 'unsupported')
   }
+})
+test('PWA and Android launcher URLs use app UI without depending on the browser referrer', async () => {
+  for (const source of ['android', 'pwa']) {
+    const h = await harness({ href: `https://fordkall.11a3.dev/?source=${source}` })
+    assert.equal(h.usePwa().installed, true)
+    assert.equal(h.stored.get('fordkall.app-window'), source)
+    h.win.fire('beforeinstallprompt', { preventDefault() {} })
+    assert.equal(h.usePwa().canInstall, false)
+  }
+})
+test('app presentation survives room URL cleanup and reload in the same window only', async () => {
+  const app = await harness({ href: 'https://fordkall.11a3.dev/?source=android&room=KIWI' })
+  const reloaded = await harness({ href: 'https://fordkall.11a3.dev/?room=KIWI', storedLaunchHint: app.stored.get('fordkall.app-window') })
+  const separateBrowserTab = await harness({ href: 'https://fordkall.11a3.dev/?room=KIWI' })
+  assert.equal(reloaded.usePwa().installed, true)
+  assert.equal(separateBrowserTab.usePwa().installed, false)
+  assert.equal(separateBrowserTab.stored.size, 0)
+})
+test('standalone displays and TWA referrers retain app presentation for subsequent reloads', async () => {
+  for (const options of [{ standalone: true }, { referrer: 'android-app://dev.elevena3.fordkall/' }]) {
+    const h = await harness(options)
+    assert.equal(h.usePwa().installed, true)
+    const reloaded = await harness({ storedLaunchHint: h.stored.get('fordkall.app-window') })
+    assert.equal(reloaded.usePwa().installed, true)
+  }
+})
+test('restricted session storage never prevents app startup or launcher recognition', async () => {
+  const app = await harness({ href: 'https://fordkall.11a3.dev/?source=android', storageBlocked: true })
+  const browser = await harness({ storageBlocked: true })
+  assert.equal(app.usePwa().installed, true)
+  assert.equal(browser.usePwa().installed, false)
+  assert.equal(app.usePwa().worker, 'ready')
 })
 test('production registration disables worker HTTP caching and does not force a reload', async () => {
   const h = await harness()
