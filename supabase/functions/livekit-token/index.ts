@@ -16,6 +16,7 @@ type TokenBody = {
   connectionAttemptId?: number
   succeeded?: boolean
   error?: string
+  privateRoom?: boolean
 }
 
 const inspectLiveKitRoom = async (backend: DirectLiveKitBackend, roomName: string) => {
@@ -138,6 +139,14 @@ Deno.serve(async (request) => {
       .gte('issued_at', since)
     if ((count || 0) >= 10) throw new HttpError(429, 'TOKEN_RATE_LIMIT')
 
+    // First creation fixes visibility; joining must never turn a private room public.
+    const { error: roomError } = await admin.from('call_rooms').upsert({code:roomName,is_private:body.privateRoom===true,created_by:user.id},{onConflict:'code',ignoreDuplicates:true})
+    if (roomError) throw roomError
+    const { data: roomPrivacy,error: privacyError } = await admin.from('call_rooms').select('is_private').eq('code',roomName).single()
+    if (privacyError) throw privacyError
+    const { error: memberError } = await admin.from('call_room_members').upsert({room_code:roomName,user_id:user.id,seen_at:new Date().toISOString()})
+    if (memberError) throw memberError
+
     const metadata = JSON.stringify({
       fordKallProfile: {
         version: 3,
@@ -149,6 +158,8 @@ Deno.serve(async (request) => {
           theme: profile.profile_theme,
           accentColor: profile.profile_accent_color,
           avatarFrame: profile.avatar_frame,
+          decorationId: profile.decoration_id,
+          backgroundId: profile.call_background_id,
         },
       },
       fordKallAccount: { userId: user.id, role: profile.role },
@@ -245,6 +256,7 @@ Deno.serve(async (request) => {
       participantToken,
       backendId,
       connectionAttemptId: issuance.id,
+      privateRoom: roomPrivacy.is_private,
     })
   } catch (error) {
     return errorResponse(error)

@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useState, type FormEvent } from 'react'
+import { supabase } from '../../services/supabase'
 import { roomCodeFromInput } from '../../services/livekit'
 import { getSocialProfileCards } from '../../services/social'
 import type { SocialPresenceEntry, SocialUser } from '../../types/social'
@@ -18,6 +19,7 @@ interface SocialRoomsViewProps {
   connecting: boolean
   onCreateRoom: () => void
   onJoinRoom: (code: string) => void
+  previewRooms?:{code:string;user_ids:string[]}[]
 }
 
 export const SocialRoomsView = ({
@@ -27,24 +29,19 @@ export const SocialRoomsView = ({
   connecting,
   onCreateRoom,
   onJoinRoom,
+  previewRooms,
 }: SocialRoomsViewProps) => {
   const [roomCode, setRoomCode] = useState(initialRoomCode)
   const [profiles, setProfiles] = useState<Map<string, SocialUser>>(new Map())
   const [validationError, setValidationError] = useState('')
-  const rooms = useMemo(() => {
-    const byCode = new Map<string, Map<string, SocialPresenceEntry>>()
-    onlineUsers.forEach((user) => {
-      if (!user.activeRoom) return
-      const code = roomCodeFromInput(user.activeRoom)
-      if (!code) return
-      const people = byCode.get(code) || new Map<string, SocialPresenceEntry>()
-      people.set(user.userId, user)
-      byCode.set(code, people)
-    })
-    return [...byCode.entries()]
-      .map(([code, people]) => ({ code, people: [...people.values()] }))
-      .sort((first, second) => second.people.length - first.people.length)
-  }, [onlineUsers])
+  const [rooms,setRooms]=useState<SocialRoom[]>([]),[roomsError,setRoomsError]=useState(''),[loading,setLoading]=useState(true)
+  useEffect(()=>{
+    if(previewRooms){setLoading(false);setRooms(previewRooms.map(r=>({code:r.code,people:r.user_ids.map(id=>onlineUsers.find(u=>u.userId===id)||{userId:id,displayName:'Pessoa'})})));return}
+    let stopped=false
+    const load=async()=>{const {data,error}=await supabase.rpc('list_public_call_rooms');if(stopped)return;setLoading(false);if(error){setRoomsError('Não foi possível buscar as salas. Tentaremos novamente.');return}setRoomsError('');setRooms(((data||[]) as {code:string;user_ids:string[]}[]).map(r=>({code:r.code,people:r.user_ids.map(id=>({userId:id,displayName:onlineUsers.find(u=>u.userId===id)?.displayName||'Pessoa'}))})).sort((a,b)=>b.people.length-a.people.length))}
+    void load();const timer=window.setInterval(()=>void load(),15_000)
+    return ()=>{stopped=true;window.clearInterval(timer)}
+  },[onlineUsers])
   const activeIds = [...new Set(rooms.flatMap((room) => room.people.slice(0, 5).map((person) => person.userId)))]
     .sort()
     .slice(0, 60)
@@ -56,6 +53,7 @@ export const SocialRoomsView = ({
 
   useEffect(() => {
     let cancelled = false
+    if(previewRooms)return
     if (!activeIds.length) {
       setProfiles(new Map())
       return
@@ -83,9 +81,9 @@ export const SocialRoomsView = ({
     <section className="social-rooms-view">
       <header className="social-page-heading social-page-heading--rooms">
         <div>
-          <span className="social-eyebrow">AO VIVO</span>
-          <h1>Salas</h1>
-          <p>Calls abertas agora para a comunidade.</p>
+          <span className="social-eyebrow">FORD KALL</span>
+          <h1>Chega mais.</h1>
+          <p>Entre em uma call, mande uma mensagem ou reúna a galera.</p>
         </div>
         <Button className="social-primary-button" disabled={connecting} leadingIcon={connecting ? <span className="spinner" /> : <Icon name="plus" />} onClick={onCreateRoom} variant="primary" type="button">
           Criar sala
@@ -118,12 +116,13 @@ export const SocialRoomsView = ({
         <span>Salas ativas</span>
         <small>{rooms.length}</small>
       </div>
+      {roomsError&&<p className="social-inline-error" role="alert">{roomsError}</p>}
 
       {rooms.length === 0 ? (
         <div className="social-rooms-empty">
           <span><Icon name="mic" /></span>
-          <h2>Ninguém em call por enquanto</h2>
-          <p>Crie uma sala e ela aparece aqui enquanto você estiver conectado.</p>
+          <h2>{loading?'Buscando salas…':'Sua próxima call começa aqui'}</h2>
+          <p>{loading?'':'Crie uma sala pública ou convide só quem você quiser para uma privada.'}</p>
           <Button className="social-secondary-button" disabled={connecting} leadingIcon={<Icon name="plus" />} onClick={onCreateRoom} variant="secondary" type="button">
             Criar sala
           </Button>

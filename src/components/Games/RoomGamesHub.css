@@ -7,22 +7,90 @@
   grid-template-rows: 64px minmax(0, 1fr);
   padding-bottom: 88px;
   overflow: hidden;
-  background: radial-gradient(ellipse at 65% 15%, #40576738, transparent 60%), var(--surface-canvas);
+  background:
+    radial-gradient(ellipse at 65% 15%, #40576738, transparent 60%),
+    var(--surface-canvas);
   color: var(--text-primary);
   font-family: var(--font-body, system-ui, sans-serif);
 }
-.game-catalog-card--excalitower .game-catalog-card__visual { background: radial-gradient(ellipse at 40% 45%, #8bbab43d, transparent 80%), #283946; }
-.game-catalog-art.game-catalog-art--excalitower { width: min(230px, 100%); height: 100%; }
-.game-catalog-art--excalitower > svg { width: 100%; height: 100%; }
-.game-catalog-card--coup .game-catalog-card__visual { background: radial-gradient(ellipse at 60% 35%, #7a628347, #242a38); }
-.game-catalog-art.game-catalog-art--coup { width: 160px; max-width: 90%; height: 100%; }
-.game-catalog-art--coup > img { position: absolute; bottom: -18%; left: 42%; width: 40%; height: 112%; object-fit: cover; object-position: center 20%; border: 1px solid #d3bd926e; border-radius: 8px; box-shadow: 0 6px 20px #080a1666; transform: rotate(12deg); }
-.game-catalog-art--coup > img.game-catalog-art__coup-side { left: 20%; transform: translateY(6%) rotate(-13deg); }
-.game-catalog-card--codenames .game-catalog-card__visual { background: radial-gradient(ellipse at 25% 70%, #c1846a29, transparent 65%), #29384b; }
-.game-catalog-art.game-catalog-art--codenames { display: grid; width: 185px; height: 102px; grid-template-columns: repeat(3, 1fr); gap: 5px; transform: rotate(-8deg); }
-.game-catalog-art--codenames > i.game-catalog-art__word { position: static; display: grid; width: auto; height: auto; place-items: center; margin: 0; padding: 0; border: 1px solid #f1e2ba70; border-radius: 4px; background: #dfd5bf; color: #293644; box-shadow: 0 3px 6px #10172533; transform: none; font: 750 8px/1 system-ui, sans-serif; }
-.game-catalog-art--codenames > i.game-catalog-art__word[data-color='red'] { background: #c4847a; }
-.game-catalog-art--codenames > i.game-catalog-art__word[data-color='blue'] { background: #89afc0; }
+.game-catalog-card--excalitower .game-catalog-card__visual {
+  background:
+    radial-gradient(ellipse at 40% 45%, #8bbab43d, transparent 80%), #283946;
+}
+.game-catalog-art.game-catalog-art--excalitower {
+  width: min(230px, 100%);
+  height: 100%;
+}
+.game-catalog-art--excalitower > svg {
+  width: 100%;
+  height: 100%;
+}
+.game-catalog-art--gartic > svg,
+.game-catalog-art--impostor > svg {
+  width: 100%;
+  height: 100%;
+}
+.game-catalog-card--coup .game-catalog-card__visual {
+  background: radial-gradient(ellipse at 60% 35%, #7a628347, #242a38);
+}
+.game-catalog-art.game-catalog-art--coup {
+  width: 160px;
+  max-width: 90%;
+  height: 100%;
+}
+.game-catalog-art--coup > img {
+  position: absolute;
+  bottom: -18%;
+  left: 42%;
+  width: 40%;
+  height: 112%;
+  object-fit: cover;
+  object-position: center 20%;
+  border: 1px solid #d3bd926e;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px #080a1666;
+  transform: rotate(12deg);
+}
+.game-catalog-art--coup > img.game-catalog-art__coup-side {
+  left: 20%;
+  transform: translateY(6%) rotate(-13deg);
+}
+.game-catalog-card--codenames .game-catalog-card__visual {
+  background:
+    radial-gradient(ellipse at 25% 70%, #c1846a29, transparent 65%), #29384b;
+}
+.game-catalog-art.game-catalog-art--codenames {
+  display: grid;
+  width: 185px;
+  height: 102px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 5px;
+  transform: rotate(-8deg);
+}
+.game-catalog-art--codenames > i.game-catalog-art__word {
+  position: static;
+  display: grid;
+  width: auto;
+  height: auto;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #f1e2ba70;
+  border-radius: 4px;
+  background: #dfd5bf;
+  color: #293644;
+  box-shadow: 0 3px 6px #10172533;
+  transform: none;
+  font:
+    750 8px/1 system-ui,
+    sans-serif;
+}
+.game-catalog-art--codenames > i.game-catalog-art__word[data-color='red'] {
+  background: #c4847a;
+}
+.game-catalog-art--codenames > i.game-catalog-art__word[data-color='blue'] {
+  background: #89afc0;
+}
 .room-games-hub__topbar {
   display: flex;
   width: max-content;

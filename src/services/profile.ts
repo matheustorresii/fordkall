@@ -1,3 +1,4 @@
+import { validBackground, validDecoration } from './cosmetics'
 import type {
   AvatarFrame,
   LocalProfile,
@@ -33,6 +34,8 @@ export const DEFAULT_PROFILE_APPEARANCE: ProfileAppearance = {
   theme: 'lime',
   accentColor: PROFILE_THEME_COLORS.lime,
   avatarFrame: 'ring',
+  decorationId: 'none',
+  backgroundId: 'none',
 }
 
 const nameFonts = new Set<ProfileNameFont>(['mono', 'condensed', 'serif', 'rounded'])
@@ -40,6 +43,8 @@ const themes = new Set<ProfileTheme>(['lime', 'ocean', 'violet', 'ember', 'rose'
 const avatarFrames = new Set<AvatarFrame>(['none', 'ring', 'double', 'glow'])
 
 export const normalizeProfileAppearance = (value?: Partial<ProfileAppearance> | null): ProfileAppearance => ({
+  decorationId: validDecoration(value?.decorationId),
+  backgroundId: validBackground(value?.backgroundId),
   nameColor: typeof value?.nameColor === 'string' && /^#[0-9a-f]{6}$/i.test(value.nameColor)
     ? value.nameColor.toLowerCase()
     : DEFAULT_PROFILE_APPEARANCE.nameColor,

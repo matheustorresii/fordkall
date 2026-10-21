@@ -11,6 +11,7 @@ import { microphoneCaptureOptions } from './microphoneCapture'
 export type LiveKitConnectionDetails = TokenSourceResponseObject & {
   backendId?: string | null
   connectionAttemptId?: number
+  privateRoom?: boolean
 }
 
 export const normalizeDisplayName = (value: string) => value.trim().replace(/\s+/g, ' ')
@@ -98,8 +99,9 @@ export const createLiveKitRoom = () =>
 export const fetchConnectionDetails = async (
   roomCode: string,
   _profile: LocalProfile,
+  privateRoom = false,
 ): Promise<LiveKitConnectionDetails> => {
-  return invokeFunction<LiveKitConnectionDetails>('livekit-token', { roomCode })
+  return invokeFunction<LiveKitConnectionDetails>('livekit-token', { roomCode, privateRoom })
 }
 
 export const reportLiveKitConnection = async (

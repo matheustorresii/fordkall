@@ -1,64 +1,186 @@
-import { useMemo, useState, useSyncExternalStore } from 'react'
-import { convertToExcalidrawElements } from '@excalidraw/excalidraw'
+import { useEffect, useMemo, useState, useSyncExternalStore } from 'react'
 import ExcalitowerStage from '../components/Excalitower/ExcalitowerStage'
 import { useRoomExcalitower } from '../hooks/useRoomExcalitower'
 import { createExcalitowerTestMesh } from './excalitowerTestMesh'
-import { Icon } from '../components/ui/Icon'
-import { BrandMark } from '../components/ui/BrandMark'
+import type { Element } from '../whiteboard/core/types/model'
 
-const names = { alice: 'Alice', bia: 'Bia' }
+const shape = (x: number, label: string): Element => ({
+  id: crypto.randomUUID(),
+  type: 'rectangle',
+  x,
+  y: 240,
+  w: 240,
+  h: 140,
+  rotation: 0,
+  strokeColor: '#9ad7bd',
+  fillColor: '#234f4e',
+  strokeWidth: 2,
+  opacity: 1,
+  zIndex: 1,
+  seed: 1,
+  createdAt: Date.now(),
+  updatedAt: Date.now(),
+  label,
+})
 export const ExcalitowerPreview = () => {
-  const mesh = useMemo(createExcalitowerTestMesh, [])
-  const alice = useRoomExcalitower(mesh.rooms[0]!), bia = useRoomExcalitower(mesh.rooms[1]!)
-  const [who, setWho] = useState<'alice' | 'bia'>('alice')
-  const [open, setOpen] = useState(true)
-  const [muted, setMuted] = useState(false)
-  const [offline, setOffline] = useState(false)
-  const [result, setResult] = useState('')
-  const a = useSyncExternalStore(alice.session.subscribe, alice.session.getView)
-  const b = useSyncExternalStore(bia.session.subscribe, bia.session.getView)
-  const session = who === 'alice' ? alice.session : bia.session
-  const add = (peer: 'alice' | 'bia') => {
-    const s = peer === 'alice' ? alice.session : bia.session
-    const elements = convertToExcalidrawElements([{ type: 'rectangle', x: peer === 'alice' ? 140 : 460, y: 230, width: 220, height: 120, strokeColor: peer === 'alice' ? '#397b7b' : '#b98640', backgroundColor: peer === 'alice' ? '#cde9e4' : '#f4dfb4', fillStyle: 'solid', label: { text: peer === 'alice' ? 'Ideias da Alice' : 'Ideias da Bia', fontSize: 20, fontFamily: 5 } }])
-    s.update([...s.replica.snapshot().elements, ...elements], {})
-  }
-  const sample = () => {
-    session.clear()
-    const elements = convertToExcalidrawElements([
-      { type: 'text', x: 130, y: 110, text: 'Uma ideia puxa outra.', fontSize: 34, fontFamily: 5, strokeColor: '#263445' },
-      { type: 'rectangle', x: 130, y: 240, width: 220, height: 110, strokeColor: '#427b78', backgroundColor: '#d4e9e4', fillStyle: 'solid', label: { text: 'Rabiscar', fontFamily: 5, fontSize: 24 } },
-      { type: 'ellipse', x: 470, y: 220, width: 210, height: 150, strokeColor: '#ab8042', backgroundColor: '#f4e5c8', fillStyle: 'solid', label: { text: 'Conectar ideias', fontFamily: 5, fontSize: 21 } },
-      { type: 'arrow', x: 355, y: 295, width: 110, height: 0, strokeColor: '#60878c', strokeWidth: 2 },
-      { type: 'text', x: 190, y: 430, text: 'Todo mundo na mesma página. ✦', fontSize: 22, fontFamily: 5, strokeColor: '#577d88' },
-    ])
-    session.update(elements, {})
-  }
+  const mesh = useMemo(createExcalitowerTestMesh, []),
+    alice = useRoomExcalitower(mesh.rooms[0]!),
+    bia = useRoomExcalitower(mesh.rooms[1]!)
+  const a = useSyncExternalStore(
+      alice.session.subscribe,
+      alice.session.getView,
+    ),
+    b = useSyncExternalStore(bia.session.subscribe, bia.session.getView)
+  const [who, setWho] = useState(false),
+    [open, setOpen] = useState(true),
+    [result, setResult] = useState(''),
+    [offline, setOffline] = useState(false)
+  const [collaborating, setCollaborating] = useState(false)
+  const session = who ? bia.session : alice.session
+  useEffect(() => {
+    if (!collaborating) return
+    let n = 0
+    const interval = window.setInterval(() => {
+      bia.session.update([
+        {
+          ...shape(800, 'Bia desenha'),
+          id: 'remote-live',
+          y: 180,
+          w: 120 + (++n % 20) * 2,
+        },
+      ])
+    }, 70)
+    return () => window.clearInterval(interval)
+  }, [collaborating, bia.session])
   const check = async () => {
-    setResult('Testando…')
-    const wait = (ms = 1_100) => new Promise((resolve) => setTimeout(resolve, Math.max(1_100, ms)))
     try {
-      alice.session.clear(); await wait()
-      add('alice'); add('bia'); await wait(450)
-      if (alice.session.replica.digest() !== bia.session.replica.digest() || alice.session.replica.count < 4) throw new Error('edição concorrente')
-      alice.session.setVisible(false); bia.session.setVisible(false)
-      add('bia'); await wait()
-      if (alice.session.replica.digest() !== bia.session.replica.digest()) throw new Error('sincronização minimizada')
-      mesh.disconnect(); add('alice'); await wait(400)
-      mesh.reconnect(); await wait(450)
-      if (alice.session.replica.digest() !== bia.session.replica.digest()) throw new Error('reconexão')
-      alice.session.clear(); await wait()
-      if (bia.session.replica.count) throw new Error('limpeza')
-      const text = convertToExcalidrawElements([{ type: 'text', text: 'Sincronizado!', x: 330, y: 240 }])
-      bia.session.update(text, {}); await wait()
-      if (alice.session.replica.count !== 1) throw new Error('texto')
-      setResult('6/6: edições concorrentes, texto, lousa minimizada, reconexão, limpeza e convergência passaram.')
-    } catch (error) { setResult(`Falhou: ${String(error)}`) }
+      const wait = () => new Promise((r) => setTimeout(r, 1400))
+      alice.session.clear()
+      await wait()
+      alice.session.update([shape(160, 'Alice')])
+      bia.session.update([shape(500, 'Bia')])
+      await wait()
+      if (
+        a.count < 0 ||
+        alice.session.replica.count !== 2 ||
+        alice.session.replica.digest() !== bia.session.replica.digest()
+      )
+        throw Error('Concorrência')
+      mesh.disconnect()
+      alice.session.update([shape(200, 'Reconectar')])
+      await wait()
+      mesh.reconnect()
+      await wait()
+      if (alice.session.replica.digest() !== bia.session.replica.digest())
+        throw Error('Reconexão')
+      alice.session.open()
+      await wait()
+      if (alice.session.getView().openId !== bia.session.getView().openId)
+        throw Error('Abertura para todos')
+      setResult('Rede: concorrência, reconexão e abertura compartilhada OK')
+    } catch (e) {
+      setResult(String(e))
+    }
   }
-  return <main className="call-shell call-shell--games-open">
-    <header className="call-header"><button className="brand brand--compact call-home-button" aria-label="Home da prévia" onClick={() => setOpen(false)} type="button"><BrandMark /><h1>FORD KALL</h1></button><div className="call-header__actions">{(['users', 'music', 'gamepad', 'chat'] as const).map((name) => <button className="participants-toggle" title={name} aria-label={name} key={name} type="button" onClick={() => name === 'gamepad' && setOpen(true)}><Icon name={name} /></button>)}<div className="connection-pill connection-pill--connected"><i /></div></div></header>
-    <div className="call-workspace">{open ? <ExcalitowerStage key={who} session={session} names={names} onExit={() => setOpen(false)} onOpenHub={() => window.location.assign(`${window.location.pathname}?game-preview=hub&clean`)} /> : <div style={{ display: 'grid', height: '100%', placeContent: 'center' }}><h2>Call continua conectada</h2><button onClick={() => setOpen(true)} type="button">Reabrir Excalitower</button></div>}</div>
-    <footer className="call-dock"><div className="call-dock__group">{(['mic', 'cameraOff', 'headphones', 'screen', 'settings', 'leave'] as const).map((name) => <button aria-label={name} className={`call-control ${name === 'mic' && muted || name === 'cameraOff' ? 'call-control--muted' : ''}`} key={name} onClick={() => name === 'mic' && setMuted((value) => !value)} type="button"><span className="call-control__icon"><Icon name={name === 'mic' && muted ? 'micOff' : name} /></span><span>{name}</span></button>)}</div></footer>
-    {!new URLSearchParams(window.location.search).has('clean') && <details style={{ position: 'fixed', bottom: 4, left: 10, zIndex: 150, maxWidth: 330, borderRadius: 8, background: '#1a2539f5', padding: 9, font: '12px system-ui', color: '#e3e9f1' }}><summary>Teste Excalitower</summary><p role="status">Alice: {a.count} · Bia: {b.count} · {alice.session.replica.digest() === bia.session.replica.digest() ? 'Sincronizados' : 'Sincronizando'} · {mesh.packets()} pacotes</p><p>Imagens: Alice {Object.keys(alice.session.replica.snapshot().files).length} · Bia {Object.keys(bia.session.replica.snapshot().files).length}</p><div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}><button onClick={() => setWho(who === 'alice' ? 'bia' : 'alice')} type="button">Ver como {who === 'alice' ? 'Bia' : 'Alice'}</button><button onClick={() => add(who === 'alice' ? 'bia' : 'alice')} type="button">Outro participante desenha</button><button onClick={sample} type="button">Criar exemplo</button><button onClick={() => { if (offline) mesh.reconnect(); else mesh.disconnect(); setOffline(!offline) }} type="button">{offline ? 'Reconectar' : 'Simular queda'}</button><button onClick={() => void check()} type="button">Rodar 6 testes de rede</button></div><p>{result}</p></details>}
-  </main>
+  return (
+    <main style={{ position: 'fixed', inset: 0 }}>
+      {open ? (
+        <ExcalitowerStage
+          key={String(who)}
+          session={session}
+          names={{ alice: 'Alice', bia: 'Bia' }}
+          onExit={() => setOpen(false)}
+          onOpenHub={() => location.assign('?game-preview=hub')}
+        />
+      ) : (
+        <button onClick={() => setOpen(true)}>Reabrir Excalitower</button>
+      )}
+      {!new URLSearchParams(location.search).has('clean') && (
+        <details
+          style={{
+            position: 'absolute',
+            right: 15,
+            bottom: 80,
+            zIndex: 20,
+            background: '#202c41',
+            padding: 12,
+            color: 'white',
+            maxWidth: 360,
+          }}
+        >
+          <summary>Teste Excalitower</summary>
+          <p role="status">
+            Alice {a.count} · Bia {b.count} · {mesh.packets()} pacotes ·{' '}
+            {alice.session.replica.digest() === bia.session.replica.digest()
+              ? 'Sincronizados'
+              : 'Sincronizando'}
+          </p>
+          <button onClick={() => setWho(!who)}>
+            Ver como {who ? 'Alice' : 'Bia'}
+          </button>
+          <button
+            onClick={() => {
+              ;(who ? alice : bia).session.update([
+                shape(400, 'Outro participante'),
+              ])
+            }}
+          >
+            Outro participante desenha
+          </button>
+          <button
+            onClick={() =>
+              session.update([
+                shape(200, 'Excalitower'),
+                shape(550, 'Mesma sessão'),
+              ])
+            }
+          >
+            Criar exemplo
+          </button>
+          <button
+            onClick={() => {
+              if (offline) mesh.reconnect()
+              else mesh.disconnect()
+              setOffline(!offline)
+            }}
+          >
+            {offline ? 'Reconectar' : 'Simular queda'}
+          </button>
+          <button onClick={() => void check()}>Rodar testes de rede</button>
+          <p>{result}</p>
+        </details>
+      )}
+      {!new URLSearchParams(location.search).has('clean') && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: 80,
+            left: 10,
+            zIndex: 20,
+            background: '#202c41',
+            padding: 8,
+            color: 'white',
+            fontSize: 10,
+            maxWidth: 440,
+          }}
+        >
+          <button onClick={() => setCollaborating(!collaborating)}>
+            {collaborating
+              ? 'Parar colaboração'
+              : 'Simular colaboração contínua'}
+          </button>
+          <output aria-label="Diagnóstico do desenho">
+            {session.replica
+              .scene()
+              .filter((e) => e.id !== 'remote-live')
+              .map(
+                (e) =>
+                  `${e.type}: ${Math.round(e.w)}×${Math.round(e.h)} ${'points' in e ? e.points.length + ' pontos' : ''}`,
+              )
+              .join(' · ')}
+          </output>
+        </div>
+      )}
+    </main>
+  )
 }

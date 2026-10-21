@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { Fragment, useCallback, useEffect, useRef, useState, type FormEvent, type KeyboardEvent } from 'react'
+import { chatDayKey, chatDayLabel } from '../../services/chatDates'
 import {
   describeSocialError,
   getCommunityMessages,
@@ -14,7 +15,7 @@ import { Icon } from '../ui/Icon'
 import { ProfileAvatar } from '../ui/ProfileAvatar'
 import { ProfileName } from '../Profile/ProfileName'
 
-type SocialMessageViewProps =
+type SocialMessageViewProps = {previewMessages?:SocialMessage[]} & (
   | {
       mode: 'community'
       currentUser: SocialUser
@@ -29,6 +30,7 @@ type SocialMessageViewProps =
       onlineCount?: never
       peerOnline: boolean
     }
+  )
 
 const timeLabel = (value: string) => new Intl.DateTimeFormat('pt-BR', {
   hour: '2-digit',
@@ -49,11 +51,14 @@ export const SocialMessageView = (props: SocialMessageViewProps) => {
   const [sending, setSending] = useState(false)
   const [error, setError] = useState('')
   const scrollRef = useRef<HTMLDivElement>(null)
+  const following = useRef(true)
   const isCommunity = props.mode === 'community'
   const peerId = props.mode === 'direct' ? props.peer.id : ''
 
   useEffect(() => {
+    if(props.previewMessages){setMessages(props.previewMessages);setLoading(false);return}
     let cancelled = false
+    following.current=true
     setLoading(true)
     setMessages([])
     setError('')
@@ -77,17 +82,28 @@ export const SocialMessageView = (props: SocialMessageViewProps) => {
       : subscribeToDirectMessages(props.currentUser.id, peerId, (message) =>
         setMessages((current) => mergeMessages(current, message)),
       )
+    // Realtime can silently miss deliveries after suspension/reconnect (or a service outage).
+    // Poll only the visible thread, merge by ID, and never reset the reader's scroll position.
+    const resync=()=>{
+      if(cancelled||document.visibilityState==='hidden'||!scrollRef.current?.offsetParent)return
+      void (isCommunity?getCommunityMessages():getDirectMessages(props.currentUser.id,peerId)).then(items=>{
+        if(!cancelled)setMessages(current=>items.reduce(mergeMessages,current))
+      }).catch(()=>{/* Keep the already delivered history; the next poll retries. */})
+    }
+    const timer=window.setInterval(resync,4000)
+    window.addEventListener('focus',resync)
 
     return () => {
       cancelled = true
       unsubscribe()
+      window.clearInterval(timer);window.removeEventListener('focus',resync)
     }
   }, [isCommunity, peerId, props.currentUser.id])
 
   useEffect(() => {
     const container = scrollRef.current
     if (!container) return
-    container.scrollTo({ top: container.scrollHeight, behavior: 'smooth' })
+    if(following.current) container.scrollTo({ top: container.scrollHeight, behavior: loading ? 'instant' : 'smooth' })
   }, [messages.length, loading])
 
   const submit = useCallback(async (event?: FormEvent) => {
@@ -97,10 +113,12 @@ export const SocialMessageView = (props: SocialMessageViewProps) => {
     setSending(true)
     setError('')
     try {
+      if(props.previewMessages){setMessages(items=>[...items,{id:crypto.randomUUID(),senderId:props.currentUser.id,sender:props.currentUser,body,createdAt:new Date().toISOString()}]);setDraft('');following.current=true;return}
       const message = isCommunity
         ? await sendCommunityMessage(props.currentUser.id, body)
         : await sendDirectMessage(props.currentUser.id, peerId, body)
       setMessages((current) => mergeMessages(current, message))
+      following.current=true
       setDraft('')
     } catch (cause) {
       setError(describeSocialError(cause, 'send'))
@@ -144,7 +162,7 @@ export const SocialMessageView = (props: SocialMessageViewProps) => {
         )}
       </header>
 
-      <div aria-live="polite" className="social-message-list" ref={scrollRef}>
+      <div aria-live="polite" className="social-message-list" ref={scrollRef} onScroll={e=>{const c=e.currentTarget;following.current=c.scrollHeight-c.scrollTop-c.clientHeight<100}}>
         {loading ? (
           <div className="social-message-state"><span className="spinner" />Carregando mensagens</div>
         ) : messages.length === 0 ? (
@@ -155,10 +173,12 @@ export const SocialMessageView = (props: SocialMessageViewProps) => {
           </div>
         ) : (
           <div className="social-message-stack">
-            {messages.map((message) => {
+            {messages.map((message,index) => {
               const own = message.senderId === props.currentUser.id
               return (
-                <article className={`social-message ${own ? 'is-own' : ''}`} key={message.id}>
+                <Fragment key={message.id}>
+                {(!index || chatDayKey(message.createdAt)!==chatDayKey(messages[index-1]!.createdAt)) && <div className="chat-day-divider"><time dateTime={message.createdAt}>{chatDayLabel(message.createdAt)}</time></div>}
+                <article className={`social-message ${own ? 'is-own' : ''}`}>
                   <ProfileAvatar
                     appearance={message.sender.appearance}
                     avatarDataUrl={message.sender.avatarDataUrl}
@@ -168,11 +188,12 @@ export const SocialMessageView = (props: SocialMessageViewProps) => {
                   <div className="social-message__body">
                     <div className="social-message__meta">
                       <ProfileName appearance={message.sender.appearance} name={own ? 'Você' : message.sender.displayName} />
-                      <time dateTime={message.createdAt}>{timeLabel(message.createdAt)}</time>
+                      <time dateTime={message.createdAt} title={new Date(message.createdAt).toLocaleString('pt-BR')}>{timeLabel(message.createdAt)}</time>
                     </div>
                     <p>{message.body}</p>
                   </div>
                 </article>
+                </Fragment>
               )
             })}
           </div>

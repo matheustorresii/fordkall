@@ -1,6 +1,7 @@
 import type { CSSProperties } from 'react'
 import { normalizeProfileAppearance, profileAccent } from '../../services/profile'
 import type { ProfileAppearance } from '../../types'
+import { cosmeticAsset } from '../../services/cosmetics'
 
 const initialsFor = (name: string) =>
   name
@@ -25,7 +26,7 @@ export const ProfileAvatar = ({
   title?: string
 }) => (
   <span
-    className={`profile-avatar profile-avatar--frame-${normalizeProfileAppearance(appearance).avatarFrame} ${className}`.trim()}
+    className={`profile-avatar profile-avatar--frame-${normalizeProfileAppearance(appearance).decorationId !== 'none' ? 'none' : normalizeProfileAppearance(appearance).avatarFrame} ${className}`.trim()}
     style={{ '--profile-accent': profileAccent(appearance) } as CSSProperties}
     title={title}
   >
@@ -34,5 +35,6 @@ export const ProfileAvatar = ({
     ) : (
       <span aria-hidden="true">{initialsFor(name)}</span>
     )}
+    {cosmeticAsset('frame',normalizeProfileAppearance(appearance).decorationId) && <img className="profile-avatar__decoration" alt="" aria-hidden="true" draggable={false} src={cosmeticAsset('frame',normalizeProfileAppearance(appearance).decorationId)} />}
   </span>
 )

@@ -41,6 +41,7 @@ const stopRoomLocalTracks = (room: Room) => {
 export const useLiveKitRoom = () => {
   const [room, setRoom] = useState<Room | null>(null)
   const [activeRoomCode, setActiveRoomCode] = useState('')
+  const [privateRoom,setPrivateRoom]=useState(false)
   const [status, setStatus] = useState<ConnectionStatus>('disconnected')
   const [error, setError] = useState('')
   const [microphoneError, setMicrophoneError] = useState('')
@@ -71,7 +72,7 @@ export const useLiveKitRoom = () => {
     leavingRef.current = false
   }, [])
 
-  const join = useCallback(async (roomCode: string, profile: LocalProfile) => {
+  const join = useCallback(async (roomCode: string, profile: LocalProfile, requestedPrivate = false) => {
     setError('')
     setMicrophoneError('')
     setStatus('connecting')
@@ -109,7 +110,7 @@ export const useLiveKitRoom = () => {
 
       let connectionDetails: Awaited<ReturnType<typeof fetchConnectionDetails>> | null = null
       try {
-        connectionDetails = await fetchConnectionDetails(roomCode, profile)
+        connectionDetails = await fetchConnectionDetails(roomCode, profile, requestedPrivate)
         await nextRoom.connect(
           connectionDetails.serverUrl,
           connectionDetails.participantToken,
@@ -119,6 +120,7 @@ export const useLiveKitRoom = () => {
         saveLocalProfile(profile)
         setRoom(nextRoom)
         setActiveRoomCode(roomCode)
+        setPrivateRoom(connectionDetails.privateRoom===true)
         setStatus('connected')
 
         // Microphone permission belongs to the call controls, not to the room
@@ -247,6 +249,7 @@ export const useLiveKitRoom = () => {
   return {
     room,
     activeRoomCode,
+    privateRoom,
     status,
     error,
     microphoneError,

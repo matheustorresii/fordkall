@@ -204,7 +204,7 @@ test('desconectar destrói o iframe e uma API atrasada não o recria nem emite r
   assert.equal(f.reports.length, 0)
   assert.equal(f.players.length, 0)
 })
-test('playlist é descoberta sem reprodução nativa; resolver vira iframe de vídeo sem autoadvance', async (t) => {
+test('playlist é descoberta sem reprodução nativa; resolução preserva o mesmo iframe ativado', async (t) => {
   const f = setup(t, { playlist: ids }),
     state = start('https://music.youtube.com/playlist?list=PL12345678901234567890')
   f.adapter.update(state, false, 70)
@@ -222,9 +222,9 @@ test('playlist é descoberta sem reprodução nativa; resolver vira iframe de v�
   )
   f.adapter.update(resolved, false, 70)
   await settled()
-  assert.equal(f.players[0].destroyed, true)
-  assert.equal(f.players.length, 2)
-  assert.equal(f.players[1].status, 1)
+  assert.equal(f.players[0].destroyed, false)
+  assert.equal(f.players.length, 1)
+  assert.equal(f.players[0].status, 1)
 })
 test('fim antigo e callbacks de iframe destruído são ignorados; fim válido só sai uma vez por reprodução', async (t) => {
   const f = setup(t),
@@ -288,13 +288,13 @@ test('criar playlist com erro e tentar novamente recria iframe e limpa o erro', 
   assert.equal(f.players.length, 2)
   assert.notEqual(f.local().status, 'error')
 })
-test('carregar em aba oculta não força autoplay; ao retornar pode iniciar sem recriar iframe', async (t) => {
+test('uma faixa nova continua na aba oculta sem exigir reconectar ao voltar', async (t) => {
   const f = setup(t),
     state = start()
   document.visibilityState = 'hidden'
   f.adapter.update(state, false, 70)
   await settled()
-  assert.equal(f.players[0].playAttempts, 0, 'vídeo já cued no iframe deve respeitar a visibilidade também')
+  assert.ok(f.players[0].playAttempts > 0, 'escuta já habilitada não deve pausar a cada troca de música em background')
   document.visibilityState = 'visible'
   f.listeners.get('visibilitychange')()
   assert.equal(f.players[0].status, 1)

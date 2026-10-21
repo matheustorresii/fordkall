@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { changeGameAttendance, emptyGameAttendance, GAME_KINDS, GAME_LIMITS, readGameAttendance } from '../src/games/gameParticipation.ts'
 const people = ['a', 'b', 'c', 'd']
-test('todos os sete jogos têm controle independente de participação', () => {
-  assert.equal(GAME_KINDS.length, 7)
+test('todos os nove jogos têm controle independente de participação', () => {
+  assert.equal(GAME_KINDS.length, 9)
   for (const game of GAME_KINDS) {
     const before = emptyGameAttendance(), after = changeGameAttendance(before, game, 'b', 'b', false, people)
     assert.deepEqual(after[game].spectators, ['b'])

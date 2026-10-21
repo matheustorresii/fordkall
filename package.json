@@ -2,7 +2,7 @@
   "name": "ford-kall",
   "productName": "Ford Kall",
   "private": true,
-  "version": "1.0.27",
+  "version": "1.1.0",
   "description": "Call privada de voz, camera e compartilhamento de tela entre amigos.",
   "author": "Matheus Torres",
   "homepage": "https://fordkall.11a3.dev/",
@@ -16,11 +16,8 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "predev": "node scripts/prepare-excalitower.mjs",
     "dev": "vite",
-    "predesktop:dev": "node scripts/prepare-excalitower.mjs",
     "desktop:dev": "concurrently --kill-others --success first \"vite --host 127.0.0.1\" \"wait-on http://127.0.0.1:5173 && electron . --dev\"",
-    "prebuild": "node scripts/prepare-excalitower.mjs",
     "build": "tsc -b && vite build",
     "desktop:pack": "npm run build && electron-builder --dir",
     "desktop:dist:windows": "npm run build && electron-builder --win nsis portable --x64 --publish never",
@@ -30,7 +27,8 @@
     "test:ito": "node --experimental-strip-types --test scripts/ito-rules.test.mjs scripts/game-participation.test.mjs",
     "test:poker": "node --experimental-strip-types --test scripts/poker.test.mjs",
     "test:truco": "node --experimental-strip-types --test scripts/truco.test.mjs",
-    "test:games": "npm run test:ito && npm run test:poker && npm run test:truco && npm run test:coup && npm run test:codenames",
+    "test:games": "npm run test:ito && npm run test:poker && npm run test:truco && npm run test:coup && npm run test:codenames && npm run test:party",
+    "test:party": "node --experimental-strip-types --test scripts/party-games.test.mjs",
     "test:codenames": "node --experimental-strip-types --test scripts/codenames.test.mjs",
     "test:coup": "node --experimental-strip-types --test scripts/coup.test.mjs",
     "test:music": "node --experimental-strip-types --test scripts/music.test.mjs scripts/music-player.test.mjs",
@@ -38,7 +36,8 @@
     "test:excalitower": "node --experimental-strip-types --test scripts/excalitower.test.mjs",
     "test:moderation": "node --experimental-strip-types --test scripts/moderation.test.mjs",
     "test:moderation:live": "node scripts/moderation-live.test.mjs",
-    "test:social:live": "node scripts/social-live.test.mjs"
+    "test:social:live": "node scripts/social-live.test.mjs",
+    "test:privacy:live": "node scripts/privacy-live.test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.4",
@@ -48,25 +47,19 @@
     "react-dom": "19.2.8"
   },
   "overrides": {
-    "@excalidraw/excalidraw": {
-      "nanoid": "3.3.18",
-      "sass": "1.105.2",
-      "@radix-ui/react-tabs": "1.2.1"
-    },
-    "@excalidraw/mermaid-to-excalidraw": {
-      "nanoid": "5.1.16"
-    },
     "lodash-es": "4.18.1",
     "katex": "0.19.0"
   },
   "devDependencies": {
-    "@excalidraw/excalidraw": "0.18.1",
+    "@types/prismjs": "^1.26.5",
     "@types/react": "19.2.14",
     "@types/react-dom": "19.2.3",
     "@vitejs/plugin-react": "6.0.5",
     "concurrently": "^10.0.5",
     "electron": "^43.4.1",
     "electron-builder": "^26.15.3",
+    "perfect-freehand": "^1.2.3",
+    "prismjs": "^1.30.0",
     "sharp": "^0.35.3",
     "supabase": "^2.116.0",
     "typescript": "7.0.2",

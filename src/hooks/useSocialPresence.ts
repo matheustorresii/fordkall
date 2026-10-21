@@ -65,7 +65,6 @@ export const useSocialPresence = (
       void channel.track({
         user_id: current.userId,
         display_name: current.displayName,
-        active_room: current.activeRoom || null,
       })
       setOnlineUsers(collectPresence(channel))
     })
@@ -84,7 +83,6 @@ export const useSocialPresence = (
     void channel.track({
       user_id: userId,
       display_name: displayName,
-      active_room: activeRoom || null,
     })
   }, [userId, displayName, activeRoom])
 

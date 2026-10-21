@@ -4,23 +4,30 @@ export const createGameTestMesh = (topic: string, count = 12) => {
   const ids = Array.from({ length: count }, (_, i) => `p${i}`),
     connected = new Set(ids)
   const listeners = ids.map(() => new Map<string, Set<Listener>>())
+  const streams=ids.map(()=>new Map<string,Parameters<Room['registerTextStreamHandler']>[1]>())
   const packets: Array<{ from: string; to: string; message: Record<string, unknown>; directed: boolean }> = []
   const encoder = new TextEncoder(),
     decoder = new TextDecoder()
-  const deliver = (from: string, to: string, message: unknown) => {
+  const deliver = (from: string, to: string, message: unknown,receivedTopic=topic) => {
     if (!connected.has(to) || !connected.has(from)) return
     listeners[ids.indexOf(to)]
       ?.get(RoomEvent.DataReceived)
       ?.forEach((fn) =>
-        fn(encoder.encode(JSON.stringify(message)), { identity: from, name: from }, undefined, topic),
+        fn(encoder.encode(JSON.stringify(message)), { identity: from, name: from }, undefined, receivedTopic),
       )
   }
   const people = ids.map((identity) => ({
     identity,
-    name: identity,
+    name: ['Torres','Kaori','Filipe','Kiwi'][ids.indexOf(identity)]||identity,
+    sendText:async(text:string,options:{topic:string;destinationIdentities?:string[]})=>{
+      for(const to of ids.filter(x=>x!==identity&&connected.has(x)&&(!options.destinationIdentities||options.destinationIdentities.includes(x)))){
+        const reader={info:{id:crypto.randomUUID(),size:encoder.encode(text).length},withAbortSignal(){return this},async *[Symbol.asyncIterator](){for(let n=0;n<text.length;n+=8000){await Promise.resolve();yield text.slice(n,n+8000)}}}
+        await streams[ids.indexOf(to)]?.get(options.topic)?.(reader as never,{identity})
+      }return {id:crypto.randomUUID()}
+    },
     publishData: async (data: Uint8Array, options: { topic: string; destinationIdentities?: string[] }) => {
       if (data.byteLength > 15 * 1024) throw new Error('O pacote excede o limite recomendado do LiveKit.')
-      if (!connected.has(identity) || options.topic !== topic) return
+      if (!connected.has(identity) || topic!=='*'&&options.topic !== topic) return
       for (const to of ids.filter(
         (id) =>
           id !== identity &&
@@ -29,7 +36,7 @@ export const createGameTestMesh = (topic: string, count = 12) => {
       )) {
         const message = JSON.parse(decoder.decode(data))
         packets.push({ from: identity, to, message, directed: Boolean(options.destinationIdentities) })
-        window.setTimeout(() => deliver(identity, to, message), 3)
+        window.setTimeout(() => deliver(identity, to, message,options.topic), 3)
       }
     },
   }))
@@ -40,6 +47,8 @@ export const createGameTestMesh = (topic: string, count = 12) => {
         remoteParticipants: new Map(
           people.filter((other) => other !== p).map((other) => [other.identity, other]),
         ),
+        registerTextStreamHandler(topic:string,handler:Parameters<Room['registerTextStreamHandler']>[1]){streams[i]!.set(topic,handler)},
+        unregisterTextStreamHandler(topic:string){streams[i]!.delete(topic)},
         on(event: string, fn: Listener) {
           if (!listeners[i]!.has(event)) listeners[i]!.set(event, new Set())
           listeners[i]!.get(event)!.add(fn)

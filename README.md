@@ -54,15 +54,29 @@ Call privada de voz e compartilhamento de tela entre amigos, com uma experiênci
 
 ## Excalitower
 
-Abra **Central de jogos → Excalitower**. Não há rodada para começar: cada pessoa pode editar ou escolher **Só assistir**, com zoom e ferramentas locais. A lousa continua ativa ao minimizar, navegar para a home ou abrir outro jogo; não força os demais a mudar de tela. Quando a última pessoa sai da call, o conteúdo é descartado. Exporte uma imagem pelo menu se quiser guardar uma cópia.
+Abra **Central de jogos → Excalitower**. A abertura leva a sala para a lousa uma vez; depois cada pessoa pode minimizar e navegar livremente. Zoom e ferramentas são locais. O desenho só vive nesta sessão e é descartado quando a última pessoa sai. Exporte uma imagem se quiser guardar uma cópia.
 
-O editor é o `@excalidraw/excalidraw` (MIT), carregado sob demanda, com fontes locais também no desktop. A referência de experiência é o whiteboard do projeto `github.io`, sem trazer sua organização em pastas, IndexedDB ou sincronização com GitHub. As bibliotecas de edição são dependências de build: o instalador recebe o bundle compilado, sem duplicar o pacote inteiro em `node_modules`.
+O editor é o canvas original do **11A3/Excalitower**, importado de `github.io` para `src/whiteboard/core`, com seleção, formas, desenho, texto/código, imagens e biblioteca de ícones. Não usa mais o SDK do Excalidraw e não inclui pastas, IndexedDB ou GitHub Sync. O editor e os ícones são carregados sob demanda.
 
 Cada cliente mantém uma réplica em memória. Deltas usam streams confiáveis do LiveKit, com chunking/backpressure; cursores usam pacotes pequenos e descartáveis. Versões por elemento, tombstones e épocas de limpeza evitam perda de edições simultâneas e reaparecimento de desenhos apagados. Quem chega depois ou reconecta recebe o estado dos participantes presentes, sem um novo servidor ou tabela no Supabase.
 
-Limites por lousa: 3.000 elementos, 4 MB de dados vetoriais, imagens PNG/JPG/WebP/GIF de até 2 MB cada e 8 MB no total. Nenhuma imagem é enviada a um serviço externo de arquivos; apenas aos participantes da sala.
+Alterações são transações por elemento. Patches remotos esperam o gesto/texto local terminar e nunca recarregam o editor durante um desenho. Limites: 3.000 elementos e 12 MB de cena; imagens raster de até 2 MB. Nenhuma imagem vai para um serviço externo de arquivos; apenas para os participantes.
 
-`npm run test:excalitower` cobre convergência, concorrência, exclusão/desfazer, imagens, payloads grandes, reconexão e ciclo de vida. Em desenvolvimento, `?excalitower-preview` abre o editor com dois participantes simulados e seis testes de integração do hook de transporte. `?game-preview=hub&clean` permite conferir o catálogo. As rotas de teste não são incluídas no build de produção.
+`npm run test:excalitower` cobre convergência, concorrência, exclusão/desfazer, imagens, reconexão e ciclo de vida. `?excalitower-preview` permite desenhar enquanto outro cliente altera a cena. As rotas de teste não entram na produção.
+
+## Versão 1.1.0
+
+- Home centrada em salas, conversas e pessoas, com datas nos chats e recuperação de mensagens após suspensão ou falha do Realtime.
+- Salas privadas criadas pelo token server; listagem e participação não são expostas nas tabelas públicas. Código/link permite entrar. `touch_call_room` apenas renova uma associação já emitida pelo servidor.
+- 20 molduras e 20 fundos de perfil pré-selecionados (Frangoelho, Avatar, Barbie e coleção). IDs validados no cliente e no banco. Artes geradas com o modo integrado `image_gen`, otimizadas em `public/cosmetics`; prompts e origem em `scripts/cosmetic-art.json`. Não é permitido fornecer URL externa de moldura/fundo.
+- Câmera substitui o avatar no mesmo tile. Transmissões têm tile separado e escuta manual. Grade/foco são totalmente locais; uma nova live não troca o foco de outras pessoas.
+- Gartic Kiwi: clássico, placar em equipes e telefone sem fio por turnos, com canvas compartilhado. Impostor: palavras relacionadas ou papel explícito, palavras privadas e votação iniciada por maioria absoluta. Ambos têm optout.
+- Música mantém o iframe entre faixas e após resolver playlists; deafen muda volume sem recriar o player. Minimizar mantém vídeo visível; fechar desconecta somente a escuta local. Autoplay ainda está sujeito às regras reais do navegador/YouTube.
+- Ganho local de voz/transmissão até 600% via Web Audio (pode distorcer). Downloads Windows/macOS disponíveis no site.
+
+Pesquisa de modos: [Gartic](https://gartic.io/) e [Gartic Phone](https://garticphone.com/pt). Player: [YouTube IFrame API](https://developers.google.com/youtube/iframe_api_reference).
+
+Testes novos: `npm run test:party`; `npm run test:privacy:live -- --linked` usa e remove somente contas/salas temporárias. `?party-preview=impostor` verifica quatro clientes de protocolo e privacidade; `?design-preview` fornece fixtures de UI sem acessar mensagens reais.
 
 ## Requisitos
 
@@ -286,6 +300,6 @@ As prévias só existem no modo de desenvolvimento. A suíte cobre o protocolo e
 - Safari e Firefox podem não permitir seleção de saída ou captura de áudio do screen share.
 - transmissão da própria tela no celular depende de `getDisplayMedia`; quando o navegador não oferece a API, a interface informa a limitação sem bloquear câmera ou reprodução.
 - Picture-in-Picture depende do suporte do navegador.
-- ganho acima de 100% (até 400%) usa o mixer Web Audio local e pode causar clipping ou distorção; ele não aumenta o consumo do LiveKit.
+- ganho acima de 100% (até 600%) usa o mixer Web Audio local e pode causar clipping ou distorção; ele não aumenta o consumo do LiveKit.
 - a janela separada depende da permissão de pop-ups do navegador.
 - em celulares, a call pode continuar por algum tempo com o navegador minimizado e expõe metadados ao sistema quando suportado, mas uma página web pode ser suspensa pelo sistema; ouvir de forma confiável com o site fechado exige um aplicativo nativo com modo de áudio em segundo plano.

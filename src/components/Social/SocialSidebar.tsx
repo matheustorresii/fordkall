@@ -21,9 +21,9 @@ interface SocialSidebarProps {
 }
 
 const navItems: { section: SocialSection; icon: 'hash' | 'users' | 'mic'; label: string }[] = [
-  { section: 'general', icon: 'hash', label: 'Geral' },
+  { section: 'rooms', icon: 'mic', label: 'Início' },
+  { section: 'general', icon: 'hash', label: 'Conversa geral' },
   { section: 'people', icon: 'users', label: 'Pessoas' },
-  { section: 'rooms', icon: 'mic', label: 'Salas ativas' },
 ]
 
 export const SocialSidebar = ({
@@ -54,7 +54,7 @@ export const SocialSidebar = ({
         <span>FORD KALL</span>
       </a>
 
-      <div className="social-sidebar__community-label">COMUNIDADE</div>
+      <div className="social-sidebar__community-label">SEU ESPAÇO</div>
       <nav aria-label="Navegação social" className="social-nav">
         {navItems.map((item) => (
           <button

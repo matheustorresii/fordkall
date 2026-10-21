@@ -1,0 +1,349 @@
+{
+  "mode": "built-in image_gen",
+  "assets": [
+    {
+      "id": "frame-botanical",
+      "prompt": "Create one original premium avatar decoration asset for a friends voice-chat app. A delicate circular wreath of small sculpted dark jade kiwi leaves, two tiny bronze kiwi feathers, restrained warm brass details. Square 1024x1024 composition. The wreath sits entirely in the outer annulus between radii 365 and 470 pixels, perfectly centered at 512,512, leaving a completely empty transparent circular opening of radius 360 pixels for the user's portrait. Genuinely transparent background everywhere including center and outside wreath. Elegant refined painted 3D illustration, fine silhouette, not childish, no bright neon, no text, no portrait, no solid disk, no watermark. This will be displayed small, so avoid excessive fine detail. ONE frame only.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-0d8f7cb0-0d53-4341-8b82-e45f1d783f82.png"
+    },
+    {
+      "id": "frame-orbit",
+      "prompt": "Create one original premium circular avatar frame asset for a friends voice-chat app. Brushed silver orbital ring with subtle midnight-blue enamel and three small opal stars arranged around the ring. Refined dimensional illustration, restrained and elegant. Square 1024x1024 centered at 512,512. All art confined to outer annulus radius 365 to 470 pixels; center circle radius 360 must be completely transparent, as must outside the ring. Genuinely transparent PNG asset; no background, no portrait, no text, no watermark, no luminous bloom covering portrait, ONE frame only.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-ffc33636-3f72-4e27-b1a3-443bcd82008d.png"
+    },
+    {
+      "id": "background-dusk",
+      "prompt": "Create one original landscape 16:9 illustrated background for a voice-chat participant tile. A tranquil dusk landscape, distant indigo mountains and a plum-blue sky, small warm moon, soft painted grain. Very restrained brightness and contrast, contemporary sophisticated illustration. Middle third deliberately dark and mostly empty so a circular profile portrait placed in the center is clearly visible. Gentle detail mostly at the margins. No characters, no text, no logos, no watermark, no interface. One single seamless scene, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-9d07fef8-2ff9-434b-aa47-f8a95ee8c04b.png"
+    },
+    {
+      "id": "background-grove",
+      "prompt": "Create one original landscape 16:9 illustrated background for a voice-chat participant tile. A tranquil nocturnal kiwi grove, ink-blue and dark forest-green leaves framing the edges, subtle warm amber fireflies very sparse, premium painterly illustration with soft matte texture. Center deliberately dark and spacious for a profile portrait overlay, no strong highlights, understated harmonious color, no characters, no text, no logos, no watermark, no interface. One single scene, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-b36b74bd-548f-42ef-95b2-e60ceebbb7ad.png"
+    },
+    {
+      "id": "frame-frangoelho",
+      "label": "Frangoelho",
+      "group": "Frangoelho",
+      "kind": "frame",
+      "desc": "a charming original chicken-rabbit hybrid mascot, a fluffy cream rabbit with small golden chicken wings and a tiny red comb, playful but refined",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: a charming original chicken-rabbit hybrid mascot, a fluffy cream rabbit with small golden chicken wings and a tiny red comb, playful but refined. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-be2038a6-526a-407d-a137-4cb340f3a2f3.png"
+    },
+    {
+      "id": "frame-frangoelho-arcade",
+      "label": "Frangoelho Arcade",
+      "group": "Frangoelho",
+      "kind": "frame",
+      "desc": "a cute original chicken-rabbit hybrid mascot interpreted as restrained retro arcade collectible, cream fur, soft amber pixel accents",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: a cute original chicken-rabbit hybrid mascot interpreted as restrained retro arcade collectible, cream fur, soft amber pixel accents. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-95c5c028-ed26-4d99-9bc9-05b4029cd838.png"
+    },
+    {
+      "id": "frame-frangoelho-cloud",
+      "label": "Frangoelho nas Nuvens",
+      "group": "Frangoelho",
+      "kind": "frame",
+      "desc": "a dreamy original chicken-rabbit hybrid creature, fluffy cream feathers and rabbit ears amongst soft peach clouds",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: a dreamy original chicken-rabbit hybrid creature, fluffy cream feathers and rabbit ears amongst soft peach clouds. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-4d71f5ab-f397-4ff7-97ad-8633956736fe.png"
+    },
+    {
+      "id": "background-frangoelho-cloud",
+      "label": "Frangoelho nas Nuvens",
+      "group": "Frangoelho",
+      "kind": "background",
+      "desc": "a dreamy original chicken-rabbit hybrid creature, fluffy cream feathers and rabbit ears amongst soft peach clouds",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: a dreamy original chicken-rabbit hybrid creature, fluffy cream feathers and rabbit ears amongst soft peach clouds. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-381a9ec5-d43e-420f-9416-3e59662d4283.png"
+    },
+    {
+      "id": "background-frangoelho",
+      "label": "Frangoelho",
+      "group": "Frangoelho",
+      "kind": "background",
+      "desc": "a charming original chicken-rabbit hybrid mascot, a fluffy cream rabbit with small golden chicken wings and a tiny red comb, playful but refined",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: a charming original chicken-rabbit hybrid mascot, a fluffy cream rabbit with small golden chicken wings and a tiny red comb, playful but refined. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-bd43960f-cd42-4c03-9748-105b12d89a48.png"
+    },
+    {
+      "id": "background-frangoelho-arcade",
+      "label": "Frangoelho Arcade",
+      "group": "Frangoelho",
+      "kind": "background",
+      "desc": "a cute original chicken-rabbit hybrid mascot interpreted as restrained retro arcade collectible, cream fur, soft amber pixel accents",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: a cute original chicken-rabbit hybrid mascot interpreted as restrained retro arcade collectible, cream fur, soft amber pixel accents. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-a51f3572-3e5d-496e-97aa-565f164e273f.png"
+    },
+    {
+      "id": "frame-avatar-air",
+      "label": "Templo do Ar",
+      "group": "Avatar",
+      "kind": "frame",
+      "desc": "Avatar The Last Airbender Air Nomads, elegant curling air currents, pale ivory and muted saffron, small stylized flying bison detail",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: Avatar The Last Airbender Air Nomads, elegant curling air currents, pale ivory and muted saffron, small stylized flying bison detail. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-c9f4576e-46f2-4f8a-a752-7b917819899b.png"
+    },
+    {
+      "id": "background-avatar-air",
+      "label": "Templo do Ar",
+      "group": "Avatar",
+      "kind": "background",
+      "desc": "Avatar The Last Airbender Air Nomads, elegant curling air currents, pale ivory and muted saffron, small stylized flying bison detail",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: Avatar The Last Airbender Air Nomads, elegant curling air currents, pale ivory and muted saffron, small stylized flying bison detail. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-acc542cd-f9e0-49e3-9866-12f823769189.png"
+    },
+    {
+      "id": "frame-avatar-fire",
+      "label": "Nação do Fogo",
+      "group": "Avatar",
+      "kind": "frame",
+      "desc": "Avatar The Last Airbender Fire Nation, controlled curling amber flame ornaments, dark red lacquer, elegant dragon motif",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: Avatar The Last Airbender Fire Nation, controlled curling amber flame ornaments, dark red lacquer, elegant dragon motif. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-248c0b0d-7cbd-422e-8cc1-2287b086d757.png"
+    },
+    {
+      "id": "background-avatar-fire",
+      "label": "Nação do Fogo",
+      "group": "Avatar",
+      "kind": "background",
+      "desc": "Avatar The Last Airbender Fire Nation, controlled curling amber flame ornaments, dark red lacquer, elegant dragon motif",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: Avatar The Last Airbender Fire Nation, controlled curling amber flame ornaments, dark red lacquer, elegant dragon motif. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-1a1e3e58-d4b6-4eac-9aed-39e82e1774c9.png"
+    },
+    {
+      "id": "frame-avatar-water",
+      "label": "Tribo da Água",
+      "group": "Avatar",
+      "kind": "frame",
+      "desc": "Avatar The Last Airbender Water Tribe, graceful ocean waves, moon, blue ice and silver, serene watercolor",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: Avatar The Last Airbender Water Tribe, graceful ocean waves, moon, blue ice and silver, serene watercolor. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-69570ff7-7a98-4790-895e-ee45b1f61e87.png"
+    },
+    {
+      "id": "frame-avatar-earth",
+      "label": "Reino da Terra",
+      "group": "Avatar",
+      "kind": "frame",
+      "desc": "Avatar The Last Airbender Earth Kingdom, sculpted jade stone, floating pebbles, tiny subtle green crystals",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: Avatar The Last Airbender Earth Kingdom, sculpted jade stone, floating pebbles, tiny subtle green crystals. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-d931f16d-c8ab-4a5b-b182-ff9ded3251c7.png"
+    },
+    {
+      "id": "background-avatar-earth",
+      "label": "Reino da Terra",
+      "group": "Avatar",
+      "kind": "background",
+      "desc": "Avatar The Last Airbender Earth Kingdom, sculpted jade stone, floating pebbles, tiny subtle green crystals",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: Avatar The Last Airbender Earth Kingdom, sculpted jade stone, floating pebbles, tiny subtle green crystals. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-afb14233-6d03-4d90-bb10-bd12eaac815d.png"
+    },
+    {
+      "id": "background-avatar-water",
+      "label": "Tribo da Água",
+      "group": "Avatar",
+      "kind": "background",
+      "desc": "Avatar The Last Airbender Water Tribe, graceful ocean waves, moon, blue ice and silver, serene watercolor",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: Avatar The Last Airbender Water Tribe, graceful ocean waves, moon, blue ice and silver, serene watercolor. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-93c18ece-4830-4ec6-9bc7-f3d3e972804b.png"
+    },
+    {
+      "id": "background-barbie-mermaid",
+      "label": "Vida de Sereia",
+      "group": "Barbie",
+      "kind": "background",
+      "desc": "Barbie in A Mermaid Tale, elegant pink iridescent seashells and small pearls, turquoise surf, refined feminine coral ornamentation",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: Barbie in A Mermaid Tale, elegant pink iridescent seashells and small pearls, turquoise surf, refined feminine coral ornamentation. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-a2bd4347-82a9-409e-ba3f-1b5afbb40781.png"
+    },
+    {
+      "id": "frame-barbie-mermaid",
+      "label": "Vida de Sereia",
+      "group": "Barbie",
+      "kind": "frame",
+      "desc": "Barbie in A Mermaid Tale, elegant pink iridescent seashells and small pearls, turquoise surf, refined feminine coral ornamentation",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: Barbie in A Mermaid Tale, elegant pink iridescent seashells and small pearls, turquoise surf, refined feminine coral ornamentation. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-c49fdc33-bdf0-47bd-b7a0-ca78f4045f30.png"
+    },
+    {
+      "id": "frame-barbie-coral",
+      "label": "Palácio de Coral",
+      "group": "Barbie",
+      "kind": "frame",
+      "desc": "Barbie in A Mermaid Tale underwater kingdom, delicate magenta coral, opalescent shells and aquamarine details, tasteful playful elegance",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: Barbie in A Mermaid Tale underwater kingdom, delicate magenta coral, opalescent shells and aquamarine details, tasteful playful elegance. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-a505df7c-b688-4328-99e3-d5bbeef9b9c6.png"
+    },
+    {
+      "id": "frame-barbie-wave",
+      "label": "Surf Rosa",
+      "group": "Barbie",
+      "kind": "frame",
+      "desc": "Barbie in A Mermaid Tale surf aesthetic, soft pink hibiscus, turquoise waves and pearl white foam, subtle sunset gold",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: Barbie in A Mermaid Tale surf aesthetic, soft pink hibiscus, turquoise waves and pearl white foam, subtle sunset gold. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-b64205de-dfbb-4485-b8ab-6a686ee0e1ce.png"
+    },
+    {
+      "id": "background-barbie-coral",
+      "label": "Palácio de Coral",
+      "group": "Barbie",
+      "kind": "background",
+      "desc": "Barbie in A Mermaid Tale underwater kingdom, delicate magenta coral, opalescent shells and aquamarine details, tasteful playful elegance",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: Barbie in A Mermaid Tale underwater kingdom, delicate magenta coral, opalescent shells and aquamarine details, tasteful playful elegance. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-fd482d85-ac41-44c0-83bd-3b4d96afca18.png"
+    },
+    {
+      "id": "background-barbie-wave",
+      "label": "Surf Rosa",
+      "group": "Barbie",
+      "kind": "background",
+      "desc": "Barbie in A Mermaid Tale surf aesthetic, soft pink hibiscus, turquoise waves and pearl white foam, subtle sunset gold",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: Barbie in A Mermaid Tale surf aesthetic, soft pink hibiscus, turquoise waves and pearl white foam, subtle sunset gold. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-e2d9c825-6bd4-46fc-9572-a71f19bef664.png"
+    },
+    {
+      "id": "background-lunar",
+      "label": "Lunar",
+      "group": "Coleção",
+      "kind": "background",
+      "desc": "quiet crescent moon, muted silver stars and midnight-blue celestial details",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: quiet crescent moon, muted silver stars and midnight-blue celestial details. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-f27d3598-ca3f-4701-9f9d-29964558beea.png"
+    },
+    {
+      "id": "frame-sakura",
+      "label": "Sakura",
+      "group": "Coleção",
+      "kind": "frame",
+      "desc": "delicate pale pink cherry blossom petals and dark elegant branches",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: delicate pale pink cherry blossom petals and dark elegant branches. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-e21fa350-ab21-47d4-8192-353904226f35.png"
+    },
+    {
+      "id": "frame-lunar",
+      "label": "Lunar",
+      "group": "Coleção",
+      "kind": "frame",
+      "desc": "quiet crescent moon, muted silver stars and midnight-blue celestial details",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: quiet crescent moon, muted silver stars and midnight-blue celestial details. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-07d5df0b-1167-4e47-8908-73c5956157d8.png"
+    },
+    {
+      "id": "frame-ember",
+      "label": "Brasa",
+      "group": "Coleção",
+      "kind": "frame",
+      "desc": "dark copper dragon scales and tiny controlled warm orange ember accents",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: dark copper dragon scales and tiny controlled warm orange ember accents. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-5cff85b5-21f2-46a5-bacf-67c7ba1ee725.png"
+    },
+    {
+      "id": "background-sakura",
+      "label": "Sakura",
+      "group": "Coleção",
+      "kind": "background",
+      "desc": "delicate pale pink cherry blossom petals and dark elegant branches",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: delicate pale pink cherry blossom petals and dark elegant branches. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-2e6f7e0c-43d1-4551-89d4-b26ee51215c3.png"
+    },
+    {
+      "id": "background-ember",
+      "label": "Brasa",
+      "group": "Coleção",
+      "kind": "background",
+      "desc": "dark copper dragon scales and tiny controlled warm orange ember accents",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: dark copper dragon scales and tiny controlled warm orange ember accents. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-51db12d8-aaa6-4013-be56-5f76f61ece05.png"
+    },
+    {
+      "id": "background-ocean",
+      "label": "Oceano",
+      "group": "Coleção",
+      "kind": "background",
+      "desc": "teal sea glass, silver rolling wave and restrained pearl details",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: teal sea glass, silver rolling wave and restrained pearl details. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-9a1f7565-4029-4647-8b06-ef4e72c7840a.png"
+    },
+    {
+      "id": "background-arcade",
+      "label": "Arcade",
+      "group": "Coleção",
+      "kind": "background",
+      "desc": "restrained purple and teal retro-futurist arcade geometric ornaments",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: restrained purple and teal retro-futurist arcade geometric ornaments. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-29ebb9fc-131a-4e13-a407-b0d14e04a010.png"
+    },
+    {
+      "id": "frame-arcade",
+      "label": "Arcade",
+      "group": "Coleção",
+      "kind": "frame",
+      "desc": "restrained purple and teal retro-futurist arcade geometric ornaments",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: restrained purple and teal retro-futurist arcade geometric ornaments. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-5e6425a1-aac7-49d4-838a-00b85ddbdb32.png"
+    },
+    {
+      "id": "background-aurora",
+      "label": "Aurora",
+      "group": "Coleção",
+      "kind": "background",
+      "desc": "muted violet and cyan northern lights, dark alpine silhouettes",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: muted violet and cyan northern lights, dark alpine silhouettes. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-a78e7dc4-b44e-429f-8c6f-ecaf21e5662b.png"
+    },
+    {
+      "id": "frame-ocean",
+      "label": "Oceano",
+      "group": "Coleção",
+      "kind": "frame",
+      "desc": "teal sea glass, silver rolling wave and restrained pearl details",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: teal sea glass, silver rolling wave and restrained pearl details. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-12b876a7-023a-4b6e-94d9-db0aea4ef5af.png"
+    },
+    {
+      "id": "frame-aurora",
+      "label": "Aurora",
+      "group": "Coleção",
+      "kind": "frame",
+      "desc": "muted violet and cyan northern lights, dark alpine silhouettes",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: muted violet and cyan northern lights, dark alpine silhouettes. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-54b4647a-d17a-4963-b259-4b19a468386b.png"
+    },
+    {
+      "id": "frame-desert",
+      "label": "Dunas",
+      "group": "Coleção",
+      "kind": "frame",
+      "desc": "terracotta desert dunes and warm gold minimalist sun",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: terracotta desert dunes and warm gold minimalist sun. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-adb2cf7e-38a9-4784-92e0-8ed38150a8c7.png"
+    },
+    {
+      "id": "background-desert",
+      "label": "Dunas",
+      "group": "Coleção",
+      "kind": "background",
+      "desc": "terracotta desert dunes and warm gold minimalist sun",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: terracotta desert dunes and warm gold minimalist sun. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-a02a54e2-db5f-45d4-b07b-60cacd2ca502.png"
+    },
+    {
+      "id": "frame-noir",
+      "label": "Noir",
+      "group": "Coleção",
+      "kind": "frame",
+      "desc": "sophisticated monochrome art deco, graphite onyx and brushed silver",
+      "prompt": "Asset: ONE premium circular avatar decoration for a friends voice-chat app. Theme: sophisticated monochrome art deco, graphite onyx and brushed silver. Original detailed painted 3D illustration, polished collectible quality. Square composition, perfectly centered ring. All decoration stays in the outer annulus from 36% to 46% of image width measured from center; circular portrait opening radius 35% of width must be completely EMPTY TRANSPARENT. Outside ring also genuinely transparent. Subtle compact decorations, not a solid disk, no person or face in center, no giant appendages. Avoid glow spilling onto the portrait. Legible silhouette at 80px. No text, no logos, no watermark. One frame only, not a sheet.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-c565c9d2-84ad-4d50-93ca-d48e90ab3705.png"
+    },
+    {
+      "id": "background-noir",
+      "label": "Noir",
+      "group": "Coleção",
+      "kind": "background",
+      "desc": "sophisticated monochrome art deco, graphite onyx and brushed silver",
+      "prompt": "Asset: ONE landscape 16:9 background for a voice-chat participant tile. Theme: sophisticated monochrome art deco, graphite onyx and brushed silver. A beautiful coherent immersive environment inspired by this theme, refined painterly illustration, soft matte grain. No central character. The center must remain quiet and dark enough for a circular profile portrait overlay. Detail mostly at edges. Restrained contrast, color with personality but not glaring; no text, no logo, no watermark, no UI, not a collage.",
+      "path": "/Users/matheustorresii/.codex/generated_images/01a013be-2a7c-7400-953d-db5d24cc7ded/exec-d0c07f56-3a58-4ae8-9b06-8f3a348464e1.png"
+    }
+  ]
+}

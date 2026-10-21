@@ -85,7 +85,7 @@ export const bootstrapOwner = async () => {
 export const loadAccountProfile = async (): Promise<AccountProfile> => {
   const { data, error } = await supabase
     .from('profiles')
-    .select('id,email,display_name,avatar_data_url,bio,name_color,name_font,profile_theme,profile_accent_color,avatar_frame,role,status,invited_by,created_at,last_seen_at')
+    .select('id,email,display_name,avatar_data_url,bio,name_color,name_font,profile_theme,profile_accent_color,avatar_frame,decoration_id,call_background_id,role,status,invited_by,created_at,last_seen_at')
     .single()
   if (error || !data) throw error || new Error('PROFILE_NOT_FOUND')
   return {
@@ -100,6 +100,8 @@ export const loadAccountProfile = async (): Promise<AccountProfile> => {
       theme: data.profile_theme,
       accentColor: data.profile_accent_color,
       avatarFrame: data.avatar_frame,
+      decorationId: data.decoration_id,
+      backgroundId: data.call_background_id,
     }),
     role: data.role,
     status: data.status,
@@ -119,6 +121,8 @@ export const updateAccountProfile = async (profile: LocalProfile) => {
     profile_theme: normalizeProfileAppearance(profile.appearance).theme,
     profile_accent_color: normalizeProfileAppearance(profile.appearance).accentColor,
     avatar_frame: normalizeProfileAppearance(profile.appearance).avatarFrame,
+    decoration_id: normalizeProfileAppearance(profile.appearance).decorationId,
+    call_background_id: normalizeProfileAppearance(profile.appearance).backgroundId,
   }).eq('id', (await supabase.auth.getUser()).data.user?.id || '')
   if (error) throw error
   return loadAccountProfile()

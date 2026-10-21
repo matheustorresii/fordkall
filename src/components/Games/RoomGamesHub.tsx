@@ -20,6 +20,12 @@ interface RoomGamesHubProps {
   excalitowerActive?: boolean
   excalitowerPeople?: number
   onSelectExcalitower: () => void
+  garticActive?:boolean
+  garticPlayers?:number
+  impostorActive?:boolean
+  impostorPlayers?:number
+  onSelectGartic?:()=>void
+  onSelectImpostor?:()=>void
   onSelectIto: () => void
   onSelectKiwi: () => void
   onSelectTruco: () => void
@@ -38,7 +44,7 @@ const normalize = (value: string) =>
     .toLowerCase()
 const CatalogArt = ({ kind }: { kind: string }) => (
   <span aria-hidden="true" className={`game-catalog-art game-catalog-art--${kind}`}>
-    {kind === 'excalitower' ? (
+    {kind === 'gartic' ? <svg viewBox="0 0 230 110"><rect x="45" y="17" width="140" height="83" rx="13" fill="#e1eced" transform="rotate(-6 100 50)"/><path d="M70 70q15-40 27-5t25-10 32-7" fill="none" stroke="#6a9e92" strokeWidth="7" strokeLinecap="round"/><circle cx="159" cy="32" r="8" fill="#e9ba8e"/><path d="m159 78 29-46 9 7-29 46-12 6Z" fill="#8195ce"/></svg> : kind === 'impostor' ? <svg viewBox="0 0 230 110"><circle cx="69" cy="54" r="28" fill="#748eb4"/><circle cx="159" cy="54" r="28" fill="#748eb4"/><path d="M116 12c32 0 41 23 34 48-5 22-21 39-34 44-14-5-30-22-35-44-7-25 2-48 35-48Z" fill="#9882ba" stroke="#d1b4e0" strokeWidth="2"/><text x="116" y="70" textAnchor="middle" fill="#f4e8ff" fontSize="48" fontFamily="system-ui">?</text></svg> : kind === 'excalitower' ? (
       <svg viewBox="0 0 230 110" fill="none"><rect x="24" y="12" width="100" height="74" rx="10" fill="#eff3f5" stroke="#b3d0d0" strokeWidth="2" transform="rotate(-7 24 12)" /><path d="m40 62 23-28 17 16 18-17" stroke="#427779" strokeWidth="4" strokeLinecap="round" strokeLinejoin="round" /><rect x="137" y="36" width="64" height="58" rx="5" fill="#eccf91" transform="rotate(8 137 36)" /><path d="m152 55 31 4m-32 7 21 3" stroke="#937240" strokeWidth="3" strokeLinecap="round" /><path d="m115 86 43-63 8 6-43 63-12 5 4-11Z" fill="#86b6bb" stroke="#315b63" strokeWidth="2" /><path d="m111 97 4-11 8 6-12 5Z" fill="#315b63" /><circle cx="207" cy="20" r="6" fill="#d99a90" /></svg>
     ) : kind === 'codenames' ? (
       ['LUA', 'PONTE', 'ÓRBITA', 'CHAVE', 'MAR', 'ROSA', 'COROA', 'BANCO', 'FOLHA'].map((word, i) =>
@@ -89,6 +95,8 @@ export const RoomGamesHub = (props: RoomGamesHubProps) => {
   const [page, setPage] = useState(0)
   // A catalog entry is all a new game needs here; pagination bounds the layout as it grows.
   const catalog = [
+    ...(props.onSelectGartic?[{id:'gartic',title:'Gartic Kiwi',subtitle:'Desenha aí.',description:'Palpites, equipes e telefone sem fio.',category:'creative',players:'2–12',active:Boolean(props.garticActive),count:props.garticPlayers||0,open:props.onSelectGartic}]:[]),
+    ...(props.onSelectImpostor?[{id:'impostor',title:'Impostor',subtitle:'Fora do contexto',description:'Uma palavra secreta. Uma pessoa disfarçando.',category:'words',players:'3–12',active:Boolean(props.impostorActive),count:props.impostorPlayers||0,open:props.onSelectImpostor}]:[]),
     {
       id: 'excalitower',
       title: 'Excalitower',

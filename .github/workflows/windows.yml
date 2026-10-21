@@ -52,6 +52,9 @@ jobs:
       - name: Test Excalitower replication and session lifetime
         run: npm run test:excalitower
 
+      - name: Test Gartic and Impostor rules, secrets and votes
+        run: npm run test:party
+
       - name: Build installer and portable app
         shell: pwsh
         run: |
@@ -83,4 +86,9 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: gh release create "$GITHUB_REF_NAME" release/*.exe release/latest.yml release/*.blockmap --generate-notes --title "Ford Kall $GITHUB_REF_NAME"
+        run: |
+          release_notes=(--generate-notes)
+          if [[ -f "docs/releases/$GITHUB_REF_NAME.md" ]]; then
+            release_notes=(--notes-file "docs/releases/$GITHUB_REF_NAME.md")
+          fi
+          gh release create "$GITHUB_REF_NAME" release/*.exe release/latest.yml release/*.blockmap "${release_notes[@]}" --title "Ford Kall $GITHUB_REF_NAME"

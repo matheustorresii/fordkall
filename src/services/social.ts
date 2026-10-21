@@ -31,6 +31,12 @@ interface MessageRow {
 const failOnError = (error: { message: string } | null) => {
   if (error) throw new Error(error.message)
 }
+const hydrateCosmetics = async (users: SocialUser[]) => {
+  if(!users.length)return users
+  const {data,error}=await supabase.rpc('get_profile_cosmetics',{p_user_ids:users.map(u=>u.id)})
+  if(error)return users
+  return users.map(u=>{const c=(data as {id:string;decoration_id:string;call_background_id:string}[]).find(x=>x.id===u.id);return c?{...u,appearance:{...u.appearance,decorationId:c.decoration_id,backgroundId:c.call_background_id}}:u})
+}
 
 const toSocialUser = (row: SocialProfileRow): SocialUser => ({
   id: row.id,
@@ -77,7 +83,7 @@ export const getSocialProfileCards = async (ids: string[], includeAvatar = true)
       p_include_avatar: includeAvatar,
     })
     failOnError(error)
-    for (const row of (data || []) as SocialProfileRow[]) users.set(row.id, toSocialUser(row))
+    for (const user of await hydrateCosmetics(((data || []) as SocialProfileRow[]).map(toSocialUser))) users.set(user.id,user)
   }
   return users
 }
@@ -87,7 +93,7 @@ export const searchSocialUsers = async (query: string) => {
     p_query: query.trim().slice(0, 48),
   })
   failOnError(error)
-  return ((data || []) as SocialProfileRow[]).map(toSocialUser)
+  return hydrateCosmetics(((data || []) as SocialProfileRow[]).map(toSocialUser))
 }
 
 const hydrateMessages = async (rows: MessageRow[]): Promise<SocialMessage[]> => {

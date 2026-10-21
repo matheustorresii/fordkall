@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from 'react'
 import type { LocalProfile } from '../../types'
 import { BrandMark } from '../ui/BrandMark'
 import { DesktopUpdateControl } from '../ui/DesktopUpdateControl'
+import { DesktopDownloads } from '../ui/DesktopDownloads'
 import { Icon } from '../ui/Icon'
 
 type AuthMode = 'invite' | 'create' | 'login'
@@ -174,6 +175,7 @@ export const AuthScreen = ({
           )}
         </div>
         <DesktopUpdateControl variant="auth" />
+        <DesktopDownloads />
       </section>
     </main>
   )

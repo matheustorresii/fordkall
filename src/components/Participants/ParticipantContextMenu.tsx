@@ -73,7 +73,7 @@ export const ParticipantContextMenu = ({
           <p>Seus controles de voz e câmera ficam no dock.</p>
         ) : (
           <div className="context-menu__section">
-            <div><span>Áudio só para você</span><small>Até 400% de ganho local</small></div>
+            <div><span>Áudio só para você</span><small>Até 600% de ganho local · pode distorcer</small></div>
             <VolumeControl
               label={`Volume do microfone de ${participant.name}`}
               muted={volume === 0}

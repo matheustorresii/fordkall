@@ -63,6 +63,8 @@ export interface ProfileAppearance {
   theme: ProfileTheme
   accentColor: string
   avatarFrame: AvatarFrame
+  decorationId?: string
+  backgroundId?: string
 }
 
 export interface ParticipantProfile {

@@ -1,6 +1,8 @@
 import { useMemo, useRef, useState } from 'react'
 import { RoomEvent, type Room } from 'livekit-client'
-import { GAME_KINDS, GAME_LIMITS, type GameKind } from '../games/gameParticipation'
+import { GAME_KINDS as ALL_GAME_KINDS, GAME_LIMITS } from '../games/gameParticipation'
+type GameKind=Exclude<typeof ALL_GAME_KINDS[number],'gartic'|'impostor'>
+const GAME_KINDS=ALL_GAME_KINDS.filter((k):k is GameKind=>k!=='gartic'&&k!=='impostor')
 import { GAME_PARTICIPATION_TOPIC, useRoomGameParticipation } from '../hooks/useRoomGameParticipation'
 import { useRoomIto } from '../hooks/useRoomIto'
 import { useRoomExplodingKiwi } from '../hooks/useRoomExplodingKiwi'

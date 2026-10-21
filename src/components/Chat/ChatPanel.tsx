@@ -1,4 +1,5 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { Fragment, useEffect, useRef, useState, type FormEvent } from 'react'
+import { chatDayKey, chatDayLabel } from '../../services/chatDates'
 import type { ChatMessage } from '../../types'
 import { MAX_CHAT_IMAGE_SIZE } from '../../hooks/useRoomChat'
 import { Icon } from '../ui/Icon'
@@ -31,9 +32,10 @@ export const ChatPanel = ({
   const [sending, setSending] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
   const messagesRef = useRef<HTMLDivElement>(null)
+  const following=useRef(true)
 
   useEffect(() => {
-    if (open) messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight })
+    if (open && following.current) messagesRef.current?.scrollTo({ top: messagesRef.current.scrollHeight })
   }, [messages, open])
 
   const submit = async (event: FormEvent) => {
@@ -41,6 +43,7 @@ export const ChatPanel = ({
     if (!text.trim() || sending) return
     setSending(true)
     const sent = await onSendText(text)
+    following.current=true
     if (sent) setText('')
     setSending(false)
   }
@@ -52,12 +55,14 @@ export const ChatPanel = ({
         <button aria-label="Fechar chat" className="icon-button" onClick={onClose} type="button"><Icon name="x" /></button>
       </header>
 
-      <div className="chat-messages" ref={messagesRef}>
+      <div className="chat-messages" ref={messagesRef} onScroll={e=>{const c=e.currentTarget;following.current=c.scrollHeight-c.scrollTop-c.clientHeight<100}}>
         {messages.length === 0 && (
           <div className="chat-empty"><Icon name="chat" /><strong>A frequência está quieta.</strong><span>Mande a primeira mensagem.</span></div>
         )}
-        {messages.map((message) => (
-          <article className={`chat-message ${message.isLocal ? 'chat-message--local' : ''}`} key={message.id}>
+        {messages.map((message,index) => (
+          <Fragment key={message.id}>
+          {(!index || chatDayKey(message.sentAt)!==chatDayKey(messages[index-1]!.sentAt)) && <div className="chat-day-divider"><time dateTime={new Date(message.sentAt).toISOString()}>{chatDayLabel(message.sentAt)}</time></div>}
+          <article className={`chat-message ${message.isLocal ? 'chat-message--local' : ''}`}>
             <header>
               <ProfileAvatar
                 appearance={message.senderAppearance}
@@ -65,7 +70,7 @@ export const ChatPanel = ({
                 className="chat-message__avatar"
                 name={message.senderName}
               />
-              <span><ProfileName appearance={message.senderAppearance} name={message.senderName} /><time>{messageTime(message.sentAt)}</time></span>
+              <span><ProfileName appearance={message.senderAppearance} name={message.senderName} /><time dateTime={new Date(message.sentAt).toISOString()} title={new Date(message.sentAt).toLocaleString('pt-BR')}>{messageTime(message.sentAt)}</time></span>
             </header>
             {message.kind === 'text' ? (
               <p>{message.text}</p>
@@ -77,6 +82,7 @@ export const ChatPanel = ({
             {message.status === 'sending' && <small>Enviando…</small>}
             {message.status === 'error' && <small className="is-error">Falha no envio</small>}
           </article>
+          </Fragment>
         ))}
       </div>
 

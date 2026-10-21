@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react'
+import { createPortal } from 'react-dom'
 import type { RoomMusicController } from '../../hooks/useRoomMusic'
 import {
   MAX_ROOM_MUSIC_QUEUE,
@@ -7,7 +8,11 @@ import {
   parseYouTubeSource,
   roomMusicPosition,
 } from '../../music/model'
-import { YouTubeRoomPlayer, emptyLocalPlayer, type PlayerDependencies } from '../../music/YouTubeRoomPlayer'
+import {
+  YouTubeRoomPlayer,
+  emptyLocalPlayer,
+  type PlayerDependencies,
+} from '../../music/YouTubeRoomPlayer'
 import {
   getRoomMusicListening,
   getRoomMusicVolume,
@@ -31,14 +36,25 @@ export const formatMusicTime = (seconds: number) => {
     hours = Math.floor(value / 3_600),
     minutes = Math.floor((value % 3_600) / 60),
     remainder = String(value % 60).padStart(2, '0')
-  return hours ? `${hours}:${String(minutes).padStart(2, '0')}:${remainder}` : `${minutes}:${remainder}`
+  return hours
+    ? `${hours}:${String(minutes).padStart(2, '0')}:${remainder}`
+    : `${minutes}:${remainder}`
 }
 
-export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, playerDependencies }: MusicPanelProps) => {
+export const MusicPanel = ({
+  open,
+  deafened = false,
+  music,
+  onClose,
+  onOpen,
+  playerDependencies,
+}: MusicPanelProps) => {
   const { state, currentItem, identity, ready, command } = music
   const [input, setInput] = useState(''),
     [inputError, setInputError] = useState('')
-  const [sourceMode, setSourceMode] = useState<'auto' | 'video' | 'playlist'>('auto')
+  const [sourceMode, setSourceMode] = useState<'auto' | 'video' | 'playlist'>(
+    'auto',
+  )
   const [listening, setListening] = useState(getRoomMusicListening)
   const [volume, setVolume] = useState(getRoomMusicVolume)
   const [local, setLocal] = useState(emptyLocalPlayer)
@@ -52,14 +68,14 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
     stateRef = useRef(state)
   musicRef.current = music
   stateRef.current = state
-  const enabled = listening && !deafened
+  const enabled = listening
   const hasItem = Boolean(currentItem)
   const mini = !open && enabled && hasItem
   const visible = open || mini
 
   useEffect(() => {
-    music.setListening(enabled)
-  }, [enabled, music.setListening])
+    music.setListening(enabled && !deafened)
+  }, [enabled, deafened, music.setListening])
   useEffect(() => {
     if (!enabled || !hasItem || !hostRef.current) {
       setLocal(emptyLocalPlayer())
@@ -71,20 +87,35 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
         change: setLocal,
         report: (report) => musicRef.current.report(report),
         resolve: (playbackId, itemId, videoIds, offset, total) =>
-          musicRef.current.command({ type: 'resolve', playbackId, itemId, videoIds, offset, total }),
+          musicRef.current.command({
+            type: 'resolve',
+            playbackId,
+            itemId,
+            videoIds,
+            offset,
+            total,
+          }),
       },
       playerDependencies,
     )
     playerRef.current = player
-    player.update(stateRef.current, stateRef.current.driverIdentity === musicRef.current.identity, getRoomMusicVolume())
+    player.update(
+      stateRef.current,
+      stateRef.current.driverIdentity === musicRef.current.identity,
+      deafened ? 0 : volume,
+    )
     return () => {
       player.dispose()
       if (playerRef.current === player) playerRef.current = null
     }
   }, [enabled, hasItem, playerDependencies])
   useEffect(() => {
-    playerRef.current?.update(state, state.driverIdentity === identity, volume)
-  }, [state, identity, volume])
+    playerRef.current?.update(
+      state,
+      state.driverIdentity === identity,
+      deafened ? 0 : volume,
+    )
+  }, [state, identity, volume, deafened])
   useEffect(() => {
     const update = () => setPosition(roomMusicPosition(stateRef.current))
     update()
@@ -110,11 +141,14 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
     saveRoomMusicListening(next)
   }
   const source = parseYouTubeSource(input, sourceMode)
-  const bothSources = parseYouTubeSource(input, 'video') && parseYouTubeSource(input, 'playlist')
+  const bothSources =
+    parseYouTubeSource(input, 'video') && parseYouTubeSource(input, 'playlist')
   const add = (event: FormEvent) => {
     event.preventDefault()
     if (!source) {
-      setInputError('Use um link de vídeo ou playlist pública do YouTube ou YouTube Music.')
+      setInputError(
+        'Use um link de vídeo ou playlist pública do YouTube ou YouTube Music.',
+      )
       return
     }
     if (music.addSource(source)) {
@@ -125,17 +159,31 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
   }
   const seek = () => {
     if (scrubbing !== null) {
-      command({ type: 'seek', playbackId: state.playbackId, position: scrubbing })
+      command({
+        type: 'seek',
+        playbackId: state.playbackId,
+        position: scrubbing,
+      })
       setScrubbing(null)
     }
   }
   const videoId = currentMusicVideo(state)
-  const title = state.metadata.title || local.title || currentItem?.label || 'Nenhuma música na fila'
+  const title =
+    state.metadata.title ||
+    local.title ||
+    currentItem?.label ||
+    'Nenhuma música na fila'
   const duration = state.metadata.duration || local.duration
   const unavailable = state.status === 'unavailable'
-  const needsGesture = enabled && state.playing && (local.status === 'blocked' || local.status === 'paused')
+  const needsGesture =
+    enabled &&
+    state.playing &&
+    (local.status === 'blocked' || local.status === 'paused')
   const resolvingPlaylist =
-    enabled && currentItem?.kind === 'playlist' && !currentItem.videoIds.length && local.status === 'ready'
+    enabled &&
+    currentItem?.kind === 'playlist' &&
+    !currentItem.videoIds.length &&
+    local.status === 'ready'
   const localLabel = deafened
     ? 'Som desativado pelo deafen'
     : !listening
@@ -167,7 +215,7 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
               ? 'Faixa indisponível'
               : 'Fila compartilhada'
 
-  return (
+  return createPortal(
     <aside
       aria-label="Música da sala"
       aria-hidden={!visible}
@@ -192,19 +240,43 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
         >
           <Icon name={mini ? 'expand' : 'collapse'} />
         </button>
+        <button
+          aria-label="Fechar player e parar de ouvir neste dispositivo"
+          title="Fechar e parar de ouvir aqui"
+          className="icon-button"
+          type="button"
+          onClick={() => {
+            playerRef.current?.dispose()
+            playerRef.current = null
+            setListening(false)
+            saveRoomMusicListening(false)
+            music.setListening(false)
+            onClose()
+          }}
+        >
+          <Icon name="x" />
+        </button>
       </header>
 
       <div className="room-music__body">
         <section className="room-music__deck" aria-label="Reprodução">
-          <div className={`room-music__video ${enabled && hasItem ? 'has-player' : ''}`}>
+          <div
+            className={`room-music__video ${enabled && hasItem ? 'has-player' : ''}`}
+          >
             <div ref={hostRef} className="room-music__iframe" />
             {(!enabled || !hasItem) && (
               <div className="room-music__placeholder">
                 <div className="room-music__record">
                   <Icon name={hasItem ? 'headphones' : 'music'} />
                 </div>
-                <strong>{hasItem ? 'A fila continua na sala' : 'O que vamos ouvir?'}</strong>
-                <span>{hasItem ? 'Entre na música quando quiser.' : 'YouTube e YouTube Music, juntos na call.'}</span>
+                <strong>
+                  {hasItem ? 'A fila continua na sala' : 'O que vamos ouvir?'}
+                </strong>
+                <span>
+                  {hasItem
+                    ? 'Entre na música quando quiser.'
+                    : 'YouTube e YouTube Music, juntos na call.'}
+                </span>
               </div>
             )}
           </div>
@@ -231,17 +303,27 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
               aria-label="Faixa anterior"
               title="Faixa anterior para todos"
               disabled={!currentItem || !ready}
-              onClick={() => command({ type: 'previous', playbackId: state.playbackId })}
+              onClick={() =>
+                command({ type: 'previous', playbackId: state.playbackId })
+              }
               type="button"
             >
               <Icon name="skip" className="room-music__previous" />
             </button>
             <button
               className="room-music__play"
-              aria-label={state.playing ? 'Pausar para todos' : 'Tocar para todos'}
+              aria-label={
+                state.playing ? 'Pausar para todos' : 'Tocar para todos'
+              }
               title={state.playing ? 'Pausar para todos' : 'Tocar para todos'}
               disabled={!currentItem || !ready}
-              onClick={() => command({ type: 'set-playing', playbackId: state.playbackId, playing: !state.playing })}
+              onClick={() =>
+                command({
+                  type: 'set-playing',
+                  playbackId: state.playbackId,
+                  playing: !state.playing,
+                })
+              }
               type="button"
             >
               <Icon name={state.playing ? 'pause' : 'play'} />
@@ -250,7 +332,9 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
               aria-label="Próxima faixa"
               title="Próxima faixa para todos"
               disabled={!currentItem || !ready}
-              onClick={() => command({ type: 'next', playbackId: state.playbackId })}
+              onClick={() =>
+                command({ type: 'next', playbackId: state.playbackId })
+              }
               type="button"
             >
               <Icon name="skip" />
@@ -259,7 +343,12 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
               aria-label="Repetição da fila"
               value={state.repeat}
               disabled={!ready}
-              onChange={(event) => command({ type: 'repeat', repeat: event.target.value as typeof state.repeat })}
+              onChange={(event) =>
+                command({
+                  type: 'repeat',
+                  repeat: event.target.value as typeof state.repeat,
+                })
+              }
             >
               <option value="off">Sem repetir</option>
               <option value="all">Repetir fila</option>
@@ -278,7 +367,17 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
               onChange={(event) => setScrubbing(Number(event.target.value))}
               onPointerUp={seek}
               onKeyUp={(event) => {
-                if (['ArrowLeft', 'ArrowRight', 'Home', 'End', 'PageUp', 'PageDown'].includes(event.key)) seek()
+                if (
+                  [
+                    'ArrowLeft',
+                    'ArrowRight',
+                    'Home',
+                    'End',
+                    'PageUp',
+                    'PageDown',
+                  ].includes(event.key)
+                )
+                  seek()
               }}
               onBlur={seek}
             />
@@ -288,7 +387,9 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
             </span>
           </div>
 
-          <div className={`room-music__local ${!listening || deafened ? 'is-off' : ''}`}>
+          <div
+            className={`room-music__local ${!listening || deafened ? 'is-off' : ''}`}
+          >
             <Icon name={enabled ? 'headphones' : 'volumeOff'} />
             <div>
               <strong>{localLabel}</strong>
@@ -304,7 +405,11 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
             </button>
           </div>
           {(needsGesture || resolvingPlaylist) && (
-            <button className="room-music__unlock" onClick={() => playerRef.current?.resume()} type="button">
+            <button
+              className="room-music__unlock"
+              onClick={() => playerRef.current?.resume()}
+              type="button"
+            >
               <Icon name="play" />
               {resolvingPlaylist
                 ? 'Carregar faixas da playlist'
@@ -318,7 +423,8 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
               <span>{local.error}</span>
               <button
                 onClick={() => {
-                  if (unavailable) command({ type: 'retry', playbackId: state.playbackId })
+                  if (unavailable)
+                    command({ type: 'retry', playbackId: state.playbackId })
                   else playerRef.current?.retry()
                 }}
                 type="button"
@@ -330,7 +436,12 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
           {!local.error && state.error && (
             <div className="room-music__notice" role="status">
               <span>{state.error}</span>
-              <button onClick={() => command({ type: 'retry', playbackId: state.playbackId })} type="button">
+              <button
+                onClick={() =>
+                  command({ type: 'retry', playbackId: state.playbackId })
+                }
+                type="button"
+              >
                 Tentar novamente
               </button>
             </div>
@@ -354,7 +465,11 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
           {currentItem && (
             <a
               className="room-music__external"
-              href={videoId ? `https://www.youtube.com/watch?v=${videoId}` : currentItem.url}
+              href={
+                videoId
+                  ? `https://www.youtube.com/watch?v=${videoId}`
+                  : currentItem.url
+              }
               target="_blank"
               rel="noopener"
             >
@@ -392,7 +507,11 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
             </div>
             {bothSources && (
               <div className="room-music__source-options">
-                <button type="button" aria-pressed={source?.kind === 'video'} onClick={() => setSourceMode('video')}>
+                <button
+                  type="button"
+                  aria-pressed={source?.kind === 'video'}
+                  onClick={() => setSourceMode('video')}
+                >
                   Só esta faixa
                 </button>
                 <button
@@ -409,7 +528,11 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
           {music.error && (
             <div className="room-music__notice" role="alert">
               <span>{music.error}</span>
-              <button aria-label="Fechar erro do player" onClick={music.clearError} type="button">
+              <button
+                aria-label="Fechar erro do player"
+                onClick={music.clearError}
+                type="button"
+              >
                 <Icon name="x" />
               </button>
             </div>
@@ -419,7 +542,10 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
               Fila da sala <span>{state.queue.length}</span>
             </h3>
             {state.queue.length > 0 && (
-              <button type="button" onClick={() => setConfirmClear(!confirmClear)}>
+              <button
+                type="button"
+                onClick={() => setConfirmClear(!confirmClear)}
+              >
                 Limpar
               </button>
             )}
@@ -450,13 +576,22 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
           ) : (
             <ol className="room-music__queue">
               {state.queue.map((item, index) => (
-                <li key={item.id} className={index === state.currentIndex ? 'is-current' : ''}>
+                <li
+                  key={item.id}
+                  className={index === state.currentIndex ? 'is-current' : ''}
+                >
                   <div className="room-music__queue-row">
                     <button
                       className="room-music__queue-select"
                       type="button"
                       aria-label={`Tocar ${item.label}`}
-                      onClick={() => command({ type: 'play-item', itemId: item.id, trackIndex: 0 })}
+                      onClick={() =>
+                        command({
+                          type: 'play-item',
+                          itemId: item.id,
+                          trackIndex: 0,
+                        })
+                      }
                       disabled={!ready}
                     >
                       <span className="room-music__queue-index">
@@ -472,15 +607,19 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
                       </span>
                       <span>
                         <strong>
-                          {index === state.currentIndex && state.metadata.title && item.kind === 'video'
+                          {index === state.currentIndex &&
+                          state.metadata.title &&
+                          item.kind === 'video'
                             ? state.metadata.title
                             : item.label}
                         </strong>
                         <small>
                           {item.kind === 'playlist'
                             ? item.videoIds.length
-                          ? `${item.videoIds.length} ${item.videoIds.length === 1 ? 'faixa' : 'faixas'}`
-                          : item.resolutionError ? 'Playlist indisponível' : 'Playlist · a carregar'
+                              ? `${item.videoIds.length} ${item.videoIds.length === 1 ? 'faixa' : 'faixas'}`
+                              : item.resolutionError
+                                ? 'Playlist indisponível'
+                                : 'Playlist · a carregar'
                             : item.provider === 'youtube-music'
                               ? 'YouTube Music'
                               : 'YouTube'}{' '}
@@ -492,7 +631,9 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
                       aria-label={`Remover ${item.label}`}
                       className="room-music__remove"
                       title="Remover da fila"
-                      onClick={() => command({ type: 'remove', itemId: item.id })}
+                      onClick={() =>
+                        command({ type: 'remove', itemId: item.id })
+                      }
                       type="button"
                     >
                       <Icon name="x" />
@@ -504,9 +645,15 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
                         className="room-music__playlist-toggle"
                         aria-expanded={expandedPlaylist === item.id}
                         type="button"
-                        onClick={() => setExpandedPlaylist(expandedPlaylist === item.id ? '' : item.id)}
+                        onClick={() =>
+                          setExpandedPlaylist(
+                            expandedPlaylist === item.id ? '' : item.id,
+                          )
+                        }
                       >
-                        {expandedPlaylist === item.id ? 'Fechar faixas' : 'Ver faixas'}
+                        {expandedPlaylist === item.id
+                          ? 'Fechar faixas'
+                          : 'Ver faixas'}
                         <Icon name="chevron" />
                       </button>
                       {expandedPlaylist === item.id && (
@@ -515,10 +662,19 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
                             <li key={`${track}-${id}`}>
                               <button
                                 aria-current={
-                                  index === state.currentIndex && track === state.playlistIndex ? 'true' : undefined
+                                  index === state.currentIndex &&
+                                  track === state.playlistIndex
+                                    ? 'true'
+                                    : undefined
                                 }
                                 type="button"
-                                onClick={() => command({ type: 'play-item', itemId: item.id, trackIndex: track })}
+                                onClick={() =>
+                                  command({
+                                    type: 'play-item',
+                                    itemId: item.id,
+                                    trackIndex: track,
+                                  })
+                                }
                               >
                                 <span>{item.playlistOffset + track + 1}</span>
                                 <span>
@@ -537,8 +693,9 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
                       {item.totalTracks > item.videoIds.length && (
                         <p className="room-music__limit">
                           Esta fila inclui as faixas {item.playlistOffset + 1}–
-                          {item.playlistOffset + item.videoIds.length} de {item.totalTracks}. Limite de{' '}
-                          {MAX_ROOM_MUSIC_TRACKS} faixas por sala.
+                          {item.playlistOffset + item.videoIds.length} de{' '}
+                          {item.totalTracks}. Limite de {MAX_ROOM_MUSIC_TRACKS}{' '}
+                          faixas por sala.
                         </p>
                       )}
                     </>
@@ -548,10 +705,12 @@ export const MusicPanel = ({ open, deafened = false, music, onClose, onOpen, pla
             </ol>
           )}
           <p className="room-music__footnote">
-            Até {MAX_ROOM_MUSIC_QUEUE} links · Controles de reprodução alteram a sala. Volume e escuta são individuais.
+            Até {MAX_ROOM_MUSIC_QUEUE} links · Controles de reprodução alteram a
+            sala. Volume e escuta são individuais.
           </p>
         </section>
       </div>
-    </aside>
+    </aside>,
+    document.body,
   )
 }

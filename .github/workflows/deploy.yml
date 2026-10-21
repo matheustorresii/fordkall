@@ -57,6 +57,9 @@ jobs:
       - name: Test Excalitower replication and session lifetime
         run: npm run test:excalitower
 
+      - name: Test Gartic and Impostor rules, secrets and votes
+        run: npm run test:party
+
       - name: Build
         run: npm run build
         env:

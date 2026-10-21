@@ -165,7 +165,7 @@ export class YouTubeRoomPlayer {
               this.player?.setVolume(this.volume)
               if (!resolving) window.clearTimeout(this.timeout)
               this.updateSnapshot({ status: 'ready' })
-              if (resolving) {
+              if (this.mode.startsWith('playlist:')) {
                 this.loadedAt = this.now()
                 // A videoseries URL can initially expose only a preview (notably Shorts).
                 // Cue the actual playlist through the API before taking the room snapshot.
@@ -178,7 +178,7 @@ export class YouTubeRoomPlayer {
             },
             onStateChange: (event) => {
               if (!this.ready || this.disposed || generation !== this.generation) return
-              if (resolving) {
+              if (this.mode.startsWith('playlist:')) {
                 // A user may need to initialize a Shorts playlist by clicking play.
                 // Stop its native playback before switching to the room's canonical IDs.
                 if (event.data === api.PlayerState.PLAYING) event.target.pauseVideo()
@@ -252,6 +252,10 @@ export class YouTubeRoomPlayer {
       return
     }
     const mode = item.videoIds.length ? 'video' : `playlist:${item.id}`
+    if (this.ready && this.mode.startsWith('playlist:') && mode === 'video') {
+      // Resolve once, then reuse the activated iframe for the whole room queue.
+      this.mode='video'; this.loadedPlayback=''; window.clearTimeout(this.timeout)
+    }
     if (
       mode !== this.mode ||
       (this.loadedPlayback !== state.playbackId && (mode.startsWith('playlist:') || this.snapshot.status === 'error'))
@@ -284,6 +288,7 @@ export class YouTubeRoomPlayer {
       this.loadedAt = this.now()
       this.endedToken = ''
       this.pausedHere = false
+      this.blocked = false
       this.lastSeek = this.now()
       this.updateSnapshot({
         status: 'loading',
@@ -295,18 +300,18 @@ export class YouTubeRoomPlayer {
       })
       if (changedVideo || player.getVideoData().video_id !== videoId) {
         const options = { videoId, startSeconds: expected }
-        if (state.playing && !this.blocked && document.visibilityState !== 'hidden') player.loadVideoById(options)
+        if (state.playing && !this.blocked) player.loadVideoById(options)
         else player.cueVideoById(options)
       } else {
         player.seekTo(expected, true)
-        if (state.playing && !this.blocked && document.visibilityState !== 'hidden') player.playVideo()
+        if (state.playing && !this.blocked) player.playVideo()
         else if (!state.playing) player.pauseVideo()
       }
       return
     }
     if (!state.playing) {
       if (player.getPlayerState() === 1 || player.getPlayerState() === 3) player.pauseVideo()
-    } else if (shouldStart && !this.blocked && document.visibilityState !== 'hidden') player.playVideo()
+    } else if (shouldStart && !this.blocked) player.playVideo()
     if (
       !this.driver &&
       !this.blocked &&
@@ -388,7 +393,7 @@ export class YouTubeRoomPlayer {
                 ? 'ended'
                 : 'ready'
     // Some browsers leave the iframe cued without emitting onAutoplayBlocked.
-    if (state.playing && status === 'ready' && this.now() - this.loadedAt > 4_000) {
+    if (state.playing && status === 'ready' && document.visibilityState !== 'hidden' && this.now() - this.loadedAt > 4_000) {
       this.blocked = true
       status = 'blocked'
     }

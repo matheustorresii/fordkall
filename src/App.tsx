@@ -6,8 +6,12 @@ import { SocialHome } from './components/Social/SocialHome'
 import { useAccount } from './hooks/useAccount'
 import { useLiveKitRoom } from './hooks/useLiveKitRoom'
 import { useSocialPresence } from './hooks/useSocialPresence'
-import { getRoomCodeFromUrl, replaceRoomCodeInCurrentUrl } from './services/livekit'
+import {
+  getRoomCodeFromUrl,
+  replaceRoomCodeInCurrentUrl,
+} from './services/livekit'
 import type { LocalProfile } from './types'
+import { supabase } from './services/supabase'
 
 function App() {
   const account = useAccount()
@@ -15,7 +19,6 @@ function App() {
   const socialPresence = useSocialPresence(
     account.profile?.id,
     account.profile?.displayName || '',
-    liveKit.activeRoomCode,
   )
   const [roomCode, setRoomCode] = useState(getRoomCodeFromUrl)
   const [adminOpen, setAdminOpen] = useState(false)
@@ -38,9 +41,26 @@ function App() {
     })
   }, [liveKit.room])
 
-  const join = async (profile: LocalProfile, nextRoomCode: string) => {
+  useEffect(() => {
+    if (!liveKit.room || !liveKit.activeRoomCode) return
+    const code = liveKit.activeRoomCode
+    const touch = () => {
+      void supabase.rpc('touch_call_room', { p_room_code: code })
+    }
+    touch()
+    const timer = window.setInterval(touch, 25_000)
+    return () => {
+      window.clearInterval(timer)
+      void supabase.rpc('touch_call_room', { p_room_code: code, p_leave: true })
+    }
+  }, [liveKit.room, liveKit.activeRoomCode])
+  const join = async (
+    profile: LocalProfile,
+    nextRoomCode: string,
+    privateRoom = false,
+  ) => {
     await account.updateProfile(profile)
-    const connected = await liveKit.join(nextRoomCode, profile)
+    const connected = await liveKit.join(nextRoomCode, profile, privateRoom)
     if (connected) {
       setRoomCode(nextRoomCode)
       replaceRoomCodeInCurrentUrl(nextRoomCode)
@@ -60,7 +80,12 @@ function App() {
   }
 
   if (account.loading && !account.profile) {
-    return <main className="app-loading"><span className="spinner" /><span>Preparando sua garagem…</span></main>
+    return (
+      <main className="app-loading">
+        <span className="spinner" />
+        <span>Carregando…</span>
+      </main>
+    )
   }
 
   if (!account.session || !account.profile) {
@@ -77,9 +102,15 @@ function App() {
     )
   }
 
-  const canOpenAdmin = account.profile.role === 'owner' || account.profile.role === 'admin'
+  const canOpenAdmin =
+    account.profile.role === 'owner' || account.profile.role === 'admin'
   if (adminOpen && canOpenAdmin && !liveKit.room) {
-    return <AdminDashboard currentRole={account.profile.role} onClose={() => setAdminOpen(false)} />
+    return (
+      <AdminDashboard
+        currentRole={account.profile.role}
+        onClose={() => setAdminOpen(false)}
+      />
+    )
   }
 
   return (
@@ -100,13 +131,14 @@ function App() {
             onNavigateHome={() => setActiveView('home')}
             room={liveKit.room}
             roomCode={roomCode}
+            privateRoom={liveKit.privateRoom}
             status={liveKit.status}
           />
         </div>
       )}
       <div
         aria-hidden={(liveKit.room && activeView === 'call') || adminOpen}
-        className={`app-route ${((liveKit.room && activeView === 'call') || adminOpen) ? 'app-route--hidden' : ''}`}
+        className={`app-route ${(liveKit.room && activeView === 'call') || adminOpen ? 'app-route--hidden' : ''}`}
       >
         <SocialHome
           account={account.profile}
@@ -125,7 +157,10 @@ function App() {
       </div>
       {adminOpen && canOpenAdmin && liveKit.room && (
         <div className="app-route">
-          <AdminDashboard currentRole={account.profile.role} onClose={() => setAdminOpen(false)} />
+          <AdminDashboard
+            currentRole={account.profile.role}
+            onClose={() => setAdminOpen(false)}
+          />
         </div>
       )}
     </div>
