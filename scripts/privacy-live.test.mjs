@@ -94,10 +94,35 @@ try {
   const outsiderHistory = unwrap(await clients[2].rpc('list_my_call_rooms'), 'Outsider history')
   assert.ok(ownerHistory.some(room => room.code === privateCode && room.is_private))
   assert.ok(!outsiderHistory.some(room => room.code === privateCode))
+  for (const [index, client] of clients.entries()) {
+    const directory = unwrap(
+      await client.functions.invoke('call-directory', { body: {} }),
+      'Authenticated room directory',
+    )
+    assert.ok(Array.isArray(directory.rooms))
+    assert.ok(Array.isArray(directory.recentRooms))
+    assert.equal(typeof directory.degraded, 'boolean')
+    assert.ok(Number.isFinite(Date.parse(directory.checkedAt)))
+    assert.ok(!directory.rooms.some(room => room.code === privateCode))
+    assert.equal(
+      directory.recentRooms.some(room => room.code === privateCode && room.is_private),
+      index < 2,
+      'Only accounts that joined a private room can recover it from history',
+    )
+    assert.ok(!JSON.stringify(directory).includes(service))
+  }
+  const anonymousDirectory = await fetch(
+    `https://${ref}.supabase.co/functions/v1/call-directory`,
+    { method: 'POST', headers: { apikey: pub, 'Content-Type': 'application/json' }, body: '{}' },
+  )
+  assert.equal(anonymousDirectory.status, 401)
   assert.ok((await clients[2].from('call_rooms').select('*')).error)
   assert.ok((await clients[2].from('call_room_members').select('*')).error)
+  assert.ok((await clients[2].from('call_directory_sync').select('*')).error)
+  assert.ok((await clients[2].from('call_room_live_snapshots').select('*')).error)
+  assert.ok((await clients[2].rpc('claim_call_directory_refresh', { p_backend_id: 'qa-forbidden' })).error)
   console.log(
-    'PASS: private room absent from every public listing; direct table access rejected; code join preserves privacy',
+    'PASS: authenticated edge directory and RPCs isolate private history; anonymous/cache access rejected; code join preserves privacy',
   )
   unwrap(
     await clients[2].rpc('touch_call_room', { p_room_code: publicCode }),
@@ -159,14 +184,19 @@ try {
     'PASS: curated cosmetics persist and reach other users; arbitrary URLs are rejected',
   )
 } finally {
-  for (const code of codes)
-    unwrap(
-      await admin.from('call_rooms').delete().eq('code', code),
-      'Cleanup QA room',
-    )
-  for (const c of clients) await c.auth.signOut()
-  for (const u of users)
-    unwrap(await admin.auth.admin.deleteUser(u.id), 'Cleanup QA account')
+  const cleanupErrors = []
+  for (const code of codes) {
+    const { error } = await admin.from('call_rooms').delete().eq('code', code)
+    if (error) cleanupErrors.push(`room: ${error.code || error.name}`)
+  }
+  for (const c of clients) {
+    try { await c.auth.signOut() } catch { /* Deleting the QA account invalidates its session too. */ }
+  }
+  for (const u of users) {
+    const { error } = await admin.auth.admin.deleteUser(u.id)
+    if (error) cleanupErrors.push(`account: ${error.code || error.name}`)
+  }
+  assert.equal(cleanupErrors.length, 0, `QA cleanup failed: ${cleanupErrors.join(', ')}`)
   console.log(
     `CLEANUP: ${users.length} QA accounts and ${codes.length} QA rooms removed`,
   )
