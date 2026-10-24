@@ -1,0 +1,55 @@
+.game-recovery-status {
+  position: absolute;
+  z-index: 500;
+  top: 84px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: max-content;
+  max-width: calc(100% - 32px);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 18px;
+  border: 1px solid #b8a76b88;
+  border-radius: 14px;
+  background: #292b2bf2;
+  color: #f7eac2;
+  box-shadow: 0 10px 40px #0005;
+  backdrop-filter: blur(12px);
+}
+.game-recovery-status > svg {
+  width: 20px;
+  flex-shrink: 0;
+}
+.game-recovery-status div {
+  display: grid;
+  gap: 4px;
+  max-width: 500px;
+}
+.game-recovery-status strong {
+  font-size: 14px;
+}
+.game-recovery-status span {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #d3d2c5;
+}
+.game-recovery-status button {
+  border: 1px solid #b8a76b66;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #ffffff09;
+  color: #f7eac2;
+  font-size: 12px;
+  white-space: nowrap;
+}
+@media (max-width: 650px) {
+  .game-recovery-status {
+    top: 70px;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+  .game-recovery-status button {
+    white-space: normal;
+  }
+}

@@ -22,6 +22,7 @@ import { CodenamesPreview } from './CodenamesPreview'
 import { CodenamesNetworkChecks } from './CodenamesNetworkChecks'
 import { TrucoNetworkChecks } from './TrucoNetworkChecks'
 import { GameParticipationChecks } from './GameParticipationChecks'
+import { RecoveryNetworkChecks } from './RecoveryNetworkChecks'
 
 export const previewParticipants: ParticipantMedia[] = ['frangoelho 2', 'luisalgaelalves76', 'gabriela kaori', 'torres mobile', 'Um nome bastante comprido para testar', 'Kiwi', 'Pandinha', 'Amigo da call'].map((name, index) => ({
   id: `p${index}`, name, isLocal: index === 0, cameraEnabled: false, microphoneMuted: false,
@@ -89,6 +90,7 @@ export const GamePreview = () => {
     reset: () => { setItoState((current) => ({ ...current, gameId: '', phase: 'lobby', cards: [], order: [], players: [] })); return true },
   }
   if (kind === 'checks') return <KiwiNetworkChecks />
+  if (kind === 'recovery-checks') return <RecoveryNetworkChecks />
   if (kind === 'participation-checks') return <GameParticipationChecks />
   if (kind === 'participation') return <GameParticipationChecks interactive />
   if (kind === 'ito-checks') return <ItoNetworkChecks />

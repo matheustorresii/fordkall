@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { RoomEvent, type RemoteParticipant, type Room } from 'livekit-client'
 import { getKiwiCombo, getKiwiPlayTarget, kiwiCardTitle } from '../games/kiwiCards'
 import { gameMembers, gameStartError, type RoomGameParticipation } from './useRoomGameParticipation'
+import { recoveryEnabled, recoverableGameMembers, seedRecoveringPlayers, useGameRecovery } from './useGameRecovery'
+import { shiftGameDeadlines } from '../games/recovery'
 
 export const KIWI_TOPIC = 'ford-kall.exploding-kiwi.v2'
 const TOPIC = KIWI_TOPIC
@@ -268,14 +270,19 @@ export const useRoomExplodingKiwi = (room: Room, participation?: RoomGamePartici
   const takenRef = useRef<Record<string, string>>({})
   const towerStashRef = useRef<KiwiCard[]>([])
   const pendingCommandsRef = useRef(new Map<string, number>())
+  const recoveryRef = useRef<ReturnType<typeof useGameRecovery> | null>(null)
+  const processedCommands = useRef(new Map<string, string>())
+  const performingDurable = useRef(false)
+  const wireTopic = recoveryEnabled(room) ? `${TOPIC}.recovery.v1` : TOPIC
 
   const applyState = useCallback((next: KiwiRoomState) => { stateRef.current = next; setState(next) }, [])
   const publish = useCallback(async (message: KiwiMessage, destinationIdentity?: string) => {
-    await room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), { reliable: true, topic: TOPIC,
+    await room.localParticipant.publishData(encoder.encode(JSON.stringify({ ...message, ...(recoveryRef.current?.enabled ? { epoch: recoveryRef.current.epoch(), clockAt: Date.now() } : {}) })), { reliable: true, topic: wireTopic,
       destinationIdentities: destinationIdentity ? [destinationIdentity] : undefined })
-  }, [room])
+  }, [room, wireTopic])
   const getControllerIdentity = useCallback((candidate = stateRef.current) => {
     const connected = identitiesInRoom(room)
+    if (recoveryRef.current?.enabled) return recoveryRef.current.controller(candidate.controllerIdentity && connected.includes(candidate.controllerIdentity) ? candidate.controllerIdentity : connected.sort()[0] || room.localParticipant.identity)
     if (candidate.gameId && candidate.controllerIdentity && connected.includes(candidate.controllerIdentity)) return candidate.controllerIdentity
     return connected.sort()[0] || room.localParticipant.identity
   }, [room])
@@ -288,12 +295,14 @@ export const useRoomExplodingKiwi = (room: Room, participation?: RoomGamePartici
   }, [room])
   const sendPrivateTo = useCallback((identity: string) => {
     const current = stateRef.current
+    if (recoveryRef.current?.enabled && (performingDurable.current || recoveryRef.current.coordinator?.records.get(TOPIC)?.revision !== current.revision)) return
     const privateData = { type: 'private' as const, gameId: current.gameId, revision: current.revision, hand: handsRef.current[identity] ?? [],
       peek: peeksRef.current[identity] ?? [], peekId: peekIdsRef.current[identity] ?? '', stash: stashesRef.current[identity] ?? [] }
     if (identity === room.localParticipant.identity) { setHand(privateData.hand); setPeek(privateData.peek); setPeekId(privateData.peekId); setStash(privateData.stash); return }
     void publish(privateData, identity).catch(() => undefined)
   }, [publish, room])
   const sendCurrentState = useCallback((identity: string) => {
+    if (recoveryRef.current?.enabled && recoveryRef.current.coordinator?.records.get(TOPIC)?.revision !== stateRef.current.revision) return
     void publish({ type: 'state', state: stateRef.current }, identity).catch(() => undefined)
     sendPrivateTo(identity)
   }, [publish, sendPrivateTo])
@@ -306,8 +315,10 @@ export const useRoomExplodingKiwi = (room: Room, participation?: RoomGamePartici
     next.discard = [...discardRef.current]
     next.deckCount = deckRef.current.length
     applyState(next); setError('')
-    void publish({ type: 'state', state: next }).catch(() => setError('A sala perdeu contato com o jogo.'))
-    next.players.forEach((player) => sendPrivateTo(player.identity))
+    if (!recoveryRef.current?.enabled) {
+      void publish({ type: 'state', state: next }).catch(() => setError('A sala perdeu contato com o jogo.'))
+      next.players.forEach((player) => sendPrivateTo(player.identity))
+    }
     return true
   }, [applyState, getControllerIdentity, publish, room, sendPrivateTo])
 
@@ -923,9 +934,42 @@ export const useRoomExplodingKiwi = (room: Room, participation?: RoomGamePartici
     }
     return null
   }, [commit, room, sendPrivateTo, setPrivatePeek, participation])
+  const durableCommand = useCallback((command: KiwiCommand, sender: string) => {
+    performingDurable.current = true
+    try { return performCommand(command, sender) } finally { performingDurable.current = false }
+  }, [performCommand])
+
+  const recovery = useGameRecovery(room, TOPIC, {
+    capture: () => ({ state: stateRef.current, secrets: Object.fromEntries(stateRef.current.players.map(player => [player.identity, { hand: handsRef.current[player.identity] || [], peek: peeksRef.current[player.identity] || [], peekId: peekIdsRef.current[player.identity] || '', stash: stashesRef.current[player.identity] || [] }])),
+      authority: { hands: handsRef.current, peeks: peeksRef.current, peekIds: peekIdsRef.current, stashes: stashesRef.current, deck: deckRef.current, discard: discardRef.current, taken: takenRef.current, towerStash: towerStashRef.current } }),
+    restore: (checkpoint, authoritative) => {
+      const next = parseState(checkpoint.state)
+      if (!next) return
+      seedRecoveringPlayers(room, next); applyState(next)
+      if (authoritative && checkpoint.authority) {
+        const a = checkpoint.authority as { hands: Record<string, KiwiCard[]>; peeks: Record<string, KiwiCard[]>; peekIds: Record<string, string>; stashes: Record<string, KiwiCard[]>; deck: KiwiCard[]; discard: KiwiCard[]; taken: Record<string, string>; towerStash: KiwiCard[] }
+        handsRef.current = a.hands; peeksRef.current = a.peeks; peekIdsRef.current = a.peekIds; stashesRef.current = a.stashes; deckRef.current = a.deck; discardRef.current = a.discard; takenRef.current = a.taken; towerStashRef.current = a.towerStash
+        sendPrivateTo(room.localParticipant.identity)
+      }
+    },
+    ownPrivate: value => {
+      if (!value || typeof value !== 'object') return
+      const data = value as { hand?: KiwiCard[]; peek?: KiwiCard[]; peekId?: string; stash?: KiwiCard[] }
+      setHand(data.hand || []); setPeek(data.peek || []); setPeekId(data.peekId || ''); setStash(data.stash || [])
+    },
+    committed: () => { void publish({ type: 'state', state: stateRef.current }).catch(() => {}); stateRef.current.players.forEach(player => sendPrivateTo(player.identity)) },
+  })
+  recoveryRef.current = recovery
+  const recoveryRoster = useRef('')
+  useEffect(() => {
+    if (!recovery.enabled) return
+    const key = recoverableGameMembers(room).map(person => person.identity).sort().join(',')
+    if (key !== recoveryRoster.current) { recoveryRoster.current = key; setParticipantRevision(value => value + 1) }
+  }, [recovery.revision, room])
 
   const ensureController = useCallback(() => {
     if (getControllerIdentity() !== room.localParticipant.identity) return false
+    if (recoveryRef.current?.enabled) return recoveryRef.current.ready()
     if (stateRef.current.controllerIdentity === room.localParticipant.identity) return true
     const wasActive = Boolean(stateRef.current.gameId)
     handsRef.current = {}; peeksRef.current = {}; peekIdsRef.current = {}; stashesRef.current = {}; deckRef.current = []; discardRef.current = []; takenRef.current = {}
@@ -937,14 +981,18 @@ export const useRoomExplodingKiwi = (room: Room, participation?: RoomGamePartici
   }, [applyState, getControllerIdentity, publish, room])
   const dispatch = useCallback((command: KiwiCommand) => {
     setError('')
+    if (recoveryRef.current?.enabled && (!recoveryRef.current.ready() || recoveryRef.current.paused() && command.type !== 'reset')) { setError('A partida está pausada para reconexão. Suas cartas foram preservadas.'); return false }
     const controller = getControllerIdentity()
-    if (controller === room.localParticipant.identity) { ensureController(); const result = performCommand(command, room.localParticipant.identity); if (result) setError(result); return !result }
+    if (controller === room.localParticipant.identity) {
+      if (recoveryRef.current?.enabled) { void recoveryRef.current.transact(() => durableCommand(command, room.localParticipant.identity), command.type === 'reset').then(result => { if (result) setError(result) }).catch(() => setError('A jogada não foi confirmada. A mesa foi preservada.')); return true }
+      ensureController(); const result = performCommand(command, room.localParticipant.identity); if (result) setError(result); return !result
+    }
     const commandId = crypto.randomUUID()
     const timeout = window.setTimeout(() => { pendingCommandsRef.current.delete(commandId); setError('O jogo não respondeu na sala. Tente novamente.') }, 5_000)
     pendingCommandsRef.current.set(commandId, timeout)
     void publish({ type: 'command', commandId, command }, controller).catch(() => { window.clearTimeout(timeout); pendingCommandsRef.current.delete(commandId); setError('Não foi possível enviar sua ação para o jogo.') })
     return true
-  }, [ensureController, getControllerIdentity, performCommand, publish, room])
+  }, [ensureController, getControllerIdentity, performCommand, durableCommand, publish, room])
   useEffect(() => {
     if (state.gameId && getControllerIdentity() === room.localParticipant.identity) dispatch({ type: 'sync-participation', gameId: state.gameId })
   }, [dispatch, getControllerIdentity, room, state.gameId, participantRevision, participation?.state.revision])
@@ -956,9 +1004,9 @@ export const useRoomExplodingKiwi = (room: Room, participation?: RoomGamePartici
     return () => window.clearTimeout(timer)
   }, [dispatch, getControllerIdentity, room, state.gameId, state.pendingAction])
   useEffect(() => {
-    const receive = (payload: Uint8Array, participant?: RemoteParticipant, _kind?: unknown, topic?: string) => {
-      if (topic !== TOPIC || !participant) return
-      let message: KiwiMessage
+    const receive = async (payload: Uint8Array, participant?: RemoteParticipant, _kind?: unknown, topic?: string) => {
+      if (topic !== wireTopic || !participant) return
+      let message: KiwiMessage & { epoch?: number; clockAt?: number }
       try { message = JSON.parse(decoder.decode(payload)) as KiwiMessage } catch { return }
       if (message.type === 'hello' || message.type === 'request') {
         if (ensureController()) sendCurrentState(participant.identity)
@@ -966,7 +1014,8 @@ export const useRoomExplodingKiwi = (room: Room, participation?: RoomGamePartici
         return
       }
       if (message.type === 'state') {
-        const candidate = parseState(message.state)
+        if (recoveryRef.current?.enabled && !await recoveryRef.current.accepts(participant.identity, message.epoch)) return
+        const candidate = parseState(recoveryRef.current?.enabled && typeof message.clockAt === 'number' ? shiftGameDeadlines(message.state, Date.now() - message.clockAt) : message.state)
         if (!candidate || participant.identity !== candidate.controllerIdentity) return
         const current = stateRef.current
         if (candidate.controllerIdentity === current.controllerIdentity && candidate.revision <= current.revision) return
@@ -976,6 +1025,7 @@ export const useRoomExplodingKiwi = (room: Room, participation?: RoomGamePartici
         return
       }
       if (message.type === 'private') {
+        if (recoveryRef.current?.enabled && !await recoveryRef.current.accepts(participant.identity, message.epoch)) return
         const current = stateRef.current
         if (participant.identity !== current.controllerIdentity || message.gameId !== current.gameId || !current.players.some((item) => item.identity === room.localParticipant.identity)) return
         const revision = typeof message.revision === 'number' ? message.revision : current.revision
@@ -991,6 +1041,15 @@ export const useRoomExplodingKiwi = (room: Room, participation?: RoomGamePartici
         if (getControllerIdentity() !== room.localParticipant.identity || !ensureController()) return
         const command = parseCommand(message.command); const commandId = cleanText(message.commandId, 64)
         if (!command || !commandId) return
+        if (recoveryRef.current?.enabled) {
+          if (processedCommands.current.has(commandId)) { void publish({ type: 'command-result', commandId, error: processedCommands.current.get(commandId)! }, participant.identity); return }
+          processedCommands.current.set(commandId, 'A jogada está sendo confirmada.')
+          const result = await recoveryRef.current.transact(() => durableCommand(command, participant.identity), command.type === 'reset').catch(() => 'A jogada não foi confirmada. Tente novamente.')
+          processedCommands.current.set(commandId, result || '')
+          if (processedCommands.current.size > 256) processedCommands.current.delete(processedCommands.current.keys().next().value!)
+          void publish({ type: 'command-result', commandId, error: result || '' }, participant.identity).catch(() => {})
+          return
+        }
         const commandError = performCommand(command, participant.identity)
         void publish({ type: 'command-result', commandId, error: commandError ?? '' }, participant.identity).catch(() => undefined)
         return
@@ -1017,7 +1076,7 @@ export const useRoomExplodingKiwi = (room: Room, participation?: RoomGamePartici
       room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected); room.off(RoomEvent.Reconnected, onParticipantConnected)
       for (const timeout of pendingCommandsRef.current.values()) window.clearTimeout(timeout); pendingCommandsRef.current.clear()
     }
-  }, [applyState, ensureController, getControllerIdentity, performCommand, publish, room, sendCurrentState])
+  }, [applyState, ensureController, getControllerIdentity, performCommand, durableCommand, publish, room, sendCurrentState, wireTopic])
 
   const start = useCallback((expansions: KiwiExpansion[] = [], excludedCards: KiwiCardType[] = []) => dispatch({ type: 'start', expansions, excludedCards }), [dispatch])
   const reset = useCallback(() => dispatch({ type: 'reset' }), [dispatch])
@@ -1032,7 +1091,7 @@ export const useRoomExplodingKiwi = (room: Room, participation?: RoomGamePartici
   void participantRevision
   return {
     state, hand, peek, peekId, stash, error, clearError,
-    isController: controllerIdentity === room.localParticipant.identity,
+    isController: controllerIdentity === room.localParticipant.identity && (!recovery.enabled || !recovery.paused()),
     isPlaying: state.players.some((item) => item.identity === room.localParticipant.identity) && (!participation || participation.allowed('kiwi', room.localParticipant.identity)),
     isMyTurn: state.currentPlayerIdentity === room.localParticipant.identity && (!participation || participation.allowed('kiwi', room.localParticipant.identity)),
     isPendingDefense: state.pendingDefenseIdentity === room.localParticipant.identity,

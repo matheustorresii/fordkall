@@ -8,6 +8,7 @@ import {
 export function useCallDirectory(
   accountId: string,
   preview?: Partial<CallDirectory>,
+  active = true,
 ) {
   const [ownerId, setOwnerId] = useState(accountId)
   const [directory, setDirectory] = useState<CallDirectory>(() =>
@@ -17,6 +18,7 @@ export function useCallDirectory(
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState('')
   const refreshRef = useRef<() => Promise<void>>(async () => {})
+  const visibleRef = useRef(active); visibleRef.current = active
   const refresh = useCallback(() => refreshRef.current(), [])
   useEffect(() => {
     setOwnerId(accountId)
@@ -31,7 +33,7 @@ export function useCallDirectory(
     setDirectory(normalizeCallDirectory({}))
     setLoading(true)
     const load = async () => {
-      if (stopped || pending) return
+      if (stopped || pending || !visibleRef.current) return
       pending = true
       setRefreshing(true)
       try {
@@ -75,6 +77,7 @@ export function useCallDirectory(
       document.removeEventListener('visibilitychange', visible)
     }
   }, [accountId, preview])
+  useEffect(() => { if (active) void refreshRef.current() }, [active])
   const belongsToAccount = ownerId === accountId
   return {
     ...(belongsToAccount ? directory : normalizeCallDirectory({})),

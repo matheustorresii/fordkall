@@ -14,7 +14,7 @@ const saveCapture = (settings: MicrophoneCaptureSettings) => {
   saveAutoGainControl(settings.autoGainControl)
 }
 
-export const useMicrophoneProcessing = (room: Room) => {
+export const useMicrophoneProcessing = (room: Room, meterVisible = true) => {
   const [capture, setCaptureState] = useState(getMicrophoneCaptureSettings)
   const [sensitivityEnabled, setSensitivityEnabledState] = useState(getMicrophoneSensitivityEnabled)
   const [sensitivityThresholdDb, setSensitivityThresholdDb] = useState(getMicrophoneSensitivityThreshold)
@@ -36,10 +36,16 @@ export const useMicrophoneProcessing = (room: Room) => {
   const processorTrackRef = useRef<LocalAudioTrack | null>(null)
   const syncQueueRef = useRef<Promise<void>>(Promise.resolve())
   const failureRef = useRef<(message: string) => void>(() => {})
+  const meterVisibleRef = useRef(meterVisible); meterVisibleRef.current = meterVisible
 
   const reportLevel = useCallback((db: number, open: boolean) => {
-    if (activeRef.current) { setInputLevelDb(db); setGateOpen(open) }
+    if (activeRef.current && meterVisibleRef.current && !document.hidden) { setInputLevelDb(Math.round(db * 2) / 2); setGateOpen(open) }
   }, [])
+  useEffect(() => {
+    const sync = () => processorRef.current?.setMeterEnabled(meterVisibleRef.current && !document.hidden)
+    sync(); document.addEventListener('visibilitychange', sync)
+    return () => document.removeEventListener('visibilitychange', sync)
+  }, [meterVisible, processorRevision])
   const getTrack = useCallback(() => {
     const publication = room.localParticipant.getTrackPublication(Track.Source.Microphone)
     return publication?.track instanceof LocalAudioTrack ? publication.track : null
@@ -84,12 +90,14 @@ export const useMicrophoneProcessing = (room: Room) => {
       }
       if (current instanceof MicrophoneSensitivityProcessor) {
         current.setThreshold(thresholdRef.current); current.setOnLevel(reportLevel)
+        current.setMeterEnabled(meterVisibleRef.current && !document.hidden)
         processorTrackRef.current = track; processorRef.current = current
         return
       }
       if (current) throw new Error('Outro processamento de áudio já está ativo neste microfone.')
       const processor = new MicrophoneSensitivityProcessor(thresholdRef.current, reportLevel, (message) => failureRef.current(message))
       await track.setProcessor(processor)
+      processor.setMeterEnabled(meterVisibleRef.current && !document.hidden)
       if (activeRef.current && sensitivityEnabledRef.current) {
         processorTrackRef.current = track; processorRef.current = processor
       } else if (track.getProcessor() === processor) await track.stopProcessor()

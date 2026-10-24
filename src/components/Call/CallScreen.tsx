@@ -37,6 +37,7 @@ import {
   saveGameOverlayEnabled,
   saveGalleryLayout,
   saveStreamQuality,
+  getPerformanceMode, savePerformanceMode, type PerformanceMode,
 } from '../../storage/preferences'
 import type {
   ConnectionStatus,
@@ -46,18 +47,10 @@ import type {
   StreamQualityId,
 } from '../../types'
 import { ChatPanel } from '../Chat/ChatPanel'
-import { ItoGameStage } from '../Games/ItoGameStage'
 import { useRoomGameParticipation } from '../../hooks/useRoomGameParticipation'
 import { GameParticipationContext } from '../Games/GameParticipationContext'
 import { GameParticipationPanel } from '../Games/GameParticipationPanel'
 import type { GameKind } from '../../games/gameParticipation'
-import { ExplodingKiwiStage } from '../Games/ExplodingKiwiStage'
-import { TrucoMineiroStage } from '../Games/TrucoMineiroStage'
-import { TheMindStage } from '../Games/TheMindStage'
-import { PokerStage } from '../Games/PokerStage'
-import { CoupStage } from '../Games/CoupStage'
-import { CodenamesStage } from '../Games/CodenamesStage'
-import { RoomGamesHub } from '../Games/RoomGamesHub'
 import { MusicPanel } from '../Music/MusicPanel'
 import { ParticipantAudioLayer } from '../Participants/ParticipantAudioLayer'
 import { ParticipantContextMenu } from '../Participants/ParticipantContextMenu'
@@ -68,10 +61,20 @@ import { ScreenShareStage } from '../ScreenShare/ScreenShareStage'
 import { SettingsModal } from '../Settings/SettingsModal'
 import { BrandMark } from '../ui/BrandMark'
 import { Icon, type IconName } from '../ui/Icon'
+import { GameRecoveryStatus } from '../Games/GameRecoveryStatus'
+import { setMediaSubscription } from '../../services/videoSuspension'
 
 const GarticStage = lazy(() =>
   import('../Games/GarticStage').then((m) => ({ default: m.GarticStage })),
 )
+const ItoGameStage = lazy(() => import('../Games/ItoGameStage').then(module => ({ default: module.ItoGameStage })))
+const ExplodingKiwiStage = lazy(() => import('../Games/ExplodingKiwiStage').then(module => ({ default: module.ExplodingKiwiStage })))
+const TrucoMineiroStage = lazy(() => import('../Games/TrucoMineiroStage').then(module => ({ default: module.TrucoMineiroStage })))
+const TheMindStage = lazy(() => import('../Games/TheMindStage').then(module => ({ default: module.TheMindStage })))
+const PokerStage = lazy(() => import('../Games/PokerStage').then(module => ({ default: module.PokerStage })))
+const CoupStage = lazy(() => import('../Games/CoupStage').then(module => ({ default: module.CoupStage })))
+const CodenamesStage = lazy(() => import('../Games/CodenamesStage').then(module => ({ default: module.CodenamesStage })))
+const RoomGamesHub = lazy(() => import('../Games/RoomGamesHub').then(module => ({ default: module.RoomGamesHub })))
 const ImpostorStage = lazy(() =>
   import('../Games/ImpostorStage').then((m) => ({ default: m.ImpostorStage })),
 )
@@ -190,9 +193,11 @@ export const CallScreen = ({
   onLeave,
 }: CallScreenProps) => {
   const snapshot = useRoomSnapshot(room)
-  useDesktopPerformanceMode(room)
+  const [performanceMode, setPerformanceMode] = useState(getPerformanceMode)
+  useDesktopPerformanceMode(room, active, performanceMode)
   const devices = useAudioDevices(room)
-  const microphoneProcessing = useMicrophoneProcessing(room)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const microphoneProcessing = useMicrophoneProcessing(room, settingsOpen && active)
   const microphoneMonitor = useMicrophoneMonitor(
     room,
     devices.preferences.voiceOutputId,
@@ -220,7 +225,6 @@ export const CallScreen = ({
   const [gameOverlayEnabled, setGameOverlayEnabled] = useState(
     getGameOverlayEnabled,
   )
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [quality, setQuality] = useState<StreamQualityId>(getStreamQuality)
   const [galleryLayout, setGalleryLayout] =
     useState<GalleryLayoutMode>(getGalleryLayout)
@@ -298,9 +302,9 @@ export const CallScreen = ({
     for (const live of snapshot.lives) {
       if (live.isLocal) continue
       if (live.videoPublication?.isDesired)
-        live.videoPublication.setSubscribed(false)
+        setMediaSubscription(live.videoPublication, false)
       if (live.audioPublication?.isDesired)
-        live.audioPublication.setSubscribed(false)
+        setMediaSubscription(live.audioPublication, false)
     }
   }, [gamesOpen, snapshot.lives])
 
@@ -886,9 +890,10 @@ export const CallScreen = ({
           sair da sala…
         </div>
       )}
+      {gamesOpen && <GameRecoveryStatus room={room} />}
 
       <GameParticipationContext.Provider value={gameParticipationUi}>
-        <div className="call-workspace">
+        <div className="call-workspace"><Suspense fallback={<div className="game-loading" role="status">Abrindo mesa…</div>}>
           {gamesOpen ? (
             gameMode === 'hub' ? (
               <RoomGamesHub
@@ -1054,7 +1059,7 @@ export const CallScreen = ({
               screenOutputId={devices.preferences.screenOutputId}
             />
           )}
-        </div>
+        </Suspense></div>
 
         {gamesOpen &&
           gameParticipationOpen &&
@@ -1312,6 +1317,9 @@ export const CallScreen = ({
 
       {settingsOpen && (
         <SettingsModal
+          room={room}
+          performanceMode={performanceMode}
+          onPerformanceModeChange={(mode: PerformanceMode) => { setPerformanceMode(mode); savePerformanceMode(mode) }}
           callSoundsEnabled={callSoundsEnabled}
           devices={devices}
           gameOverlayEnabled={gameOverlayEnabled}

@@ -1,0 +1,246 @@
+.direct-call-incoming {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  display: grid;
+  place-items: center;
+  background: rgb(6 10 18 / 0.68);
+  backdrop-filter: blur(10px);
+  padding: 20px;
+}
+.direct-call-incoming__card {
+  width: min(100%, 400px);
+  padding: 32px;
+  border: 1px solid #3d485c;
+  background: #202735;
+  border-radius: 26px;
+  text-align: center;
+  box-shadow: 0 24px 100px #0008;
+  color: #f4f6fa;
+}
+.direct-call-kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #b6c3d5;
+  font-size: 13px;
+}
+.direct-call-kicker svg {
+  width: 16px;
+  height: 16px;
+}
+.direct-call-avatar {
+  margin: 28px auto 22px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 12px #c7de9310,
+    0 0 0 24px #c7de9307;
+}
+.direct-call-avatar .social-avatar {
+  width: 100px;
+  height: 100px;
+  font-size: 30px;
+}
+.direct-call-incoming h2 {
+  font-size: 24px;
+  line-height: 1.25;
+  margin: 16px 0 10px;
+  overflow-wrap: anywhere;
+}
+.direct-call-incoming p {
+  font-size: 14px;
+  line-height: 1.6;
+  color: #b6c3d5;
+  margin-bottom: 28px;
+}
+.direct-call-actions {
+  display: flex;
+  gap: 12px;
+}
+.direct-call-actions button {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 14px;
+  border: 0;
+  border-radius: 12px;
+  font-weight: 700;
+}
+.direct-call-accept {
+  background: #c8dfa0;
+  color: #1c2817;
+}
+.direct-call-decline {
+  background: #62373f;
+  color: #ffdee3;
+}
+.direct-call-actions svg {
+  width: 19px;
+  height: 19px;
+}
+.direct-call-outgoing,
+.direct-call-error {
+  position: fixed;
+  bottom: max(24px, env(safe-area-inset-bottom));
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 10001;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  max-width: calc(100vw - 32px);
+  padding: 14px 18px;
+  border: 1px solid #455068;
+  border-radius: 18px;
+  background: #242d3d;
+  color: #f4f6fa;
+  box-shadow: 0 12px 50px #0006;
+}
+.direct-call-outgoing > svg {
+  color: #c8dfa0;
+  width: 22px;
+}
+.direct-call-outgoing div {
+  display: grid;
+  gap: 3px;
+  min-width: 140px;
+}
+.direct-call-outgoing span {
+  font-size: 13px;
+  color: #c0cbdb;
+}
+.direct-call-outgoing button,
+.direct-call-error button {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: 0;
+  border-radius: 12px;
+  background: #633640;
+  color: #ffc3cc;
+}
+.direct-call-outgoing button svg,
+.direct-call-error svg {
+  width: 20px;
+}
+.direct-call-error {
+  bottom: 105px;
+  font-size: 14px;
+}
+.direct-call-error span {
+  max-width: 420px;
+}
+.direct-call-outgoing--ended {
+  animation: call-toast-out 10s forwards;
+  pointer-events: none;
+}
+.social-person-actions,
+.social-thread-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.social-thread-actions {
+  margin-left: auto;
+}
+.social-action-icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border: 1px solid #455068;
+  border-radius: 10px;
+  background: transparent;
+  color: #b9c7db;
+  flex-shrink: 0;
+}
+.social-action-icon svg {
+  width: 18px;
+  height: 18px;
+}
+.social-action-icon[aria-pressed='true'] {
+  color: #e4cf85;
+  background: #e4cf8515;
+}
+.social-action-icon[aria-pressed='true'] svg {
+  fill: #e4cf8525;
+}
+.home-room__favorite {
+  margin-left: auto;
+  background: none;
+  border: 0;
+  color: #aebbd0;
+  padding: 4px;
+}
+.home-room__favorite svg {
+  width: 17px;
+  height: 17px;
+}
+.home-room__favorite[aria-pressed='true'] {
+  color: #e4cf85;
+}
+.home-more__menu .is-dnd {
+  color: #eed497;
+}
+.home-call-history {
+  margin: 12px 0;
+  padding: 12px 18px;
+  border: 1px solid #39445a;
+  border-radius: 12px;
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  background: #232b39;
+}
+.home-call-history p {
+  margin: 0;
+  color: #bcc8da;
+  font-size: 13px;
+}
+.home-call-history button {
+  margin-left: auto;
+}
+@keyframes call-toast-out {
+  0%,
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+@media (max-width: 700px) {
+  .direct-call-outgoing {
+    bottom: 90px;
+  }
+  .direct-call-error {
+    bottom: 170px;
+  }
+  .social-person-actions {
+    width: 100%;
+  }
+  .social-thread-actions {
+    gap: 5px;
+  }
+  .social-action-icon {
+    width: 34px;
+    height: 34px;
+  }
+  .direct-call-incoming__card {
+    padding: 24px;
+  }
+  .direct-call-incoming h2 {
+    font-size: 21px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .direct-call-outgoing--ended {
+    animation: none;
+  }
+}

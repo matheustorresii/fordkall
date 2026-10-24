@@ -1,0 +1,52 @@
+.performance-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+.performance-metrics > div {
+  border: 1px solid #3c465b;
+  border-radius: 12px;
+  padding: 16px;
+  background: #1c2432;
+  display: grid;
+  gap: 8px;
+}
+.performance-metrics span {
+  font-size: 12px;
+  color: #aebed4;
+}
+.performance-metrics strong {
+  font-size: 23px;
+  color: #e5eaf2;
+  font-variant-numeric: tabular-nums;
+}
+.performance-panel p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #afbdd0;
+  margin: 16px 0;
+}
+.performance-panel button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.performance-panel button svg {
+  width: 17px;
+  height: 17px;
+}
+.performance-background-mode * {
+  animation-play-state: paused !important;
+  transition: none !important;
+}
+.performance-background-mode .call-workspace {
+  content-visibility: hidden;
+}
+@media (max-width: 700px) {
+  .performance-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .performance-metrics strong {
+    font-size: 20px;
+  }
+}

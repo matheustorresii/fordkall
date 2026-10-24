@@ -31,7 +31,7 @@ const parseCommand = (v: unknown): Command | null => {
 export const useRoomTruco = (room: Room, participation?: RoomGameParticipation) => {
   const engineRef = useRef<TrucoEngine | null>(null)
   const handleCommand = useCallback((command: Command, sender: string, context: RoomGameProtocolContext<TrucoRoomState, TrucoCard[]>): string | null => {
-    const current = context.state, connected = new Set([room.localParticipant.identity, ...room.remoteParticipants.keys()])
+    const current = context.state, connected = new Set(gameMembers(room, 'truco', participation).map(person => person.identity))
     if (!connected.has(sender)) return 'Você não está nesta sala.'
     if (command.type !== 'sync' && command.type !== 'reset' && participation && !participation.allowed('truco', sender)) return 'Você está só assistindo.'
     if (command.type === 'reset') {
@@ -83,6 +83,8 @@ export const useRoomTruco = (room: Room, participation?: RoomGameParticipation) 
   const game = useRoomGameProtocol<TrucoRoomState, Command, TrucoCard[]>({
     room, topic: TRUCO_TOPIC, emptyState: emptyTrucoState, parseState: parseTrucoState,
     parseCommand, parsePrivate: parseTrucoHand, emptyPrivate: emptyHand, handleCommand, strictAuthority: true,
+    captureAuthority: () => engineRef.current,
+    restoreAuthority: value => { engineRef.current = value as TrucoEngine | null },
   })
   const { state, dispatch, isController, participantRevision } = game
   useEffect(() => {

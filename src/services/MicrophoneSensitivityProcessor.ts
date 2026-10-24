@@ -42,6 +42,7 @@ export class MicrophoneSensitivityProcessor implements TrackProcessor<Track.Kind
   }
 
   setOnLevel(onLevel: (levelDb: number, open: boolean) => void) { this.onLevel = onLevel }
+  setMeterEnabled(enabled: boolean) { this.node?.port.postMessage({ type: 'meter', enabled }) }
 
   async init({ audioContext, track }: AudioProcessorOptions) {
     await this.createGraph(audioContext, track)

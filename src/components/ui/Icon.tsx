@@ -30,6 +30,10 @@ export type IconName =
   | 'micOff'
   | 'menu'
   | 'more'
+  | 'phone'
+  | 'star'
+  | 'bell'
+  | 'moon'
   | 'music'
   | 'pause'
   | 'pip'
@@ -53,6 +57,10 @@ interface IconProps extends SVGProps<SVGSVGElement> {
 }
 
 const paths: Record<IconName, React.ReactNode> = {
+  phone: <path d="m7 3 3 5-2 2a15 15 0 0 0 6 6l2-2 5 3c-1 4-3 5-6 4A22 22 0 0 1 3 9C2 6 3 4 7 3Z" />,
+  star: <path d="m12 3 2.8 5.7 6.2.9-4.5 4.4 1.1 6.2L12 17.3l-5.6 2.9 1.1-6.2L3 9.6l6.2-.9L12 3Z" />,
+  bell: <><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9M9 21h6" /></>,
+  moon: <path d="M21 13A9 9 0 1 1 11 3a7 7 0 0 0 10 10Z" />,
   more: <><circle cx="5" cy="12" r="1" /><circle cx="12" cy="12" r="1" /><circle cx="19" cy="12" r="1" /></>,
   download: <><path d="M12 3v12m-5-5 5 5 5-5M4 16v4a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-4" /></>,
   lock: <><rect x="5" y="10" width="14" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3"/></>,

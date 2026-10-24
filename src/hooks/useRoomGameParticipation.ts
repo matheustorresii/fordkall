@@ -1,6 +1,7 @@
 import { useCallback, useMemo } from 'react'
 import type { Room } from 'livekit-client'
 import { useRoomGameProtocol } from './useRoomGameProtocol'
+import { recoverableGameMembers } from './useGameRecovery'
 import { changeGameAttendance, emptyGameAttendance, GAME_KINDS, readGameAttendance, type GameAttendanceMap, type GameKind } from '../games/gameParticipation'
 
 export const GAME_PARTICIPATION_TOPIC = 'ford-kall.game-participation.v1'
@@ -44,7 +45,7 @@ export const useRoomGameParticipation = (room: Room) => {
   }, [room])
   const protocol = useRoomGameProtocol<State, Command, never[]>({ room, topic: GAME_PARTICIPATION_TOPIC, emptyState, parseState, parseCommand, parsePrivate, emptyPrivate, handleCommand, strictAuthority: true, preserveStateOnControllerChange: true })
   const allowed = useCallback((kind: GameKind, identity: string) => !protocol.getState().games[kind].spectators.includes(identity), [protocol.getState])
-  const members = useCallback((kind: GameKind) => [room.localParticipant, ...room.remoteParticipants.values()].filter((person) => allowed(kind, person.identity)), [allowed, room])
+  const members = useCallback((kind: GameKind) => recoverableGameMembers(room, kind).filter((person) => allowed(kind, person.identity)), [allowed, room])
   const canStart = useCallback((kind: GameKind, identity: string) => {
     if (!allowed(kind, identity)) return false
     const host = protocol.getState().games[kind].organizer
@@ -56,5 +57,5 @@ export const useRoomGameParticipation = (room: Room) => {
   return useMemo(() => ({ ...protocol, allowed, members, canStart, setPlaying, remove, organize }), [protocol.state, protocol.error, protocol.isController, protocol.participantCount, protocol.participantRevision, protocol.clearError, protocol.dispatch, protocol.getState, allowed, members, canStart, setPlaying, remove, organize])
 }
 export type RoomGameParticipation = ReturnType<typeof useRoomGameParticipation>
-export const gameMembers = (room: Room, game: GameKind, participation?: RoomGameParticipation) => participation?.members(game) ?? [room.localParticipant, ...room.remoteParticipants.values()]
+export const gameMembers = (room: Room, game: GameKind, participation?: RoomGameParticipation) => participation?.members(game) ?? recoverableGameMembers(room, game)
 export const gameStartError = (game: GameKind, sender: string, participation?: RoomGameParticipation) => participation && !participation.canStart(game, sender) ? 'Você está assistindo ou esta mesa tem outro organizador.' : null

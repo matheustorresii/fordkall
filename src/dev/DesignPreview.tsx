@@ -5,6 +5,10 @@ import { Icon } from '../components/ui/Icon'
 import type { AccountProfile, ParticipantMedia } from '../types'
 import { normalizeProfileAppearance } from '../services/profile'
 import { cosmeticAsset } from '../services/cosmetics'
+import { DirectCallOverlay } from '../components/Social/DirectCallOverlay'
+import type { DirectCallsController } from '../hooks/useDirectCalls'
+import type { DirectCall } from '../services/directCallsPolicy'
+import { emptySocialPreferences } from '../services/socialPreferences'
 
 const users = [
   {
@@ -116,6 +120,15 @@ export const DesignPreview = () => {
     [share, setShare] = useState(false)
   const params = new URLSearchParams(location.search),
     solo = params.has('solo')
+  const [ring, setRing] = useState<DirectCall | null>(() => params.has('incoming') ? { id: 'preview-call', caller_id: 'p1', recipient_id: 'p0', room_code: 'PREVIEW-CALL', status: 'ringing', created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 45000).toISOString(), answered_at: null, ended_at: null } : null)
+  const [socialPreferences, setSocialPreferences] = useState(emptySocialPreferences), [notifications, setNotifications] = useState(false)
+  const calls: DirectCallsController = {
+    incoming: ring?.recipient_id === 'p0' ? ring : null, outgoing: ring?.caller_id === 'p0' ? ring : null, latest: ring || undefined, calls: ring ? [ring] : [],
+    people: new Map(users.map(user => [user.id, user])), preferences: socialPreferences, busy: false, error: '', clearError: () => {},
+    dial: async user => setRing({ id: 'preview-call', caller_id: 'p0', recipient_id: user.id, room_code: 'PREVIEW-CALL', status: 'ringing', created_at: new Date().toISOString(), expires_at: new Date(Date.now() + 45000).toISOString(), answered_at: null, ended_at: null }),
+    accept: async () => { setRing(null); setConnected(true); setInCall(true) }, decline: async () => setRing(null), cancel: async () => setRing(null), endRoomCalls: async () => setRing(null),
+    updatePreferences: async patch => setSocialPreferences(previous => ({ ...previous, ...patch })), notifications, toggleNotifications: () => setNotifications(value => !value), returnToCall: () => setInCall(true),
+  }
   const participants: ParticipantMedia[] = (
     solo ? [account] : [account, ...users.slice(1)]
   ).map((u, i) => ({
@@ -173,8 +186,9 @@ export const DesignPreview = () => {
       </div>
     </main>
   ) : (
-    <SocialHome
+    <><SocialHome
       account={account}
+      calls={calls}
       activeRoomCode={connected ? 'KIW-7204-ABC' : ''}
       status={connected ? 'connected' : 'disconnected'}
       connectionError=""
@@ -198,6 +212,6 @@ export const DesignPreview = () => {
       onReturnToCall={() => setInCall(true)}
       onSignOut={async () => {}}
       previewData={fixture}
-    />
+    /><DirectCallOverlay calls={calls} userId="p0" /></>
   )
 }

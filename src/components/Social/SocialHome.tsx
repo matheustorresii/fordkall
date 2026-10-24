@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react'
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react'
 import { normalizeProfileAppearance } from '../../services/profile'
 import {
   describeSocialError,
@@ -37,10 +37,13 @@ import { SocialInbox } from './SocialInbox'
 import { GameModal } from '../Games/GameTable'
 import { DesktopDownloads } from '../ui/DesktopDownloads'
 import './SocialHome.css'
+import type { DirectCallsController } from '../../hooks/useDirectCalls'
 
 type Section = 'rooms' | 'messages' | 'people'
 interface SocialHomeProps {
   account: AccountProfile
+  calls?: DirectCallsController
+  active?: boolean
   activeRoomCode: string
   activeRoomPrivate?: boolean
   status: ConnectionStatus
@@ -107,7 +110,8 @@ export const SocialHome = (props: SocialHomeProps) => {
         : undefined,
     [previewData],
   )
-  const directory = useCallDirectory(account.id, previewDirectory)
+  const directory = useCallDirectory(account.id, previewDirectory, props.active !== false)
+  const activeRef = useRef(props.active !== false); activeRef.current = props.active !== false
   const onlineIds = useMemo(
     () => new Set(onlineUsers.map((user) => user.userId)),
     [onlineUsers],
@@ -131,7 +135,7 @@ export const SocialHome = (props: SocialHomeProps) => {
     let stopped = false,
       pending = false
     const load = async () => {
-      if (stopped || pending) return
+      if (stopped || pending || !activeRef.current) return
       pending = true
       try {
         const items = await getRecentDirectConversations(account.id)
@@ -284,6 +288,10 @@ export const SocialHome = (props: SocialHomeProps) => {
               <Icon name="more" />
             </summary>
             <div className="home-more__menu">
+              {props.calls && <>
+                <button type="button" className={props.calls.preferences.do_not_disturb ? 'is-dnd' : ''} aria-pressed={props.calls.preferences.do_not_disturb} onClick={() => void props.calls?.updatePreferences({ do_not_disturb: !props.calls.preferences.do_not_disturb })}><Icon name="moon" /> Não perturbe {props.calls.preferences.do_not_disturb ? '· ligado' : ''}</button>
+                <button type="button" title="Alertas de chamadas enquanto o app estiver aberto, inclusive em segundo plano" aria-pressed={props.calls.notifications} onClick={props.calls.toggleNotifications}><Icon name="bell" /> {props.calls.notifications ? 'Desativar notificações' : 'Ativar notificações'}</button>
+              </>}
               <DesktopDownloads />
               <DesktopUpdateControl variant="lobby" />
               {(account.role === 'owner' || account.role === 'admin') && (
@@ -384,6 +392,8 @@ export const SocialHome = (props: SocialHomeProps) => {
               onCreateRoom={openCreate}
               onJoinByCode={openJoin}
               onJoinRoom={(value) => void join(value)}
+              favorites={props.calls?.preferences.favorite_rooms}
+              onFavorite={code => props.calls?.updatePreferences({ favorite_rooms: props.calls.preferences.favorite_rooms.includes(code) ? props.calls.preferences.favorite_rooms.filter(value => value !== code) : [...props.calls.preferences.favorite_rooms, code].slice(-30) })}
             />
             <aside
               className="home-social-glance"
@@ -474,6 +484,9 @@ export const SocialHome = (props: SocialHomeProps) => {
             onMessage={openConversation}
             onlineUsers={onlineUsers}
             previewUsers={previewData?.users}
+            onCall={props.calls ? user => void props.calls?.dial(user) : undefined}
+            favorites={props.calls?.preferences.favorite_users}
+            onFavorite={user => props.calls?.updatePreferences({ favorite_users: props.calls.preferences.favorite_users.includes(user.id) ? props.calls.preferences.favorite_users.filter(value => value !== user.id) : [...props.calls.preferences.favorite_users, user.id].slice(-30) })}
           />
         ) : (
           <div
@@ -506,6 +519,8 @@ export const SocialHome = (props: SocialHomeProps) => {
                     peer={peer}
                     peerOnline={onlineIds.has(peer.id)}
                     previewMessages={previewData?.messages}
+                    onCall={props.calls ? () => void props.calls?.dial(peer) : undefined}
+                    calling={props.calls?.busy || Boolean(props.calls?.incoming || props.calls?.outgoing)}
                   />
                 ) : (
                   <SocialMessageView

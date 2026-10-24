@@ -122,6 +122,8 @@ export const useRoomCoup = (room: Room, participation?: RoomGameParticipation) =
     parseCommand,
     emptyPrivate,
     handleCommand,
+    captureAuthority: () => engineRef.current,
+    restoreAuthority: value => { engineRef.current = value as CoupEngine | null },
     strictAuthority: true,
   })
   const { state, dispatch, isController, participantRevision } = protocol

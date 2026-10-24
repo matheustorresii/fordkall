@@ -127,6 +127,8 @@ export const useRoomCodenames = (room: Room, participation?: RoomGameParticipati
     parseCommand,
     emptyPrivate,
     handleCommand,
+    captureAuthority: () => engineRef.current,
+    restoreAuthority: value => { engineRef.current = value as CodenamesEngine | null },
     strictAuthority: true,
   })
   const { state, dispatch, isController, participantRevision } = protocol

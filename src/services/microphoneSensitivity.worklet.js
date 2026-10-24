@@ -83,9 +83,11 @@ if (typeof registerProcessor === 'function') {
       this.gate = new MicrophoneGate(sampleRate, options.processorOptions?.thresholdDb)
       this.framesSinceReport = 0
       this.active = true
+      this.reportEnabled = true
       this.port.onmessage = ({ data }) => {
         if (data?.type === 'threshold') this.gate.setThreshold(data.value)
         else if (data?.type === 'stop') this.active = false
+        else if (data?.type === 'meter') this.reportEnabled = data.enabled === true
       }
     }
     process(inputs, outputs) {
@@ -94,7 +96,7 @@ if (typeof registerProcessor === 'function') {
       if (!output) return true
       this.gate.process(inputs[0] ?? [], output)
       this.framesSinceReport += output[0]?.length ?? 0
-      if (this.framesSinceReport >= sampleRate * 0.12) {
+      if (this.reportEnabled && this.framesSinceReport >= sampleRate * 0.12) {
         this.framesSinceReport = 0
         this.port.postMessage({ levelDb: this.gate.levelDb, open: this.gate.open })
       }

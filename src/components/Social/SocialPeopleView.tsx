@@ -11,16 +11,23 @@ interface SocialPeopleViewProps {
   onlineUsers: SocialPresenceEntry[]
   onMessage: (user: SocialUser) => void
   previewUsers?: SocialUser[]
+  onCall?: (user: SocialUser) => void
+  favorites?: string[]
+  onFavorite?: (user: SocialUser) => void
 }
 
 const PeopleCard = ({
   user,
   online,
   onMessage,
+  onCall, favorite, onFavorite,
 }: {
   user: SocialUser
   online: boolean
   onMessage: (user: SocialUser) => void
+  onCall?: (user: SocialUser) => void
+  favorite?: boolean
+  onFavorite?: (user: SocialUser) => void
 }) => (
   <article className="social-person-card">
     <ProfileAvatar
@@ -36,13 +43,17 @@ const PeopleCard = ({
       </span>
       {user.bio && <p>{user.bio}</p>}
     </div>
+    <div className="social-person-actions">
+    {onFavorite && <button className="social-action-icon" type="button" aria-pressed={Boolean(favorite)} aria-label={`Favoritar ${user.displayName}`} onClick={() => onFavorite(user)}><Icon name="star" /></button>}
+    {onCall && <button className="social-action-icon" type="button" aria-label={`Ligar para ${user.displayName}`} title="Ligar por voz" onClick={() => onCall(user)}><Icon name="phone" /></button>}
     <Button aria-label={`Enviar mensagem para ${user.displayName}`} leadingIcon={<Icon name="chat" />} onClick={() => onMessage(user)} size="small" variant="secondary" type="button">
       Mensagem
     </Button>
+    </div>
   </article>
 )
 
-export const SocialPeopleView = ({ currentUserId, onlineUsers, onMessage, previewUsers }: SocialPeopleViewProps) => {
+export const SocialPeopleView = ({ currentUserId, onlineUsers, onMessage, previewUsers, onCall, favorites = [], onFavorite }: SocialPeopleViewProps) => {
   const [query, setQuery] = useState('')
   const [onlineCards, setOnlineCards] = useState<SocialUser[]>([])
   const [results, setResults] = useState<SocialUser[]>([])
@@ -90,7 +101,7 @@ export const SocialPeopleView = ({ currentUserId, onlineUsers, onMessage, previe
   const onlineIds = new Set(onlineUsers.map((user) => user.userId))
   const matchingOnline = onlineCards.filter((user) => user.displayName.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
   const onlineIdSet = new Set(matchingOnline.map((user) => user.id))
-  const visibleResults = results.filter((user) => !onlineIdSet.has(user.id))
+  const visibleResults = results.filter((user) => !onlineIdSet.has(user.id)).sort((a, b) => Number(favorites.includes(b.id)) - Number(favorites.includes(a.id)))
 
   return (
     <section className="social-directory-view">
@@ -119,7 +130,7 @@ export const SocialPeopleView = ({ currentUserId, onlineUsers, onMessage, previe
           </header>
           <div className="social-people-grid">
             {matchingOnline.map((user) => (
-              <PeopleCard key={user.id} onMessage={onMessage} online user={user} />
+              <PeopleCard key={user.id} onMessage={onMessage} onCall={onCall} onFavorite={onFavorite} favorite={favorites.includes(user.id)} online user={user} />
             ))}
           </div>
           {onlineCards.length > 0 && onlineUsers.filter((user) => user.userId !== currentUserId).length > onlineCards.length && (
@@ -144,7 +155,7 @@ export const SocialPeopleView = ({ currentUserId, onlineUsers, onMessage, previe
         ) : (
           <div className="social-people-grid">
             {visibleResults.map((user) => (
-              <PeopleCard key={user.id} onMessage={onMessage} online={onlineIds.has(user.id)} user={user} />
+              <PeopleCard key={user.id} onMessage={onMessage} onCall={onCall} onFavorite={onFavorite} favorite={favorites.includes(user.id)} online={onlineIds.has(user.id)} user={user} />
             ))}
           </div>
         )}

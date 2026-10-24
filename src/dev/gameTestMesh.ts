@@ -1,7 +1,7 @@
 import { RoomEvent, type Room } from 'livekit-client'
 type Listener = (...args: unknown[]) => void
-export const createGameTestMesh = (topic: string, count = 12) => {
-  const ids = Array.from({ length: count }, (_, i) => `p${i}`),
+export const createGameTestMesh = (topic: string, count = 12, options?: { ids?: string[]; roomName?: string }) => {
+  const ids = options?.ids || Array.from({ length: count }, (_, i) => `p${i}`),
     connected = new Set(ids)
   const listeners = ids.map(() => new Map<string, Set<Listener>>())
   const streams=ids.map(()=>new Map<string,Parameters<Room['registerTextStreamHandler']>[1]>())
@@ -43,6 +43,7 @@ export const createGameTestMesh = (topic: string, count = 12) => {
   const rooms = people.map(
     (p, i) =>
       ({
+        name: options?.roomName || '',
         localParticipant: p,
         remoteParticipants: new Map(
           people.filter((other) => other !== p).map((other) => [other.identity, other]),

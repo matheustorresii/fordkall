@@ -11,12 +11,19 @@ import {
 } from 'livekit-client'
 import type { ParticipantMedia, RemoteVoice, ScreenShareLive } from '../types'
 import { participantProfileFromMetadata } from '../services/profile'
+import { setMediaSubscription } from '../services/videoSuspension'
 
 export const useRoomSnapshot = (room: Room) => {
   const [revision, setRevision] = useState(0)
+  const [activeSpeakerIds, setActiveSpeakerIds] = useState(() => new Set(room.activeSpeakers.map(participant => participant.identity)))
 
   useEffect(() => {
-    const refresh = () => setRevision((current) => current + 1)
+    let stopped = false, scheduled = false
+    const refresh = () => {
+      if (scheduled || stopped) return
+      scheduled = true
+      queueMicrotask(() => { scheduled = false; if (!stopped) setRevision(current => current + 1) })
+    }
     const disableScreenShareSubscription = (
       publication: RemoteTrackPublication,
       participant: Participant,
@@ -29,7 +36,7 @@ export const useRoomSnapshot = (room: Room) => {
 
       // Screen shares are opt-in: don't download remote video or audio until
       // the viewer explicitly chooses “Assistir transmissão”.
-      publication.setSubscribed(false)
+      setMediaSubscription(publication, false)
     }
     const disablePublishedScreenShare = (
       publication: RemoteTrackPublication,
@@ -39,10 +46,12 @@ export const useRoomSnapshot = (room: Room) => {
       refresh()
     }
     const refreshActiveSpeakers = () => {
-      if (!document.hidden) refresh()
+      if (document.hidden) return
+      const next = new Set(room.activeSpeakers.map(participant => participant.identity))
+      setActiveSpeakerIds(current => current.size === next.size && [...current].every(id => next.has(id)) ? current : next)
     }
     const refreshWhenVisible = () => {
-      if (!document.hidden) refresh()
+      if (!document.hidden) { refresh(); refreshActiveSpeakers() }
     }
 
     room.on(RoomEvent.ParticipantConnected, refresh)
@@ -72,6 +81,7 @@ export const useRoomSnapshot = (room: Room) => {
     document.addEventListener('visibilitychange', refreshWhenVisible)
 
     return () => {
+      stopped = true
       room.off(RoomEvent.ParticipantConnected, refresh)
       room.off(RoomEvent.ParticipantDisconnected, refresh)
       room.off(RoomEvent.TrackPublished, disablePublishedScreenShare)
@@ -90,8 +100,7 @@ export const useRoomSnapshot = (room: Room) => {
     }
   }, [room])
 
-  return useMemo(() => {
-    const activeSpeakerIds = new Set(room.activeSpeakers.map((participant) => participant.identity))
+  const snapshot = useMemo(() => {
     const participants: Participant[] = [
       room.localParticipant,
       ...room.remoteParticipants.values(),
@@ -187,7 +196,7 @@ export const useRoomSnapshot = (room: Room) => {
       participantMedia,
       remoteVoices,
       lives,
-      activeSpeakerIds,
     }
   }, [revision, room])
+  return { ...snapshot, activeSpeakerIds }
 }

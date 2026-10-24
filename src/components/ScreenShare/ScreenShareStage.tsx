@@ -12,6 +12,7 @@ import { RemoteAudioRenderer } from '../AudioControls/RemoteAudioRenderer'
 import { VolumeControl } from '../AudioControls/VolumeControl'
 import { ParticipantGallery } from '../Participants/ParticipantGallery'
 import { Icon } from '../ui/Icon'
+import { setMediaSubscription } from '../../services/videoSuspension'
 
 const VideoRenderer = ({
   track,
@@ -334,8 +335,8 @@ export const ScreenShareStage = ({
         closePopout()
       }
 
-      selectedLive.videoPublication?.setSubscribed(watching)
-      selectedLive.audioPublication?.setSubscribed(watching)
+      setMediaSubscription(selectedLive.videoPublication, watching)
+      setMediaSubscription(selectedLive.audioPublication, watching)
       setStageError('')
     },
     [closePopout, selectedLive],
@@ -551,8 +552,8 @@ export const ScreenShareStage = ({
                       type="button"
                       onClick={(e) => {
                         e.stopPropagation()
-                        live.videoPublication?.setSubscribed(true)
-                        live.audioPublication?.setSubscribed(true)
+                        setMediaSubscription(live.videoPublication, true)
+                        setMediaSubscription(live.audioPublication, true)
                       }}
                     >
                       Assistir

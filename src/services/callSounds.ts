@@ -7,6 +7,7 @@ export type CallSound =
   | 'unmute'
   | 'deafen'
   | 'undeafen'
+  | 'ring'
 
 let audioContext: AudioContext | null = null
 
@@ -168,6 +169,10 @@ const playPattern = (context: AudioContext, sound: CallSound) => {
   const now = context.currentTime + 0.015
 
   switch (sound) {
+    case 'ring':
+      tone(context, 440, now, 0.18, 0.025, 'sine')
+      tone(context, 554.37, now + 0.22, 0.2, 0.025, 'sine')
+      break
     case 'join':
       // Compact dual-tone car horn: obvious enough to land the Ford Kall joke,
       // short and filtered enough not to punish everyone already in the room.

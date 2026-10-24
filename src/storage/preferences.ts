@@ -27,6 +27,9 @@ const GAME_OVERLAY_KEY = 'ford-kall:game-overlay'
 const SHORTCUT_BINDINGS_KEY = 'ford-kall:shortcut-bindings'
 const ROOM_MUSIC_VOLUME_KEY = 'ford-kall:room-music-volume'
 const ROOM_MUSIC_LISTENING_KEY = 'ford-kall:room-music-listening'
+export type PerformanceMode = 'gaming' | 'balanced'
+export const getPerformanceMode = (): PerformanceMode => safeRead('ford-kall:performance-mode') === 'balanced' ? 'balanced' : 'gaming'
+export const savePerformanceMode = (mode: PerformanceMode) => safeWrite('ford-kall:performance-mode', mode)
 
 export const MAX_PARTICIPANT_VOLUME = 6
 export const PARTICIPANT_VOLUME_EVENT = 'ford-kall:participant-volume'

@@ -45,6 +45,9 @@ jobs:
       - name: Test room directory recovery and privacy
         run: npm run test:rooms
 
+      - name: Test calls, durable games and performance isolation
+        run: npm run test:sessions
+
       - name: Test ITO rules
         run: npm run test:ito
 

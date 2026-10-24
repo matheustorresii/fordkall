@@ -6,6 +6,7 @@ export const useDesktopGameOverlay = (room: Room, enabled: boolean) => {
   useEffect(() => {
     const desktop = window.fordKallDesktop
     if (!desktop || desktop.platform !== 'win32') return
+    if (!enabled) { desktop.setGameOverlayState({ enabled: false, participants: [] }); return }
 
     const activeSpeakerIds = () => room.activeSpeakers.map((participant) => participant.identity)
 

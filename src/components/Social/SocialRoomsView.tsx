@@ -16,9 +16,11 @@ interface Props extends CallDirectory {
   onCreateRoom: () => void
   onJoinByCode: () => void
   onJoinRoom: (code: string) => void
+  favorites?: string[]
+  onFavorite?: (code: string) => void
 }
 export const SocialRoomsView = (props: Props) => {
-  const [tab, setTab] = useState<'public' | 'recent'>('public')
+  const [tab, setTab] = useState<'public' | 'recent' | 'favorites'>('public')
   const [query, setQuery] = useState('')
   const [profiles, setProfiles] = useState<Map<string, SocialUser>>(new Map())
   const idsKey = [
@@ -59,13 +61,13 @@ export const SocialRoomsView = (props: Props) => {
             is_private: false,
             last_joined_at: '',
           }))
-        : props.recentRooms.map((room) => ({
+        : (tab === 'favorites' ? [...props.recentRooms, ...props.rooms.filter(room => !props.recentRooms.some(recent => recent.code === room.code)).map(room => ({ code: room.code, is_private: false, last_joined_at: '' }))].filter(room => props.favorites?.includes(room.code)) : props.recentRooms).map((room) => ({
             ...room,
             user_ids:
               props.rooms.find((item) => item.code === room.code)?.user_ids ||
               [],
           })),
-    [tab, props.rooms, props.recentRooms],
+    [tab, props.rooms, props.recentRooms, props.favorites],
   )
   const search = query.trim().toLocaleLowerCase()
   const visible = rows.filter(
@@ -118,6 +120,7 @@ export const SocialRoomsView = (props: Props) => {
           >
             Recentes
           </button>
+          {props.onFavorite && <button type="button" aria-pressed={tab === 'favorites'} onClick={() => setTab('favorites')}>Favoritas</button>}
         </div>
         <button
           className="home-icon-button"
@@ -217,6 +220,7 @@ export const SocialRoomsView = (props: Props) => {
                 key={room.code}
               >
                 <div className="home-room__status">
+                  {props.onFavorite && <button className="home-room__favorite" type="button" aria-label={`Favoritar sala ${room.code}`} aria-pressed={Boolean(props.favorites?.includes(room.code))} onClick={() => props.onFavorite?.(room.code)}><Icon name="star" /></button>}
                   <span
                     className={
                       room.is_private
@@ -245,11 +249,11 @@ export const SocialRoomsView = (props: Props) => {
                   <p className="home-room__code">{room.code}</p>
                 ) : (
                   <p className="home-room__recent">
-                    Último acesso{' '}
+                    {room.last_joined_at ? <>Último acesso{' '}
                     {new Date(room.last_joined_at).toLocaleDateString('pt-BR', {
                       day: '2-digit',
                       month: 'short',
-                    })}
+                    })}</> : 'Salva nas suas favoritas'}
                   </p>
                 )}
                 <div className="home-room__people">

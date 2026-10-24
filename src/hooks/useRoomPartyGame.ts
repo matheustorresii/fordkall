@@ -201,6 +201,8 @@ export const useRoomPartyGame = (
     emptyPrivate,
     parseCommand,
     handleCommand,
+    captureAuthority: () => engineRef.current,
+    restoreAuthority: value => { engineRef.current = value as GarticEngine | ImpostorEngine | null },
     strictAuthority: true,
   })
   const { state, dispatch, isController, participantRevision } = protocol

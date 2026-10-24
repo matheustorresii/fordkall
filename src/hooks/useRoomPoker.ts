@@ -373,6 +373,8 @@ export const useRoomPoker = (room: Room, participation?: RoomGameParticipation) 
     parsePrivate: privateCards,
     emptyPrivate,
     handleCommand,
+    captureAuthority: () => engineRef.current,
+    restoreAuthority: value => { engineRef.current = value as PokerEngine | null },
   })
   const { state, dispatch, isController, participantRevision } = protocol
   useEffect(() => {

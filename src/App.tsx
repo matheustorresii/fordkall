@@ -1,17 +1,20 @@
-import { useEffect, useState } from 'react'
-import { AdminDashboard } from './components/Admin/AdminDashboard'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { AuthScreen } from './components/Auth/AuthScreen'
-import { CallScreen } from './components/Call/CallScreen'
-import { SocialHome } from './components/Social/SocialHome'
 import { useAccount } from './hooks/useAccount'
 import { useLiveKitRoom } from './hooks/useLiveKitRoom'
 import { useSocialPresence } from './hooks/useSocialPresence'
+import { useDirectCalls } from './hooks/useDirectCalls'
+import { DirectCallOverlay } from './components/Social/DirectCallOverlay'
 import {
   getRoomCodeFromUrl,
   replaceRoomCodeInCurrentUrl,
 } from './services/livekit'
 import type { LocalProfile } from './types'
 import { setPwaCallActive } from './pwa/store'
+const AdminDashboard = lazy(() => import('./components/Admin/AdminDashboard').then(module => ({ default: module.AdminDashboard })))
+const CallScreen = lazy(() => import('./components/Call/CallScreen').then(module => ({ default: module.CallScreen })))
+const SocialHome = lazy(() => import('./components/Social/SocialHome').then(module => ({ default: module.SocialHome })))
+const loadingView = <main className="app-loading"><span className="spinner" /><span>Abrindo Ford Kall…</span></main>
 
 function App() {
   const account = useAccount()
@@ -57,14 +60,25 @@ function App() {
       setRoomCode(nextRoomCode)
       replaceRoomCodeInCurrentUrl(nextRoomCode)
       setActiveView('call')
+      setAdminOpen(false)
     }
     return connected
   }
 
   const leaveCall = async () => {
+    void calls.endRoomCalls(liveKit.activeRoomCode)
     await liveKit.leave()
     setActiveView('home')
   }
+
+  const calls = useDirectCalls({
+    account: account.profile || null,
+    activeRoom: liveKit.room ? liveKit.activeRoomCode : '',
+    connecting: liveKit.status === 'connecting' || liveKit.status === 'reconnecting',
+    join: code => account.profile ? join(account.profile, code, true) : Promise.resolve(false),
+    returnToCall: () => setActiveView('call'),
+    leaveIdleRoom: code => liveKit.room && liveKit.activeRoomCode === code && liveKit.room.remoteParticipants.size === 0 ? leaveCall() : Promise.resolve(),
+  })
 
   const signOut = async () => {
     if (liveKit.room) await leaveCall()
@@ -98,15 +112,16 @@ function App() {
     account.profile.role === 'owner' || account.profile.role === 'admin'
   if (adminOpen && canOpenAdmin && !liveKit.room) {
     return (
-      <AdminDashboard
+      <><Suspense fallback={loadingView}><AdminDashboard
         currentRole={account.profile.role}
         onClose={() => setAdminOpen(false)}
-      />
+      /></Suspense>
+      <DirectCallOverlay calls={calls} userId={account.profile.id} /></>
     )
   }
 
   return (
-    <div className="app-routes">
+    <><Suspense fallback={loadingView}><div className="app-routes">
       {liveKit.room && (
         <div
           aria-hidden={activeView !== 'call' || adminOpen}
@@ -134,6 +149,8 @@ function App() {
       >
         <SocialHome
           account={account.profile}
+          calls={calls}
+          active={(!liveKit.room || activeView === 'home') && !adminOpen}
           activeRoomCode={liveKit.room ? liveKit.activeRoomCode : ''}
           activeRoomPrivate={liveKit.privateRoom}
           connectionError={liveKit.error}
@@ -156,7 +173,8 @@ function App() {
           />
         </div>
       )}
-    </div>
+    </div></Suspense>
+    <DirectCallOverlay calls={calls} userId={account.profile.id} /></>
   )
 }
 

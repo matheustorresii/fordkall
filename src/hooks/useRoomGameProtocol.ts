@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { RoomEvent, type RemoteParticipant, type Room } from 'livekit-client'
+import { recoveryEnabled, recoverableGameMembers, seedRecoveringPlayers, useGameRecovery } from './useGameRecovery'
+import { shiftGameDeadlines } from '../games/recovery'
 
 export interface RoomGameBaseState {
   gameId: string
@@ -25,6 +27,8 @@ interface RoomGameProtocolOptions<TState extends RoomGameBaseState, TCommand, TP
   emptyPrivate: TPrivate
   strictAuthority?: boolean
   preserveStateOnControllerChange?: boolean
+  captureAuthority?: () => unknown
+  restoreAuthority?: (value: unknown) => void
   handleCommand: (
     command: TCommand,
     senderIdentity: string,
@@ -56,6 +60,8 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
   emptyPrivate,
   strictAuthority = false,
   preserveStateOnControllerChange = false,
+  captureAuthority,
+  restoreAuthority,
   handleCommand,
 }: RoomGameProtocolOptions<TState, TCommand, TPrivate>) => {
   const [state, setState] = useState<TState>(() => {
@@ -70,6 +76,9 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
   const pendingRef = useRef(new Map<string, number>())
   const handlerRef = useRef(handleCommand)
   handlerRef.current = handleCommand
+  const recoveryRef = useRef<ReturnType<typeof useGameRecovery> | null>(null)
+  const wireTopic = recoveryEnabled(room) ? `${topic}.recovery.v1` : topic
+  const processedCommands = useRef(new Map<string, string>())
 
   const applyState = useCallback((next: TState) => {
     if (next.gameId !== stateRef.current.gameId) setLocalPrivate(emptyPrivate)
@@ -78,15 +87,16 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
   }, [emptyPrivate])
 
   const publish = useCallback(async (message: RoomGameMessage<TState, TPrivate>, destinationIdentity?: string) => {
-    await room.localParticipant.publishData(encoder.encode(JSON.stringify(message)), {
+    await room.localParticipant.publishData(encoder.encode(JSON.stringify({ ...message, ...(recoveryRef.current?.enabled ? { epoch: recoveryRef.current.epoch(), clockAt: Date.now() } : {}) })), {
       reliable: true,
-      topic,
+      topic: wireTopic,
       destinationIdentities: destinationIdentity ? [destinationIdentity] : undefined,
     })
-  }, [room, topic])
+  }, [room, wireTopic])
 
   const getControllerIdentity = useCallback((candidate = stateRef.current) => {
     const connected = roomIdentities(room)
+    if (recoveryRef.current?.enabled) return recoveryRef.current.controller(candidate.controllerIdentity && connected.includes(candidate.controllerIdentity) ? candidate.controllerIdentity : connected.sort()[0] || room.localParticipant.identity)
     if ((candidate.gameId || preserveStateOnControllerChange) && candidate.controllerIdentity && connected.includes(candidate.controllerIdentity)) {
       return candidate.controllerIdentity
     }
@@ -109,13 +119,13 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
       values: { ...privateRef.current.values, [identity]: secret },
     }
     if (identity === room.localParticipant.identity) setLocalPrivate(secret)
-    publishPrivate(gameId, identity, secret)
+    if (!recoveryRef.current?.enabled) publishPrivate(gameId, identity, secret)
   }, [publishPrivate, room])
 
   const replaceSecrets = useCallback((gameId: string, secrets: Record<string, TPrivate>) => {
     privateRef.current = { gameId, values: secrets }
     setLocalPrivate(secrets[room.localParticipant.identity] ?? emptyPrivate)
-    for (const [identity, secret] of Object.entries(secrets)) publishPrivate(gameId, identity, secret)
+    if (!recoveryRef.current?.enabled) for (const [identity, secret] of Object.entries(secrets)) publishPrivate(gameId, identity, secret)
   }, [emptyPrivate, publishPrivate, room])
 
   const commit = useCallback((build: (current: TState) => TState) => {
@@ -128,7 +138,7 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
     }
     applyState(next)
     setError('')
-    void publish({ type: 'state', state: next }).catch(() => {
+    if (!recoveryRef.current?.enabled) void publish({ type: 'state', state: next }).catch(() => {
       setError('A sala perdeu contato com o jogo. A rodada pode demorar para sincronizar.')
     })
     return true
@@ -136,10 +146,11 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
 
   const sendCurrentState = useCallback((identity: string) => {
     const current = stateRef.current
+    if (recoveryRef.current?.enabled && recoveryRef.current.coordinator?.records.get(topic)?.revision !== current.revision) return
     void publish({ type: 'state', state: current }, identity).catch(() => undefined)
     const data = privateRef.current.gameId === current.gameId ? privateRef.current.values[identity] : undefined
     if (current.gameId && data !== undefined) publishPrivate(current.gameId, identity, data)
-  }, [publish, publishPrivate])
+  }, [publish, publishPrivate, topic])
 
   const context = useMemo<RoomGameProtocolContext<TState, TPrivate>>(() => ({
     get state() { return stateRef.current },
@@ -153,8 +164,38 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
     handlerRef.current(command, senderIdentity, context),
   [context, commit, getSecrets, replaceSecrets, setSecret])
 
+  const recovery = useGameRecovery(room, topic, {
+    capture: () => ({ state: stateRef.current, secrets: getSecrets(), authority: captureAuthority?.() ?? null }),
+    restore: (checkpoint, authoritative) => {
+      const next = parseState(checkpoint.state)
+      if (!next) return
+      seedRecoveringPlayers(room, next)
+      applyState(next)
+      if (authoritative) {
+        privateRef.current = { gameId: next.gameId, values: checkpoint.secrets as Record<string, TPrivate> }
+        restoreAuthority?.(checkpoint.authority)
+        setLocalPrivate(privateRef.current.values[room.localParticipant.identity] ?? emptyPrivate)
+      }
+    },
+    ownPrivate: value => { const parsed = parsePrivate(value); if (parsed !== null) setLocalPrivate(parsed) },
+    committed: checkpoint => {
+      const next = checkpoint.state as TState
+      void publish({ type: 'state', state: next }).catch(() => {})
+      // Only directed packets contain a hand. The deck/authority never enters LiveKit.
+      for (const [identity, secret] of Object.entries(checkpoint.secrets)) publishPrivate(next.gameId, identity, secret as TPrivate)
+    },
+  })
+  recoveryRef.current = recovery
+  const recoveryRoster = useRef('')
+  useEffect(() => {
+    if (!recovery.enabled) return
+    const key = recoverableGameMembers(room).map(person => person.identity).sort().join(',')
+    if (key !== recoveryRoster.current) { recoveryRoster.current = key; setParticipantRevision(value => value + 1) }
+  }, [recovery.revision, room])
+
   const ensureController = useCallback(() => {
     if (getControllerIdentity() !== room.localParticipant.identity) return false
+    if (recoveryRef.current?.enabled) return recoveryRef.current.ready()
     if (stateRef.current.controllerIdentity === room.localParticipant.identity) return true
     const wasActive = Boolean(stateRef.current.gameId)
     privateRef.current = { gameId: '', values: {} }
@@ -170,8 +211,14 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
 
   const dispatch = useCallback((command: TCommand) => {
     setError('')
+    const resetting = (command as { type?: string })?.type === 'reset'
+    if (recoveryRef.current?.enabled && (!recoveryRef.current.ready() || recoveryRef.current.paused() && !resetting)) { setError('A mesa está aguardando reconexão. Suas cartas foram preservadas.'); return false }
     const controllerIdentity = getControllerIdentity()
     if (controllerIdentity === room.localParticipant.identity) {
+      if (recoveryRef.current?.enabled) {
+        void recoveryRef.current.transact(() => performCommand(command, room.localParticipant.identity), resetting).then(result => { if (result) setError(result) }).catch(() => setError('A jogada não foi confirmada. A mesa foi preservada.'))
+        return true
+      }
       ensureController()
       const result = performCommand(command, room.localParticipant.identity)
       if (result) setError(result)
@@ -193,9 +240,9 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
   }, [ensureController, getControllerIdentity, performCommand, publish, room])
 
   useEffect(() => {
-    const receive = (payload: Uint8Array, participant?: RemoteParticipant, _kind?: unknown, receivedTopic?: string) => {
-      if (receivedTopic !== topic || !participant) return
-      let message: RoomGameMessage<TState, TPrivate>
+    const receive = async (payload: Uint8Array, participant?: RemoteParticipant, _kind?: unknown, receivedTopic?: string) => {
+      if (receivedTopic !== wireTopic || !participant) return
+      let message: RoomGameMessage<TState, TPrivate> & { epoch?: number; clockAt?: number }
       try { message = JSON.parse(decoder.decode(payload)) as RoomGameMessage<TState, TPrivate> } catch { return }
 
       if (message.type === 'hello' || message.type === 'request') {
@@ -207,7 +254,8 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
       }
 
       if (message.type === 'state') {
-        const candidate = parseState(message.state)
+        if (recoveryRef.current?.enabled && !await recoveryRef.current.accepts(participant.identity, message.epoch)) return
+        const candidate = parseState(recoveryRef.current?.enabled && typeof message.clockAt === 'number' ? shiftGameDeadlines(message.state, Date.now() - message.clockAt) : message.state)
         if (!candidate || participant.identity !== candidate.controllerIdentity) return
         const current = stateRef.current
         // A fresh attendance client may have joined with a lower identity. Adopt the
@@ -222,6 +270,7 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
       }
 
       if (message.type === 'private') {
+        if (recoveryRef.current?.enabled && !await recoveryRef.current.accepts(participant.identity, message.epoch)) return
         const current = stateRef.current
         const data = parsePrivate(message.data)
         if (participant.identity !== current.controllerIdentity || message.gameId !== current.gameId || !data) return
@@ -241,6 +290,16 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
         const command = parseCommand(message.command)
         const commandId = cleanIdentity(message.commandId)
         if (!command || !commandId) return
+        if (recoveryRef.current?.enabled) {
+          if (processedCommands.current.has(commandId)) { void publish({ type: 'command-result', commandId, error: processedCommands.current.get(commandId)! }, participant.identity); return }
+          // Mark pending before awaiting persistence: duplicate reliable packets must not replay a move.
+          processedCommands.current.set(commandId, 'A jogada está sendo confirmada.')
+          const result = await recoveryRef.current.transact(() => performCommand(command, participant.identity), (command as { type?: string })?.type === 'reset').catch(() => 'A jogada não foi confirmada. Tente novamente.')
+          processedCommands.current.set(commandId, result || '')
+          if (processedCommands.current.size > 256) processedCommands.current.delete(processedCommands.current.keys().next().value!)
+          void publish({ type: 'command-result', commandId, error: result || '' }, participant.identity).catch(() => {})
+          return
+        }
         const commandError = performCommand(command, participant.identity)
         void publish({ type: 'command-result', commandId, error: commandError ?? '' }, participant.identity).catch(() => undefined)
         return
@@ -282,7 +341,7 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
       room.off(RoomEvent.ParticipantConnected, onParticipantConnected)
       room.off(RoomEvent.ParticipantDisconnected, onParticipantDisconnected)
     }
-  }, [applyState, ensureController, getControllerIdentity, parseCommand, parsePrivate, parseState, publish, room, sendCurrentState, topic, performCommand, strictAuthority, preserveStateOnControllerChange])
+  }, [applyState, ensureController, getControllerIdentity, parseCommand, parsePrivate, parseState, publish, room, sendCurrentState, wireTopic, performCommand, strictAuthority, preserveStateOnControllerChange])
 
   useEffect(() => () => {
     for (const timeout of pendingRef.current.values()) window.clearTimeout(timeout)
@@ -300,7 +359,8 @@ export const useRoomGameProtocol = <TState extends RoomGameBaseState, TCommand, 
     clearError,
     getState,
     dispatch,
-    isController: getControllerIdentity() === room.localParticipant.identity,
+    isController: getControllerIdentity() === room.localParticipant.identity && (!recovery.enabled || !recovery.paused()),
+    recovery,
     participantCount: roomIdentities(room).length,
   }
 }

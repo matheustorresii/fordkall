@@ -6,6 +6,7 @@ const {
   ipcMain,
   Menu,
   nativeImage,
+  Notification,
   protocol,
   screen,
   session,
@@ -1052,6 +1053,30 @@ const configureAutoUpdater = () => {
 }
 
 const installRendererIpc = () => {
+  ipcMain.handle('desktop:performance-sample', (event) => {
+    if (!mainWindow || event.sender !== mainWindow.webContents) return null
+    const metrics = app.getAppMetrics()
+    return {
+      cpuPercent: metrics.reduce((sum, metric) => sum + Math.max(0, Number(metric.cpu?.percentCPUUsage) || 0), 0),
+      memoryMb: metrics.reduce((sum, metric) => sum + Math.max(0, Number(metric.memory?.workingSetSize) || 0), 0) / 1024,
+    }
+  })
+  let lastCallNotification = 0
+  let callNotification = null
+  ipcMain.on('desktop:dismiss-call-notification', event => {
+    if (!mainWindow || event.sender !== mainWindow.webContents) return
+    callNotification?.close(); callNotification = null
+  })
+  ipcMain.on('desktop:notify-call', (event, name) => {
+    if (!mainWindow || event.sender !== mainWindow.webContents || Date.now() - lastCallNotification < 5000 || !Notification.isSupported()) return
+    lastCallNotification = Date.now()
+    const title = typeof name === 'string' ? name.replace(/[\u0000-\u001f]/g, '').slice(0, 80) : 'Alguém'
+    const notification = new Notification({ title: `${title} está ligando`, body: 'Abra o Ford Kall para atender.', icon: iconPath(), silent: true })
+    callNotification?.close(); callNotification = notification
+    notification.on('click', showMainWindow)
+    notification.show()
+    setTimeout(() => notification.close(), 45000).unref()
+  })
   ipcMain.on('desktop:set-in-call', (event, value) => {
     if (!mainWindow || event.sender !== mainWindow.webContents) return
     const wasInCall = isInCall

@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
+import type { Room } from 'livekit-client'
+import type { PerformanceMode } from '../../storage/preferences'
 import type { useAppUpdater } from '../../hooks/useAppUpdater'
 import type { useAudioDevices } from '../../hooks/useAudioDevices'
 import type { useCallShortcuts } from '../../hooks/useCallShortcuts'
@@ -21,9 +23,13 @@ type AudioDevicesState = ReturnType<typeof useAudioDevices>
 type CallShortcutsState = ReturnType<typeof useCallShortcuts>
 type MicrophoneMonitorState = ReturnType<typeof useMicrophoneMonitor>
 type MicrophoneProcessingState = ReturnType<typeof useMicrophoneProcessing>
-type SettingsPage = 'audio' | 'video' | 'shortcuts' | 'app'
+type SettingsPage = 'audio' | 'video' | 'shortcuts' | 'app' | 'performance'
+const PerformancePanel = lazy(() => import('./PerformancePanel').then(module => ({ default: module.PerformancePanel })))
 
 interface SettingsModalProps {
+  room?: Room
+  performanceMode?: PerformanceMode
+  onPerformanceModeChange?: (mode: PerformanceMode) => void
   devices: AudioDevicesState
   gameOverlayEnabled: boolean
   microphoneMonitor: MicrophoneMonitorState
@@ -42,6 +48,7 @@ const pages: Array<{ id: SettingsPage; icon: IconName; label: string }> = [
   { id: 'audio', icon: 'headphones', label: 'Voz e áudio' },
   { id: 'video', icon: 'camera', label: 'Vídeo e transmissão' },
   { id: 'shortcuts', icon: 'keyboard', label: 'Atalhos' },
+  { id: 'performance', icon: 'controls', label: 'Desempenho' },
   { id: 'app', icon: 'settings', label: 'Aplicativo' },
 ]
 
@@ -80,6 +87,7 @@ const SettingsCard = ({
 )
 
 export const SettingsModal = ({
+  room, performanceMode = 'gaming', onPerformanceModeChange,
   devices,
   gameOverlayEnabled,
   microphoneMonitor,
@@ -477,6 +485,14 @@ export const SettingsModal = ({
                 </SettingsCard>
               </div>
             )}
+
+            {page === 'performance' && <div className="settings-page">
+              <SettingsCard title="Modo jogo" description="O áudio continua funcionando em segundo plano.">
+                <label className="setting-switch"><span><strong>Economizar enquanto jogo</strong><small>Suspende vídeos remotos e animações quando a call não está visível. Mantém voz, áudio das transmissões e janelas de vídeo separadas.</small></span><input type="checkbox" checked={performanceMode === 'gaming'} onChange={event => onPerformanceModeChange?.(event.target.checked ? 'gaming' : 'balanced')} /><i aria-hidden="true" /></label>
+                <p className="microphone-preset-note">O medidor de microfone só atualiza com as configurações abertas. Os jogos são carregados sob demanda. O modo não diminui a qualidade da sua voz nem altera a captura enviada aos outros.</p>
+              </SettingsCard>
+              {room && <SettingsCard title="Diagnóstico ao vivo" description="Dados locais. Nenhum relatório é enviado automaticamente."><Suspense fallback={<p>Carregando diagnóstico…</p>}><PerformancePanel room={room} /></Suspense></SettingsCard>}
+            </div>}
 
             {page === 'app' && (
               <div className="settings-page">

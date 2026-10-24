@@ -15,7 +15,7 @@ import { Icon } from '../ui/Icon'
 import { ProfileAvatar } from '../ui/ProfileAvatar'
 import { ProfileName } from '../Profile/ProfileName'
 
-type SocialMessageViewProps = {previewMessages?:SocialMessage[]} & (
+type SocialMessageViewProps = {previewMessages?:SocialMessage[]; onCall?: () => void; calling?: boolean} & (
   | {
       mode: 'community'
       currentUser: SocialUser
@@ -155,6 +155,7 @@ export const SocialMessageView = (props: SocialMessageViewProps) => {
               : props.mode === 'direct' && props.peerOnline ? 'Online agora' : 'Mensagem direta'}
           </p>
         </div>
+        {!isCommunity && props.onCall && <div className="social-thread-actions"><button className="social-action-icon" type="button" disabled={props.calling} onClick={props.onCall} title="Ligar por voz" aria-label="Ligar por voz"><Icon name="phone" /></button></div>}
         {!isCommunity && props.mode === 'direct' && (
           <span className={`social-presence-pill ${props.peerOnline ? 'is-online' : ''}`}>
             <i />{props.peerOnline ? 'online' : 'offline'}

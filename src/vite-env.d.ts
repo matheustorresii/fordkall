@@ -35,6 +35,9 @@ interface FordKallDesktopApi {
   minimize: () => void
   openMicrophoneSettings: () => void
   setInCall: (inCall: boolean) => void
+  notifyCall: (name: string) => void
+  dismissCallNotification: () => void
+  getPerformanceSample: () => Promise<{ cpuPercent: number; memoryMb: number } | null>
   setGameOverlayState: (state: FordKallOverlayState) => void
   setGameOverlaySpeakers: (participantIds: string[]) => void
   setShortcutBindings: (bindings: import('./types').ShortcutBindings) => void
