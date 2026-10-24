@@ -10,6 +10,7 @@ interface SocialPeopleViewProps {
   currentUserId: string
   onlineUsers: SocialPresenceEntry[]
   onMessage: (user: SocialUser) => void
+  previewUsers?: SocialUser[]
 }
 
 const PeopleCard = ({
@@ -41,7 +42,7 @@ const PeopleCard = ({
   </article>
 )
 
-export const SocialPeopleView = ({ currentUserId, onlineUsers, onMessage }: SocialPeopleViewProps) => {
+export const SocialPeopleView = ({ currentUserId, onlineUsers, onMessage, previewUsers }: SocialPeopleViewProps) => {
   const [query, setQuery] = useState('')
   const [onlineCards, setOnlineCards] = useState<SocialUser[]>([])
   const [results, setResults] = useState<SocialUser[]>([])
@@ -51,6 +52,7 @@ export const SocialPeopleView = ({ currentUserId, onlineUsers, onMessage }: Soci
     .filter((id) => id !== currentUserId).slice(0, 30).sort().join(',')
 
   useEffect(() => {
+    if (previewUsers) { setOnlineCards(previewUsers.filter(user => user.id !== currentUserId)); return }
     let cancelled = false
     const ids = onlineKey ? onlineKey.split(',') : []
     if (ids.length === 0) {
@@ -63,9 +65,10 @@ export const SocialPeopleView = ({ currentUserId, onlineUsers, onMessage }: Soci
       if (!cancelled) setOnlineCards([])
     })
     return () => { cancelled = true }
-  }, [onlineKey, currentUserId])
+  }, [onlineKey, currentUserId, previewUsers])
 
   useEffect(() => {
+    if (previewUsers) { setResults(previewUsers.filter(user => user.id !== currentUserId && user.displayName.toLocaleLowerCase().includes(query.toLocaleLowerCase()))); setLoading(false); return }
     let cancelled = false
     const timer = window.setTimeout(() => {
       setLoading(true)
@@ -82,17 +85,17 @@ export const SocialPeopleView = ({ currentUserId, onlineUsers, onMessage }: Soci
       cancelled = true
       window.clearTimeout(timer)
     }
-  }, [query, currentUserId])
+  }, [query, currentUserId, previewUsers])
 
   const onlineIds = new Set(onlineUsers.map((user) => user.userId))
-  const onlineIdSet = new Set(onlineCards.map((user) => user.id))
+  const matchingOnline = onlineCards.filter((user) => user.displayName.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()))
+  const onlineIdSet = new Set(matchingOnline.map((user) => user.id))
   const visibleResults = results.filter((user) => !onlineIdSet.has(user.id))
 
   return (
     <section className="social-directory-view">
       <header className="social-page-heading">
         <div>
-          <span className="social-eyebrow">COMUNIDADE</span>
           <h1>Pessoas</h1>
           <p>Encontre alguém e comece uma conversa direta.</p>
         </div>
@@ -108,14 +111,14 @@ export const SocialPeopleView = ({ currentUserId, onlineUsers, onMessage }: Soci
         </label>
       </header>
 
-      {onlineCards.length > 0 && (
+      {matchingOnline.length > 0 && (
         <section className="social-directory-section">
           <header className="social-section-title">
             <h2>Online agora</h2>
             <span>{onlineUsers.filter((user) => user.userId !== currentUserId).length}</span>
           </header>
           <div className="social-people-grid">
-            {onlineCards.map((user) => (
+            {matchingOnline.map((user) => (
               <PeopleCard key={user.id} onMessage={onMessage} online user={user} />
             ))}
           </div>

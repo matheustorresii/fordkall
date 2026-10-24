@@ -129,6 +129,16 @@ Deno.serve(async (request) => {
         .eq('id', connectionAttemptId)
         .is('reported_at', null)
       if (updateError) throw updateError
+      if (succeeded) {
+        const { data: attendance, error: attendanceError } = await admin.from('livekit_token_issuances')
+          .update({ room_seen_at: new Date().toISOString() }).eq('id', connectionAttemptId).is('room_left_at', null).select('id').maybeSingle()
+        if (attendanceError) throw attendanceError
+        if (attendance) {
+          const { error: memberError } = await admin.from('call_room_members')
+            .upsert({ room_code: roomName, user_id: user.id, seen_at: new Date().toISOString() })
+          if (memberError) throw memberError
+        }
+      }
       return json({ ok: true, retry })
     }
 
@@ -144,8 +154,6 @@ Deno.serve(async (request) => {
     if (roomError) throw roomError
     const { data: roomPrivacy,error: privacyError } = await admin.from('call_rooms').select('is_private').eq('code',roomName).single()
     if (privacyError) throw privacyError
-    const { error: memberError } = await admin.from('call_room_members').upsert({room_code:roomName,user_id:user.id,seen_at:new Date().toISOString()})
-    if (memberError) throw memberError
 
     const metadata = JSON.stringify({
       fordKallProfile: {

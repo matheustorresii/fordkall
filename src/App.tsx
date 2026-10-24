@@ -11,7 +11,6 @@ import {
   replaceRoomCodeInCurrentUrl,
 } from './services/livekit'
 import type { LocalProfile } from './types'
-import { supabase } from './services/supabase'
 import { setPwaCallActive } from './pwa/store'
 
 function App() {
@@ -47,19 +46,6 @@ function App() {
     })
   }, [liveKit.room])
 
-  useEffect(() => {
-    if (!liveKit.room || !liveKit.activeRoomCode) return
-    const code = liveKit.activeRoomCode
-    const touch = () => {
-      void supabase.rpc('touch_call_room', { p_room_code: code })
-    }
-    touch()
-    const timer = window.setInterval(touch, 25_000)
-    return () => {
-      window.clearInterval(timer)
-      void supabase.rpc('touch_call_room', { p_room_code: code, p_leave: true })
-    }
-  }, [liveKit.room, liveKit.activeRoomCode])
   const join = async (
     profile: LocalProfile,
     nextRoomCode: string,
@@ -149,6 +135,7 @@ function App() {
         <SocialHome
           account={account.profile}
           activeRoomCode={liveKit.room ? liveKit.activeRoomCode : ''}
+          activeRoomPrivate={liveKit.privateRoom}
           connectionError={liveKit.error}
           initialRoomCode={roomCode}
           onlineUsers={socialPresence.onlineUsers}

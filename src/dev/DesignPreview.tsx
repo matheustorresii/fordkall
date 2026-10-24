@@ -88,7 +88,8 @@ const fixture = {
       },
       unreadCount: user.id === 'p1' ? 2 : 0,
     })),
-  rooms: [{ code: 'KIW-7204-ABC', user_ids: ['p1', 'p2'] }],
+  rooms: [{ code: 'KIW-7204-ABC', user_ids: ['p1', 'p2'] }, { code: 'ITO-4837-FK2', user_ids: ['p0'] }],
+  recentRooms: [{ code: 'KIW-7204-ABC', is_private: false, last_joined_at: new Date().toISOString() }, { code: 'AMG-9132-TWR', is_private: true, last_joined_at: yesterday.toISOString() }, { code: 'GAM-2471-XP3', is_private: false, last_joined_at: twoDaysAgo.toISOString() }],
   messages,
 }
 const fakeCamera = {
@@ -110,6 +111,7 @@ export const DesignPreview = () => {
       createdAt: new Date().toISOString(),
     }),
     [inCall, setInCall] = useState(false),
+    [connected, setConnected] = useState(false),
     [camera, setCamera] = useState(false),
     [share, setShare] = useState(false)
   const params = new URLSearchParams(location.search),
@@ -173,8 +175,8 @@ export const DesignPreview = () => {
   ) : (
     <SocialHome
       account={account}
-      activeRoomCode=""
-      status="disconnected"
+      activeRoomCode={connected ? 'KIW-7204-ABC' : ''}
+      status={connected ? 'connected' : 'disconnected'}
       connectionError=""
       initialRoomCode=""
       onlineUsers={users.map((u) => ({
@@ -182,10 +184,11 @@ export const DesignPreview = () => {
         displayName: u.displayName,
       }))}
       onJoin={async () => {
+        setConnected(true)
         setInCall(true)
         return true
       }}
-      onLeaveCall={async () => setInCall(false)}
+      onLeaveCall={async () => { setConnected(false); setInCall(false) }}
       onOpenAdmin={() => {}}
       onProfileChange={async (p) => {
         const next = { ...account, ...p }

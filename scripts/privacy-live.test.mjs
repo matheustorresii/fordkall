@@ -72,20 +72,28 @@ try {
     'Join private room by code',
   )
   assert.equal(joined.privateRoom, true, 'Joining cannot downgrade privacy')
-  unwrap(
+  const publicToken = unwrap(
     await clients[0].functions.invoke('livekit-token', {
       body: { roomCode: publicCode },
     }),
     'Public token',
   )
+  // No media transport is opened by this test. Report successful QA connections to
+  // exercise account history/permissions; real server attendance is tested separately.
+  for (const [client, roomCode, token] of [[clients[0], privateCode, privateToken], [clients[1], privateCode, joined], [clients[0], publicCode, publicToken]]) {
+    unwrap(await client.functions.invoke('livekit-token', { body: { action: 'report', roomCode, backendId: token.backendId, connectionAttemptId: token.connectionAttemptId, succeeded: true } }), 'Confirm QA connection')
+  }
   for (const client of clients) {
     const rooms = unwrap(
       await client.rpc('list_public_call_rooms'),
       'List public rooms',
     )
     assert.ok(!rooms.some((r) => r.code === privateCode))
-    assert.ok(rooms.some((r) => r.code === publicCode))
   }
+  const ownerHistory = unwrap(await clients[0].rpc('list_my_call_rooms'), 'Personal history')
+  const outsiderHistory = unwrap(await clients[2].rpc('list_my_call_rooms'), 'Outsider history')
+  assert.ok(ownerHistory.some(room => room.code === privateCode && room.is_private))
+  assert.ok(!outsiderHistory.some(room => room.code === privateCode))
   assert.ok((await clients[2].from('call_rooms').select('*')).error)
   assert.ok((await clients[2].from('call_room_members').select('*')).error)
   console.log(
@@ -100,15 +108,17 @@ try {
     'List after heartbeat',
   )
   assert.ok(
-    !listed.find((r) => r.code === publicCode).user_ids.includes(users[2].id),
+    !listed.find((r) => r.code === publicCode)?.user_ids.includes(users[2].id),
   )
   unwrap(
     await clients[0].rpc('touch_call_room', {
       p_room_code: publicCode,
       p_leave: true,
+      p_session_id: publicToken.connectionAttemptId,
     }),
     'Leave public call',
   )
+  assert.ok(unwrap(await clients[0].rpc('list_my_call_rooms'), 'History after leave').some(room => room.code === publicCode))
   assert.ok(
     !unwrap(
       await clients[2].rpc('list_public_call_rooms'),

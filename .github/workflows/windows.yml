@@ -28,6 +28,9 @@ jobs:
       - name: Test PWA cache, installation and safe updates
         run: npm run test:pwa
 
+      - name: Test room directory recovery and privacy
+        run: npm run test:rooms
+
       - name: Test ITO rules
         run: npm run test:ito
 

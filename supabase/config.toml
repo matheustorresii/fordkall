@@ -31,5 +31,8 @@ verify_jwt = false
 [functions.livekit-token]
 verify_jwt = false
 
+[functions.call-directory]
+verify_jwt = false
+
 [functions.livekit-webhook]
 verify_jwt = false
