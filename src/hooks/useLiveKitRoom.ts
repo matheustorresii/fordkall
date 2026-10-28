@@ -91,6 +91,7 @@ export const useLiveKitRoom = () => {
       leavingRef.current = false
 
       let lastConnectionFailure: unknown = null
+      const failedBackendIds: string[] = []
       for (let attempt = 0; attempt < 3; attempt += 1) {
         const nextRoom = createLiveKitRoom()
         roomRef.current = nextRoom
@@ -132,6 +133,7 @@ export const useLiveKitRoom = () => {
             roomCode,
             profile,
             requestedPrivate,
+            failedBackendIds,
           )
           await nextRoom.connect(
             connectionDetails.serverUrl,
@@ -267,17 +269,21 @@ export const useLiveKitRoom = () => {
           setRoom(null)
 
           if (connectionDetails) {
+            if (connectionDetails.backendId && !failedBackendIds.includes(connectionDetails.backendId)) failedBackendIds.push(connectionDetails.backendId)
             try {
               const report = await reportLiveKitConnection(
                 roomCode,
                 connectionDetails,
                 false,
                 connectionFailure,
+                failedBackendIds,
               )
+              if (report.errorCode) lastConnectionFailure = new Error(report.errorCode)
               if (report.retry && attempt < 2) {
                 setStatus('connecting')
                 continue
               }
+              if (report.retry) lastConnectionFailure = new Error('LIVEKIT_CLIENT_CONNECTION_FAILED')
             } catch {
               // Keep the original connection error as the user-facing failure.
             }

@@ -7,6 +7,7 @@ import type { StreamQualityId } from '../types'
 import type { LocalProfile } from '../types'
 import { invokeFunction } from './supabase'
 import { microphoneCaptureOptions } from './microphoneCapture'
+import { connectionFailureMessage, connectionFailureStatus } from './connectionPolicy'
 
 export type LiveKitConnectionDetails = TokenSourceResponseObject & {
   backendId?: string | null
@@ -100,8 +101,9 @@ export const fetchConnectionDetails = async (
   roomCode: string,
   _profile: LocalProfile,
   privateRoom = false,
+  failedBackendIds: string[] = [],
 ): Promise<LiveKitConnectionDetails> => {
-  return invokeFunction<LiveKitConnectionDetails>('livekit-token', { roomCode, privateRoom })
+  return invokeFunction<LiveKitConnectionDetails>('livekit-token', { roomCode, privateRoom, failedBackendIds })
 }
 
 export const reportLiveKitConnection = async (
@@ -109,16 +111,19 @@ export const reportLiveKitConnection = async (
   details: LiveKitConnectionDetails,
   succeeded: boolean,
   error?: unknown,
+  failedBackendIds: string[] = [],
 ) => {
-  if (!details.backendId || !details.connectionAttemptId) return { retry: false }
+  if (!details.backendId || !details.connectionAttemptId) return { retry: false, errorCode: null, failureCode: null }
   const message = error instanceof Error ? error.message : String(error || '')
-  return invokeFunction<{ ok: true; retry: boolean }>('livekit-token', {
+  return invokeFunction<{ ok: true; retry: boolean; errorCode?: string | null; failureCode?: string | null }>('livekit-token', {
     action: 'report',
     roomCode,
     backendId: details.backendId,
     connectionAttemptId: details.connectionAttemptId,
     succeeded,
     error: message.slice(0, 240),
+    errorStatus: connectionFailureStatus(error),
+    failedBackendIds,
   })
 }
 
@@ -147,6 +152,10 @@ export const streamQualityPresets: Record<
 }
 
 export const friendlyConnectionError = (error: unknown) => {
+  if (error instanceof Error) {
+    const message = connectionFailureMessage(error.message)
+    if (message) return message
+  }
   if (error instanceof Error && error.message === 'ACCOUNT_SUSPENDED') return 'Sua conta foi suspensa e não pode entrar em calls.'
   if (error instanceof Error && error.message === 'TOKEN_RATE_LIMIT') return 'Muitas tentativas seguidas. Aguarde um minuto e tente novamente.'
   if (error instanceof Error && error.message === 'LIVEKIT_NOT_CONFIGURED') return 'O servidor de chamadas ainda não recebeu as credenciais do LiveKit.'
