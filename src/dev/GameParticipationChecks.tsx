@@ -10,6 +10,7 @@ import { useRoomTruco } from '../hooks/useRoomTruco'
 import { useRoomMind } from '../hooks/useRoomMind'
 import { useRoomPoker } from '../hooks/useRoomPoker'
 import { useRoomCoup } from '../hooks/useRoomCoup'
+import { useRoomOdin } from '../hooks/useRoomOdin'
 import { useRoomCodenames } from '../hooks/useRoomCodenames'
 import { ItoGameStage } from '../components/Games/ItoGameStage'
 import { ExplodingKiwiStage } from '../components/Games/ExplodingKiwiStage'
@@ -17,6 +18,7 @@ import { TrucoMineiroStage } from '../components/Games/TrucoMineiroStage'
 import { TheMindStage } from '../components/Games/TheMindStage'
 import { PokerStage } from '../components/Games/PokerStage'
 import { CoupStage } from '../components/Games/CoupStage'
+import { OdinStage } from '../components/Games/OdinStage'
 import { CodenamesStage } from '../components/Games/CodenamesStage'
 import { GameParticipationContext } from '../components/Games/GameParticipationContext'
 import { GameParticipationPanel } from '../components/Games/GameParticipationPanel'
@@ -51,11 +53,11 @@ const createMesh = (lateFirst = false) => {
 }
 const useClient = (room: Room) => {
   const participation = useRoomGameParticipation(room)
-  return { participation, ito: useRoomIto(room, participation), kiwi: useRoomExplodingKiwi(room, participation), truco: useRoomTruco(room, participation), mind: useRoomMind(room, participation), poker: useRoomPoker(room, participation), coup: useRoomCoup(room, participation), codenames: useRoomCodenames(room, participation) }
+  return { participation, ito: useRoomIto(room, participation), kiwi: useRoomExplodingKiwi(room, participation), truco: useRoomTruco(room, participation), mind: useRoomMind(room, participation), poker: useRoomPoker(room, participation), coup: useRoomCoup(room, participation), codenames: useRoomCodenames(room, participation), odin: useRoomOdin(room, participation) }
 }
 const pause = (ms = 45) => new Promise<void>((resolve) => window.setTimeout(resolve, ms))
 
-/** All seven production hooks on eight actual protocol clients; p0 can watch while coordinating. */
+/** All eight production hooks on eight actual protocol clients; p0 can watch while coordinating. */
 export const GameParticipationChecks = ({ interactive = false }: { interactive?: boolean }) => {
   const mesh = useMemo(createMesh, [])
   const lateMesh = useMemo(() => createMesh(true), [])
@@ -110,6 +112,11 @@ export const GameParticipationChecks = ({ interactive = false }: { interactive?:
           assert(Boolean(client(2).poker.error), 'Poker: espectador não joga uma mão antiga')
         } else if (game === 'coup') {
           assert(client().coup.state.players.find((p) => p.identity === 'p2')?.influence === 0 && client().coup.state.phase !== 'lobby', 'Coup: saída elimina apenas a pessoa, sem reiniciar a partida')
+        } else if (game === 'odin') {
+          assert(client().odin.state.players.find(p => p.identity === 'p2')?.away && !client(2).odin.hand.length && client().odin.state.phase === 'playing', 'ODIN: optout recolhe só a própria mão e mantém a partida dos outros')
+          assert(client().odin.state.current !== 'p2' && client().odin.state.center.length === 0, 'ODIN: quem saiu não segura a vez; começa uma nova disputa')
+          client(2).odin.move({ type: 'pass' }); await pause()
+          assert(Boolean(client(2).odin.error), 'ODIN: espectador não pode jogar')
         } else if (game === 'truco') {
           assert(client().truco.state.phase === 'lobby' && latest.current.every((item) => !item.truco.hand.length), 'Truco: volta à preparação com três pessoas, sem ficar travado')
         } else if (game === 'kiwi') {
@@ -131,7 +138,7 @@ export const GameParticipationChecks = ({ interactive = false }: { interactive?:
       const authentic = client(4).participation.state
       mesh.deliver('p3', 'p4', GAME_PARTICIPATION_TOPIC, { type: 'state', state: { ...authentic, controllerIdentity: 'p3', revision: authentic.revision + 100 } }); await pause()
       assert(client(4).participation.state.controllerIdentity === 'p0', 'Estado falso de outro participante não assume o controle da lista')
-      assert(client().participation.getState().revision >= before, 'Revisões continuam coerentes após os sete jogos')
+      assert(client().participation.getState().revision >= before, 'Revisões continuam coerentes após os oito jogos')
       const choices = JSON.stringify(client(1).participation.state.games)
       mesh.disconnect('p0'); await pause(150)
       assert(latest.current.slice(1).every((item) => JSON.stringify(item.participation.state.games) === choices), 'A saída do controlador não apaga os optouts de nenhum jogo')
@@ -142,12 +149,12 @@ export const GameParticipationChecks = ({ interactive = false }: { interactive?:
     } catch (cause) { setResults((items) => [...items, `FAIL · ${cause instanceof Error ? cause.message : String(cause)}`]) }
     finally { setRunning(false) }
   }
-  if (!interactive) return <section style={{ height: '100%', overflow: 'auto', padding: '70px 24px 100px', background: '#14251e', color: '#e5eddf', font: '14px system-ui' }}><h1>Optout nos sete jogos</h1><p>Oito clientes reais, controle compartilhado, organizador e saída durante as partidas.</p><button className="game-action" disabled={running} onClick={() => void run()} type="button">{running ? 'Testando…' : 'Executar verificações de participação'}</button><ol aria-live="polite">{results.map((text, i) => <li key={i} style={{ marginBottom: 8 }}>{text}</li>)}</ol><p>{results.filter((line) => line.startsWith('PASS')).length} verificações passaram.</p></section>
+  if (!interactive) return <section style={{ height: '100%', overflow: 'auto', padding: '70px 24px 100px', background: '#14251e', color: '#e5eddf', font: '14px system-ui' }}><h1>Optout nos oito jogos</h1><p>Oito clientes reais, controle compartilhado, organizador e saída durante as partidas.</p><button className="game-action" disabled={running} onClick={() => void run()} type="button">{running ? 'Testando…' : 'Executar verificações de participação'}</button><ol aria-live="polite">{results.map((text, i) => <li key={i} style={{ marginBottom: 8 }}>{text}</li>)}</ol><p>{results.filter((line) => line.startsWith('PASS')).length} verificações passaram.</p></section>
   const current = client(view), game = current[kind], participation = current.participation
   const participants: ParticipantMedia[] = names.map((name, i) => ({ id: `p${i}`, name, isLocal: i === view, cameraEnabled: false, microphoneMuted: false, appearance: { nameColor: '#d8e3cf', nameFont: 'mono', theme: 'lime', accentColor: '#b5d789', avatarFrame: 'none' } }))
   const ui = { kind, participating: participation.allowed(kind, `p${view}`), count: participation.members(kind).length, canStart: participation.canStart(kind, `p${view}`), members: participants.filter((person) => participation.allowed(kind, person.id)), open: () => setPanelOpen(true) }
   const props = { participants, onExit: () => {}, onOpenGameHub: () => {} }
   return <main className="call-shell call-shell--games-open"><header className="call-header"><button className="brand brand--compact call-home-button" type="button"><BrandMark /></button></header><GameParticipationContext.Provider value={ui}><div className="call-workspace">
-    {kind === 'ito' ? <ItoGameStage {...props} game={current.ito} /> : kind === 'kiwi' ? <ExplodingKiwiStage {...props} game={current.kiwi} /> : kind === 'truco' ? <TrucoMineiroStage {...props} game={current.truco} /> : kind === 'mind' ? <TheMindStage {...props} game={current.mind} /> : kind === 'poker' ? <PokerStage {...props} game={current.poker} /> : kind === 'coup' ? <CoupStage {...props} game={current.coup} /> : <CodenamesStage {...props} game={current.codenames} />}
+    {kind === 'odin' ? <OdinStage {...props} game={current.odin} /> : kind === 'ito' ? <ItoGameStage {...props} game={current.ito} /> : kind === 'kiwi' ? <ExplodingKiwiStage {...props} game={current.kiwi} /> : kind === 'truco' ? <TrucoMineiroStage {...props} game={current.truco} /> : kind === 'mind' ? <TheMindStage {...props} game={current.mind} /> : kind === 'poker' ? <PokerStage {...props} game={current.poker} /> : kind === 'coup' ? <CoupStage {...props} game={current.coup} /> : <CodenamesStage {...props} game={current.codenames} />}
   </div>{panelOpen && <GameParticipationPanel active={Boolean(game.state.gameId)} activeIds={game.state.players.map((p) => p.identity)} kind={kind} onClose={() => setPanelOpen(false)} participants={participants} participation={participation} />}</GameParticipationContext.Provider><details style={{ position: 'fixed', bottom: 12, left: 12, zIndex: 100, padding: 8, borderRadius: 8, background: '#10241f', color: '#edf4e5', font: '12px system-ui' }}><summary>Prévia de participação</summary><div style={{ display: 'grid', gap: 8, paddingTop: 8 }}><label>Jogo <select value={kind} onChange={(event) => setKind(event.currentTarget.value as GameKind)}>{GAME_KINDS.map((value) => <option key={value} value={value}>{GAME_LIMITS[value].name}</option>)}</select></label><label>Visão <select value={view} onChange={(event) => setView(Number(event.currentTarget.value))}>{names.map((name, i) => <option key={name} value={i}>{name}</option>)}</select></label><button onClick={() => void configure(kind).then(() => start(kind))} type="button">Preparar e iniciar</button></div></details></main>
 }

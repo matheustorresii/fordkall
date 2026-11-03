@@ -2,8 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { changeGameAttendance, emptyGameAttendance, GAME_KINDS, GAME_LIMITS, readGameAttendance } from '../src/games/gameParticipation.ts'
 const people = ['a', 'b', 'c', 'd']
-test('todos os nove jogos têm controle independente de participação', () => {
-  assert.equal(GAME_KINDS.length, 9)
+test('todos os dez jogos têm controle independente de participação', () => {
+  assert.equal(GAME_KINDS.length, 10)
   for (const game of GAME_KINDS) {
     const before = emptyGameAttendance(), after = changeGameAttendance(before, game, 'b', 'b', false, people)
     assert.deepEqual(after[game].spectators, ['b'])
@@ -11,6 +11,14 @@ test('todos os nove jogos têm controle independente de participação', () => {
     assert.deepEqual(before[game].spectators, [])
     assert.ok(GAME_LIMITS[game].min >= 2 && GAME_LIMITS[game].max >= GAME_LIMITS[game].min)
   }
+})
+test('checkpoints anteriores ao ODIN preservam todos os optouts e iniciam a nova lista vazia', () => {
+  const games = emptyGameAttendance()
+  games.ito.spectators = ['a']
+  delete games.odin
+  const restored = readGameAttendance(games)
+  assert.deepEqual(restored.ito.spectators, ['a'])
+  assert.deepEqual(restored.odin, { organizer: '', spectators: [] })
 })
 test('optout é idempotente e só a própria pessoa volta a participar', () => {
   const first = changeGameAttendance(emptyGameAttendance(), 'ito', 'a', 'a', false, people)

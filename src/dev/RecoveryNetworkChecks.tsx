@@ -7,6 +7,8 @@ import {
 } from '../hooks/useGameRecovery'
 import { useRoomPoker, POKER_TOPIC } from '../hooks/useRoomPoker'
 import { useRoomCoup } from '../hooks/useRoomCoup'
+import { useRoomOdin, ODIN_TOPIC } from '../hooks/useRoomOdin'
+import { odinLegalPlays, type OdinEngine } from '../games/odin'
 import { useRoomExplodingKiwi, KIWI_TOPIC } from '../hooks/useRoomExplodingKiwi'
 import { useRoomGameParticipation } from '../hooks/useRoomGameParticipation'
 import { GameRecoveryStatus } from '../components/Games/GameRecoveryStatus'
@@ -15,6 +17,7 @@ type Probe = {
   poker: ReturnType<typeof useRoomPoker>
   coup: ReturnType<typeof useRoomCoup>
   kiwi: ReturnType<typeof useRoomExplodingKiwi>
+  odin: ReturnType<typeof useRoomOdin>
 }
 const ids = [
   '11111111-1111-1111-1111-111111111111',
@@ -31,8 +34,9 @@ const Child = ({
   const participation = useRoomGameParticipation(room),
     poker = useRoomPoker(room, participation),
     coup = useRoomCoup(room, participation),
-    kiwi = useRoomExplodingKiwi(room, participation)
-  report({ poker, coup, kiwi })
+    kiwi = useRoomExplodingKiwi(room, participation),
+    odin = useRoomOdin(room, participation)
+  report({ poker, coup, kiwi, odin })
   return (
     <div style={{ padding: 12, background: '#202838', borderRadius: 12 }}>
       <strong>{room.localParticipant.name}</strong>
@@ -47,6 +51,9 @@ const Child = ({
         Kiwi: {kiwi.state.phase} · {kiwi.hand.length} cartas
       </p>
       <GameRecoveryStatus room={room} />
+      <p>
+        ODIN: {odin.state.phase} · {odin.hand.length} cartas
+      </p>
     </div>
   )
 }
@@ -303,19 +310,68 @@ export function RecoveryNetworkChecks() {
           ),
         'reset poker',
       )
-      for (const kind of ['coup', 'kiwi'] as const) {
+      for (const kind of ['coup', 'kiwi', 'odin'] as const) {
         if (kind === 'coup') views.current.get(ids[0]!)!.coup.start()
-        else views.current.get(ids[0]!)!.kiwi.start()
+        else if (kind === 'kiwi') views.current.get(ids[0]!)!.kiwi.start()
+        else views.current.get(ids[0]!)!.odin.start()
         await wait(
           () =>
             ids.every(
               (id) =>
                 views.current.get(id)?.[kind].hand.length ===
-                (kind === 'coup' ? 2 : 8),
+                (kind === 'coup' ? 2 : kind === 'odin' ? 9 : 8),
             ),
           `${kind} deal`,
         )
+        if (kind === 'odin') {
+          const current = views.current.get(ids[0]!)!.odin.state
+          const actor = views.current.get(current.current)!.odin
+          actor.move({ type: 'play', cardIds: [actor.hand[0]!.id] })
+          await wait(
+            () =>
+              ids.every(
+                (id) =>
+                  views.current.get(id)?.odin.state.stepId !== current.stepId,
+              ),
+            'odin opening move',
+          )
+          const nextState = views.current.get(ids[0]!)!.odin.state
+          const nextActor = views.current.get(nextState.current)!.odin
+          const play = odinLegalPlays(nextActor.hand, nextState.center).sort(
+            (a, b) => b.length - a.length,
+          )[0]
+          nextActor.move(
+            play ? { type: 'play', cardIds: play } : { type: 'pass' },
+          )
+          await wait(
+            () =>
+              ids.every(
+                (id) =>
+                  views.current.get(id)?.odin.state.stepId !== nextState.stepId,
+              ),
+            'odin second move',
+          )
+          await wait(
+            () =>
+              ids.every((id) => {
+                const game = views.current.get(id)?.odin
+                return (
+                  game?.hand.length ===
+                  game?.state.players.find((p) => p.identity === id)
+                    ?.cardsRemaining
+                )
+              }),
+            'odin private update before disconnect',
+          )
+        }
         const gameId = views.current.get(ids[0]!)![kind].state.gameId
+        const odinBefore =
+          kind === 'odin'
+            ? structuredClone(
+                server.current.get(ODIN_TOPIC)?.payload
+                  ?.authority as OdinEngine,
+              )
+            : null
         const originalHands = new Map(
           ids.map((id) => [
             id,
@@ -369,7 +425,7 @@ export function RecoveryNetworkChecks() {
         )
         check(
           true,
-          `${kind === 'coup' ? 'Coup' : 'Exploding Kiwi'} retomou a mesma partida e as mesmas cartas após perder o controlador`,
+          `${kind === 'coup' ? 'Coup' : kind === 'odin' ? 'ODIN' : 'Exploding Kiwi'} retomou a mesma partida e as mesmas cartas após perder o controlador`,
         )
         if (kind === 'kiwi')
           check(
@@ -382,6 +438,48 @@ export function RecoveryNetworkChecks() {
             ) === deck,
             'O monte secreto do Kiwi manteve a mesma ordem',
           )
+        if (kind === 'odin' && odinBefore) {
+          const restored = server.current.get(ODIN_TOPIC)?.payload
+            ?.authority as OdinEngine
+          check(
+            JSON.stringify(restored.aside) ===
+              JSON.stringify(odinBefore.aside) &&
+              JSON.stringify(restored.discarded) ===
+                JSON.stringify(odinBefore.discarded) &&
+              JSON.stringify(restored.state.center) ===
+                JSON.stringify(odinBefore.state.center),
+            'ODIN conserva a combinação na mesa, o descarte e as cartas não distribuídas após jogadas reais',
+          )
+          const active = views.current.get(ids[1]!)!.odin.state
+          const actor = views.current.get(active.current)!.odin
+          const cards = odinLegalPlays(actor.hand, active.center).sort(
+            (a, b) => b.length - a.length,
+          )[0]
+          actor.move(
+            cards
+              ? {
+                  type: 'play',
+                  cardIds: cards,
+                  ...(active.center.length > 1 &&
+                  cards.length < actor.hand.length
+                    ? { takeId: active.center[0]!.id }
+                    : {}),
+                }
+              : { type: 'pass' },
+          )
+          await wait(
+            () =>
+              ids.every(
+                (id) =>
+                  views.current.get(id)?.odin.state.stepId !== active.stepId,
+              ),
+            'odin continued after recovery',
+          )
+          check(
+            true,
+            'ODIN aceita a próxima jogada usando a engine privada recuperada',
+          )
+        }
         views.current.get(ids[0]!)![kind].reset()
         await wait(
           () =>

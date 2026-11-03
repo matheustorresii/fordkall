@@ -32,7 +32,8 @@ export const useRoomTruco = (room: Room, participation?: RoomGameParticipation) 
   const engineRef = useRef<TrucoEngine | null>(null)
   const handleCommand = useCallback((command: Command, sender: string, context: RoomGameProtocolContext<TrucoRoomState, TrucoCard[]>): string | null => {
     const current = context.state, connected = new Set(gameMembers(room, 'truco', participation).map(person => person.identity))
-    if (!connected.has(sender)) return 'Você não está nesta sala.'
+    // A spectator can still be the technical distributor and must process membership changes.
+    if (sender !== room.localParticipant.identity && !room.remoteParticipants.has(sender)) return 'Você não está nesta sala.'
     if (command.type !== 'sync' && command.type !== 'reset' && participation && !participation.allowed('truco', sender)) return 'Você está só assistindo.'
     if (command.type === 'reset') {
       if (command.matchId !== current.matchId) return 'Essa partida já mudou.'

@@ -18,6 +18,7 @@ import { useRoomTruco } from '../../hooks/useRoomTruco'
 import { useRoomMind } from '../../hooks/useRoomMind'
 import { useRoomPoker } from '../../hooks/useRoomPoker'
 import { useRoomCoup } from '../../hooks/useRoomCoup'
+import { useRoomOdin } from '../../hooks/useRoomOdin'
 import { useRoomCodenames } from '../../hooks/useRoomCodenames'
 import { useRoomPartyGame } from '../../hooks/useRoomPartyGame'
 import { useRoomMusic } from '../../hooks/useRoomMusic'
@@ -73,6 +74,7 @@ const TrucoMineiroStage = lazy(() => import('../Games/TrucoMineiroStage').then(m
 const TheMindStage = lazy(() => import('../Games/TheMindStage').then(module => ({ default: module.TheMindStage })))
 const PokerStage = lazy(() => import('../Games/PokerStage').then(module => ({ default: module.PokerStage })))
 const CoupStage = lazy(() => import('../Games/CoupStage').then(module => ({ default: module.CoupStage })))
+const OdinStage = lazy(() => import('../Games/OdinStage').then(module => ({ default: module.OdinStage })))
 const CodenamesStage = lazy(() => import('../Games/CodenamesStage').then(module => ({ default: module.CodenamesStage })))
 const RoomGamesHub = lazy(() => import('../Games/RoomGamesHub').then(module => ({ default: module.RoomGamesHub })))
 const ImpostorStage = lazy(() =>
@@ -211,6 +213,7 @@ export const CallScreen = ({
   const mindGame = useRoomMind(room, gameParticipation)
   const pokerGame = useRoomPoker(room, gameParticipation)
   const coupGame = useRoomCoup(room, gameParticipation)
+  const odinGame = useRoomOdin(room, gameParticipation)
   const codenamesGame = useRoomCodenames(room, gameParticipation)
   const garticGame = useRoomPartyGame(room, 'gartic', gameParticipation)
   const sketch = useRoomSketch(
@@ -409,6 +412,18 @@ export const CallScreen = ({
     setGameMode('coup')
     setGamesOpen(true)
   }, [coupGame.state.gameId])
+
+  useEffect(() => {
+    if (!odinGame.state.gameId ||
+      !gameParticipation.allowed('odin', room.localParticipant.identity) ||
+      !odinGame.state.players.some(player => player.identity === room.localParticipant.identity)) return
+    setLayoutMenuPoint(null)
+    setParticipantsOpen(false)
+    setChatOpen(false)
+    setMusicOpen(false)
+    setGameMode('odin')
+    setGamesOpen(true)
+  }, [odinGame.state.gameId])
 
   useEffect(() => {
     if (
@@ -647,6 +662,7 @@ export const CallScreen = ({
     if (selected !== 'mind' && mindGame.state.gameId) void mindGame.reset()
     if (selected !== 'poker' && pokerGame.state.gameId) void pokerGame.reset()
     if (selected !== 'coup' && coupGame.state.gameId) void coupGame.reset()
+    if (selected !== 'odin' && odinGame.state.gameId) void odinGame.reset()
     if (selected !== 'codenames' && codenamesGame.state.gameId)
       void codenamesGame.reset()
     if (selected !== 'gartic' && garticGame.state.gameId)
@@ -703,6 +719,7 @@ export const CallScreen = ({
           mind: mindGame.state,
           poker: pokerGame.state,
           coup: coupGame.state,
+          odin: odinGame.state,
           codenames: codenamesGame.state,
           gartic: garticGame.state,
           impostor: impostorGame.state,
@@ -826,7 +843,7 @@ export const CallScreen = ({
           </button>
           <button
             aria-label={`${gamesOpen ? 'Fechar jogos' : 'Abrir central de jogos'}`}
-            className={`participants-toggle games-toggle ${gamesOpen ? 'is-active' : ''} ${itoGame.state.gameId || explodingKiwi.state.gameId || trucoGame.state.gameId || mindGame.state.gameId || pokerGame.state.gameId || coupGame.state.gameId || codenamesGame.state.gameId ? 'has-game' : ''}`}
+            className={`participants-toggle games-toggle ${gamesOpen ? 'is-active' : ''} ${itoGame.state.gameId || explodingKiwi.state.gameId || trucoGame.state.gameId || mindGame.state.gameId || pokerGame.state.gameId || coupGame.state.gameId || codenamesGame.state.gameId || odinGame.state.gameId ? 'has-game' : ''}`}
             onClick={() => {
               setLayoutMenuPoint(null)
               setParticipantsOpen(false)
@@ -897,6 +914,9 @@ export const CallScreen = ({
           {gamesOpen ? (
             gameMode === 'hub' ? (
               <RoomGamesHub
+                odinActive={Boolean(odinGame.state.gameId)}
+                odinPlayers={odinGame.state.players.filter(p => !p.away).length}
+                onSelectOdin={() => setGameMode('odin')}
                 itoActive={Boolean(itoGame.state.gameId)}
                 itoPlayers={itoGame.state.players.length}
                 kiwiActive={Boolean(explodingKiwi.state.gameId)}
@@ -932,6 +952,13 @@ export const CallScreen = ({
                 onSelectPoker={() => setGameMode('poker')}
                 onSelectCoup={() => setGameMode('coup')}
                 onSelectCodenames={() => setGameMode('codenames')}
+              />
+            ) : gameMode === 'odin' ? (
+              <OdinStage
+                game={{ ...odinGame, start: (settings) => startGame('odin', () => odinGame.start(settings)) }}
+                participants={snapshot.participantMedia}
+                onExit={() => setGamesOpen(false)}
+                onOpenGameHub={() => setGameMode('hub')}
               />
             ) : gameMode === 'gartic' ? (
               <Suspense

@@ -691,3 +691,9 @@
     transition: none;
   }
 }
+.game-catalog-art--odin { display: flex; align-items: center; justify-content: center; gap: 0; }
+.game-catalog-art--odin > .odin-card { width: 72px; height: 104px; flex: 0 0 auto; transform: rotate(-17deg) translateY(8px); }
+.game-catalog-art--odin > .odin-card:nth-child(2) { z-index: 1; margin-left: -27px; transform: rotate(0deg) translateY(-3px); }
+.game-catalog-art--odin > .odin-card:nth-child(3) { margin-left: -27px; transform: rotate(17deg) translateY(8px); }
+.game-catalog-art--odin .odin-card__corner b { font-size: 19px; }
+.game-catalog-art--odin .odin-card__corner i { font-size: 12px; }

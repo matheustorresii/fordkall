@@ -63,6 +63,9 @@ jobs:
       - name: Test Truco turn order and raises
         run: npm run test:truco
 
+      - name: Test ODIN rules, card conservation and private state
+        run: npm run test:odin
+
       - name: Test Coup rules and private state
         run: npm run test:coup
 

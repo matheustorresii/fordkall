@@ -1,0 +1,135 @@
+.odin-card {
+  position: relative;
+  display: flex;
+  width: 100%;
+  height: 100%;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border: 1px solid #fff6dc;
+  border-radius: 11px;
+  background: linear-gradient(145deg, #fffcf0, #ebe5d5);
+  color: var(--clan-ink);
+  box-shadow:
+    0 5px 13px #0005,
+    inset 0 0 0 3px #fff5;
+  user-select: none;
+}
+.odin-card::before {
+  position: absolute;
+  inset: 5px;
+  border: 1px solid color-mix(in srgb, var(--clan-ink) 25%, transparent);
+  border-radius: 7px;
+  content: '';
+}
+.odin-card::after {
+  position: absolute;
+  z-index: 0;
+  inset: 25% 10%;
+  border-radius: 50%;
+  background: var(--clan);
+  opacity: 0.3;
+  content: '';
+}
+.odin-card > svg.odin-kiwi {
+  z-index: 1;
+  width: 97%;
+  height: auto;
+  max-height: 78%;
+  flex: 0 0 auto;
+  margin-top: 2px;
+  aspect-ratio: 1;
+}
+.odin-card__corner {
+  position: absolute;
+  z-index: 2;
+  top: 8px;
+  left: 9px;
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1;
+}
+.odin-card__corner b {
+  font: 780 25px/1 var(--font-body, system-ui, sans-serif);
+  font-variant-numeric: tabular-nums;
+}
+.odin-card__corner i {
+  font:
+    750 17px/1 system-ui,
+    sans-serif;
+}
+.odin-card__corner--bottom {
+  top: auto;
+  right: 9px;
+  bottom: 8px;
+  left: auto;
+  transform: rotate(180deg);
+}
+.odin-card__clan {
+  position: absolute;
+  bottom: 16%;
+  left: 50%;
+  color: var(--clan-ink);
+  font:
+    750 8px/1 system-ui,
+    sans-serif;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  transform: translateX(-50%);
+}
+.odin-card--back {
+  border-color: #a6b7a6;
+  background:
+    repeating-linear-gradient(45deg, #c6dac208 0 2px, transparent 2px 9px),
+    #293f3c;
+  color: #d5cfad;
+}
+.odin-card--back::before {
+  border-color: #d5cfad66;
+  inset: 7px;
+}
+.odin-card--back::after {
+  display: none;
+}
+.odin-card--back .odin-kiwi {
+  width: 87%;
+}
+.odin-card__wordmark {
+  position: absolute;
+  bottom: 13%;
+  font:
+    750 10px/1 system-ui,
+    sans-serif;
+  letter-spacing: 0.25em;
+}
+@media (max-width: 720px) {
+  .odin-card {
+    border-radius: 8px;
+  }
+  .odin-card::before {
+    inset: 4px;
+    border-radius: 5px;
+  }
+  .odin-card__corner {
+    top: 6px;
+    left: 7px;
+  }
+  .odin-card__corner b {
+    font-size: 21px;
+  }
+  .odin-card__corner i {
+    font-size: 13px;
+  }
+  .odin-card__corner--bottom {
+    top: auto;
+    right: 7px;
+    bottom: 6px;
+    left: auto;
+  }
+  .odin-card__clan {
+    font-size: 6px;
+  }
+}

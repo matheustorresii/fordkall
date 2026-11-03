@@ -1,8 +1,9 @@
-export const GAME_KINDS = ['ito', 'kiwi', 'truco', 'mind', 'poker', 'coup', 'codenames', 'gartic', 'impostor'] as const
+export const GAME_KINDS = ['ito', 'kiwi', 'truco', 'mind', 'poker', 'coup', 'codenames', 'gartic', 'impostor', 'odin'] as const
 export type GameKind = typeof GAME_KINDS[number]
 export interface GameAttendance { organizer: string; spectators: string[] }
 export type GameAttendanceMap = Record<GameKind, GameAttendance>
 export const GAME_LIMITS: Record<GameKind, { name: string; min: number; max: number; leaving: string }> = {
+  odin: { name: 'ODIN', min: 2, max: 6, leaving: 'Suas cartas são retiradas e uma nova disputa começa com quem ficar. Você pode voltar na próxima partida.' },
   gartic:{name:'Gartic Kiwi',min:2,max:12,leaving:'O turno segue com quem ficar. Se quem desenha sair, a rodada é encerrada.'},
   impostor:{name:'Impostor',min:3,max:12,leaving:'Os votos são recalculados. Se o impostor sair, a rodada é encerrada.'},
   ito: { name: 'ITO', min: 2, max: 8, leaving: 'A rodada será redistribuída entre quem ficar, sem contar como derrota.' },
@@ -19,7 +20,7 @@ export const readGameAttendance = (value: unknown): GameAttendanceMap | null => 
   const games = emptyGameAttendance()
   for (const kind of GAME_KINDS) {
     const row = (value as Record<string, GameAttendance>)[kind]
-    if(!row && (kind==='gartic'||kind==='impostor'))continue
+    if(!row && (kind==='gartic'||kind==='impostor'||kind==='odin'))continue
     if (!row || typeof row.organizer !== 'string' || row.organizer.length > 128 || !Array.isArray(row.spectators) || row.spectators.length > 128 ||
       row.spectators.some((id) => typeof id !== 'string' || !id || id.length > 128) || new Set(row.spectators).size !== row.spectators.length || row.spectators.includes(row.organizer)) return null
     games[kind] = { organizer: row.organizer, spectators: [...row.spectators] }

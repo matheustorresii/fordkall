@@ -74,6 +74,7 @@ try {
     '20261024010000_direct_calls.sql',
     '20261024020000_game_checkpoints.sql',
     '20261024030000_game_checkpoint_clocks.sql',
+    '20261103000000_odin_checkpoints.sql',
   ])
     sql(readFileSync(`supabase/migrations/${file}`, 'utf8'))
   sql(`select set_config('request.jwt.claim.sub','33333333-3333-3333-3333-333333333333',false);
@@ -131,6 +132,27 @@ try {
     do $$ begin
       begin perform save_game_checkpoint('PUBLIC','ford-kall.poker.v2','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',1,'{"revision":2,"controllerIdentity":"11111111-1111-1111-1111-111111111111"}','{"secrets":{}}'); raise exception 'Old authority overwrote new epoch'; exception when raise_exception then if sqlerrm<>'GAME_LEASE_LOST' then raise; end if; end;
     end $$;
+    select claim_game_checkpoint('PUBLIC','ford-kall.odin.v1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+    select save_game_checkpoint('PUBLIC','ford-kall.odin.v1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',1,
+      '{"gameId":"odin-hand","revision":1,"controllerIdentity":"11111111-1111-1111-1111-111111111111","center":[]}',
+      '{"secrets":{"11111111-1111-1111-1111-111111111111":{"hand":["leaf-1"]},"22222222-2222-2222-2222-222222222222":{"hand":["tide-2"]}},"authority":{"aside":["sun-3"],"hands":{"11111111-1111-1111-1111-111111111111":["leaf-1"],"22222222-2222-2222-2222-222222222222":["tide-2"]}}}');
+    select set_config('request.jwt.claim.sub','22222222-2222-2222-2222-222222222222',false);
+    do $$ declare value jsonb; begin
+      select e into value from jsonb_array_elements(list_game_checkpoints('PUBLIC','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb')) e where e->>'topic'='ford-kall.odin.v1';
+      if value is null or value->'payload'<>'null'::jsonb or value->'ownPrivate'<>'{"hand":["tide-2"]}'::jsonb then raise exception 'ODIN exposed another hand or undealt cards'; end if;
+      value:=claim_game_checkpoint('PUBLIC','ford-kall.odin.v1','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+      if (value->>'owns')::boolean then raise exception 'ODIN live authority stolen'; end if;
+    end $$;
+    update room_game_checkpoints set lease_until=now()-interval '1 second' where topic='ford-kall.odin.v1';
+    do $$ declare value jsonb; begin
+      value:=claim_game_checkpoint('PUBLIC','ford-kall.odin.v1','bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb');
+      if not (value->>'owns')::boolean or (value->>'epoch')::int<>2 or value->'payload'->'authority'->'aside'<>'["sun-3"]'::jsonb then raise exception 'ODIN failed to recover its private engine'; end if;
+    end $$;
+    select set_config('request.jwt.claim.sub','11111111-1111-1111-1111-111111111111',false);
+    do $$ begin
+      begin perform save_game_checkpoint('PUBLIC','ford-kall.odin.v1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',1,'{"revision":2,"controllerIdentity":"11111111-1111-1111-1111-111111111111"}','{"secrets":{}}'); raise exception 'ODIN old authority overwrote new epoch'; exception when raise_exception then if sqlerrm<>'GAME_LEASE_LOST' then raise; end if; end;
+      begin perform claim_game_checkpoint('PUBLIC','ford-kall.not-a-game.v1','aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'); raise exception 'Invalid topic accepted'; exception when raise_exception then if sqlerrm<>'INVALID_GAME_TOPIC' then raise; end if; end;
+    end $$;
     select set_config('request.jwt.claim.sub','44444444-4444-4444-4444-444444444444',false);
     do $$ begin
       begin perform list_game_checkpoints('PUBLIC','dddddddd-dddd-dddd-dddd-dddddddddddd'); raise exception 'Non-member read checkpoint'; exception when raise_exception then if sqlerrm<>'GAME_ROOM_REQUIRED' then raise; end if; end;
@@ -141,7 +163,7 @@ try {
     set role anon;
     do $$ begin if has_function_privilege(current_user,'public.claim_game_checkpoint(text,text,uuid)','execute') or has_function_privilege(current_user,'public.start_direct_call(uuid,text)','execute') then raise exception 'Anonymous access'; end if; end $$;`)
   console.log(
-    'PASS: real PostgreSQL direct calls, privacy, DND, expiry, multi-device acceptance, private checkpoints, fenced takeover, stale writer rejection and RLS',
+    'PASS: real PostgreSQL direct calls, privacy, DND, expiry, multi-device acceptance, private checkpoints including ODIN, fenced takeover, stale writer rejection and RLS',
   )
 } finally {
   if (started)

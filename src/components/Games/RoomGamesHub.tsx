@@ -1,8 +1,12 @@
 import { useState } from 'react'
 import { Icon } from '../ui/Icon'
+import { OdinCardFace } from './OdinCard'
 import './RoomGamesHub.css'
 
 interface RoomGamesHubProps {
+  odinActive?: boolean
+  odinPlayers?: number
+  onSelectOdin?: () => void
   itoActive: boolean
   itoPlayers: number
   kiwiActive: boolean
@@ -44,7 +48,7 @@ const CatalogArt = ({ kind }: { kind: string }) => (
     aria-hidden="true"
     className={`game-catalog-art game-catalog-art--${kind}`}
   >
-    {kind === 'gartic' ? (
+    {kind === 'odin' ? <><OdinCardFace card={{ id: 'leaf-9', clan: 'leaf', value: 9 }} /><OdinCardFace card={{ id: 'sun-8', clan: 'sun', value: 8 }} /><OdinCardFace card={{ id: 'tide-7', clan: 'tide', value: 7 }} /></> : kind === 'gartic' ? (
       <svg viewBox="0 0 230 110">
         <rect
           x="45"
@@ -158,6 +162,7 @@ export const RoomGamesHub = (props: RoomGamesHubProps) => {
   const [page, setPage] = useState(0)
   // A catalog entry is all a new game needs here; pagination bounds the layout as it grows.
   const catalog = [
+    ...(props.onSelectOdin ? [{ id: 'odin', title: 'ODIN', subtitle: 'Clãs Kiwi', description: 'Combine, supere a mesa e esvazie a mão.', category: 'cards', players: '2–6', active: Boolean(props.odinActive), count: props.odinPlayers || 0, open: props.onSelectOdin }] : []),
     ...(props.onSelectGartic
       ? [
           {
