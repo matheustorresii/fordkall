@@ -90,7 +90,9 @@ export const generateRoomCode = () => {
 
 export const createLiveKitRoom = () =>
   new Room({
-    adaptiveStream: true,
+    // Our visibility policy accounts for separate windows; SDK background pause
+    // only knows about the opener document and would freeze a visible popout.
+    adaptiveStream: { pauseVideoInBackground: false },
     dynacast: true,
     disconnectOnPageLeave: true,
     webAudioMix: true,

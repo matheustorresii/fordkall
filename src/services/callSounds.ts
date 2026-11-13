@@ -1,4 +1,9 @@
 import { getCallSoundsEnabled } from '../storage/preferences'
+import {
+  CONTROL_SOUNDS,
+  LatestControlFeedback,
+  type ControlSound,
+} from './controlFeedback'
 
 export type CallSound =
   | 'join'
@@ -10,14 +15,16 @@ export type CallSound =
   | 'ring'
 
 let audioContext: AudioContext | null = null
+const controlFeedback = new LatestControlFeedback()
 
 const getAudioContext = () => {
-  if (audioContext) return audioContext
+  if (audioContext && audioContext.state !== 'closed') return audioContext
   if (typeof window === 'undefined') return null
 
-  const AudioContextConstructor = window.AudioContext ?? (
-    window as typeof window & { webkitAudioContext?: typeof AudioContext }
-  ).webkitAudioContext
+  const AudioContextConstructor =
+    window.AudioContext ??
+    (window as typeof window & { webkitAudioContext?: typeof AudioContext })
+      .webkitAudioContext
   if (!AudioContextConstructor) return null
 
   audioContext = new AudioContextConstructor()
@@ -25,12 +32,13 @@ const getAudioContext = () => {
 }
 
 const tone = (
-  context: AudioContext,
+  context: BaseAudioContext,
   frequency: number,
   start: number,
   duration: number,
   volume: number,
   type: OscillatorType = 'sine',
+  hold = 0,
 ) => {
   const oscillator = context.createOscillator()
   const gain = context.createGain()
@@ -42,6 +50,7 @@ const tone = (
   filter.frequency.setValueAtTime(2_400, start)
   gain.gain.setValueAtTime(0.0001, start)
   gain.gain.exponentialRampToValueAtTime(volume, start + 0.012)
+  if (hold) gain.gain.setValueAtTime(volume, start + duration * hold)
   gain.gain.exponentialRampToValueAtTime(0.0001, start + duration)
 
   oscillator.connect(filter)
@@ -49,6 +58,21 @@ const tone = (
   gain.connect(context.destination)
   oscillator.start(start)
   oscillator.stop(start + duration + 0.02)
+  oscillator.onended = () => {
+    oscillator.disconnect()
+    filter.disconnect()
+    gain.disconnect()
+  }
+  return () => {
+    const now = context.currentTime
+    gain.gain.cancelScheduledValues(now)
+    gain.gain.setTargetAtTime(0.0001, now, 0.006)
+    try {
+      oscillator.stop(now + 0.025)
+    } catch {
+      /* Already ended. */
+    }
+  }
 }
 
 const hornVoice = (
@@ -105,7 +129,10 @@ const sweepTone = (
 
   oscillator.type = type
   oscillator.frequency.setValueAtTime(startFrequency, start)
-  oscillator.frequency.exponentialRampToValueAtTime(endFrequency, start + duration)
+  oscillator.frequency.exponentialRampToValueAtTime(
+    endFrequency,
+    start + duration,
+  )
   filter.type = 'bandpass'
   filter.frequency.setValueAtTime(Math.max(startFrequency, endFrequency), start)
   filter.frequency.exponentialRampToValueAtTime(
@@ -194,29 +221,32 @@ const playPattern = (context: AudioContext, sound: CallSound) => {
       tone(context, 987.77, now + 0.67, 0.07, 0.018, 'triangle')
       tone(context, 739.99, now + 0.77, 0.065, 0.013, 'triangle')
       break
-    case 'mute':
-      tone(context, 330, now, 0.105, 0.036, 'triangle')
-      tone(context, 220, now + 0.06, 0.13, 0.042, 'triangle')
-      break
-    case 'unmute':
-      tone(context, 277.18, now, 0.105, 0.036, 'triangle')
-      tone(context, 415.3, now + 0.06, 0.14, 0.043, 'triangle')
-      break
-    case 'deafen':
-      tone(context, 196, now, 0.15, 0.046, 'sine')
-      tone(context, 196, now + 0.115, 0.15, 0.04, 'sine')
-      break
-    case 'undeafen':
-      tone(context, 293.66, now, 0.13, 0.038, 'sine')
-      tone(context, 440, now + 0.095, 0.17, 0.044, 'sine')
-      break
   }
+}
+
+export const renderControlSound = (
+  context: BaseAudioContext,
+  sound: ControlSound,
+) => {
+  const now = context.currentTime + 0.015
+  const stop = CONTROL_SOUNDS[sound].map((note) =>
+    tone(
+      context,
+      note.frequency,
+      now + note.offset,
+      note.duration,
+      note.volume,
+      'triangle',
+      0.55,
+    ),
+  )
+  return () => stop.forEach((cancel) => cancel())
 }
 
 export const primeCallSounds = () => {
   if (!getCallSoundsEnabled()) return
   const context = getAudioContext()
-  if (context?.state === 'suspended') {
+  if (context && context.state !== 'running') {
     void context.resume().catch(() => undefined)
   }
 }
@@ -226,9 +256,25 @@ export const playCallSound = (sound: CallSound) => {
   const context = getAudioContext()
   if (!context) return
 
-  const play = () => playPattern(context, sound)
-  if (context.state === 'suspended') {
-    void context.resume().then(play).catch(() => undefined)
+  if (sound in CONTROL_SOUNDS) {
+    controlFeedback.play(
+      () =>
+        getCallSoundsEnabled()
+          ? renderControlSound(context, sound as ControlSound)
+          : undefined,
+      context.state !== 'running' ? context.resume() : undefined,
+    )
+    return
+  }
+
+  const play = () => {
+    if (getCallSoundsEnabled()) playPattern(context, sound)
+  }
+  if (context.state !== 'running') {
+    void context
+      .resume()
+      .then(play)
+      .catch(() => undefined)
     return
   }
   play()

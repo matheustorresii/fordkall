@@ -1203,6 +1203,8 @@ const configureWindowNavigation = (window) => {
             contextIsolation: true,
             nodeIntegration: false,
             sandbox: true,
+            // A stream window must keep painting while the call window is minimized.
+            backgroundThrottling: false,
           },
         },
       }

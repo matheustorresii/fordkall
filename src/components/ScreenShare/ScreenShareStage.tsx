@@ -13,6 +13,8 @@ import { VolumeControl } from '../AudioControls/VolumeControl'
 import { ParticipantGallery } from '../Participants/ParticipantGallery'
 import { Icon } from '../ui/Icon'
 import { setMediaSubscription } from '../../services/videoSuspension'
+import { StreamPopout } from '../../services/streamPopout'
+import './ScreenShareStage.css'
 
 const VideoRenderer = ({
   track,
@@ -261,11 +263,13 @@ export const ScreenShareStage = ({
   const [controlsPoint, setControlsPoint] = useState<ContextMenuPoint | null>(
     null,
   )
-  const stageRef = useRef<HTMLDivElement>(null)
+  const fullscreenRef = useRef<HTMLDivElement>(null)
+  const fullscreenExitRef = useRef<HTMLDivElement>(null)
+  const fullscreenHideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
+    undefined,
+  )
   const videoRef = useRef<HTMLVideoElement>(null)
-  const popoutWindowRef = useRef<Window | null>(null)
-  const popoutVideoRef = useRef<HTMLVideoElement | null>(null)
-  const popoutTrackRef = useRef<LocalVideoTrack | RemoteVideoTrack | null>(null)
+  const popoutRef = useRef<StreamPopout | null>(null)
   const [pipActive, setPipActive] = useState(false)
   const [popoutActive, setPopoutActive] = useState(false)
   const [fullscreenActive, setFullscreenActive] = useState(false)
@@ -304,24 +308,41 @@ export const ScreenShareStage = ({
   )
 
   const closePopout = useCallback((shouldCloseWindow = true) => {
-    const popup = popoutWindowRef.current
-    const video = popoutVideoRef.current
-    const track = popoutTrackRef.current
-
-    popoutWindowRef.current = null
-    popoutVideoRef.current = null
-    popoutTrackRef.current = null
-
-    if (track && video) track.detach(video)
-    if (video) {
-      video.pause()
-      video.srcObject = null
-      video.removeAttribute('src')
-      video.remove()
-    }
-
+    const popout = popoutRef.current
+    popoutRef.current = null
+    popout?.dispose(shouldCloseWindow)
     setPopoutActive(false)
-    if (shouldCloseWindow && popup && !popup.closed) popup.close()
+  }, [])
+
+  useEffect(() => {
+    const popout = popoutRef.current
+    if (!popout || !selectedLive) return
+    try {
+      popout.setName(selectedLive.participantName)
+      popout.setPublication(selectedLive.videoPublication)
+      popout.setTrack(selectedLive.videoTrack)
+    } catch {
+      closePopout()
+      setStageError(
+        'Não foi possível retomar o vídeo da janela separada. Abra a janela novamente.',
+      )
+    }
+  }, [
+    selectedLive?.videoTrack,
+    selectedLive?.videoPublication,
+    selectedLive?.participantName,
+    popoutActive,
+    closePopout,
+  ])
+
+  const showFullscreenExit = useCallback(() => {
+    if (document.fullscreenElement !== fullscreenRef.current) return
+    fullscreenExitRef.current?.classList.add('is-visible')
+    clearTimeout(fullscreenHideTimer.current)
+    fullscreenHideTimer.current = setTimeout(
+      () => fullscreenExitRef.current?.classList.remove('is-visible'),
+      1800,
+    )
   }, [])
 
   const changeWatching = useCallback(
@@ -357,13 +378,21 @@ export const ScreenShareStage = ({
 
   useEffect(() => {
     const handleFullscreenChange = () => {
-      setFullscreenActive(document.fullscreenElement === stageRef.current)
+      const active = Boolean(
+        fullscreenRef.current &&
+          document.fullscreenElement === fullscreenRef.current,
+      )
+      setFullscreenActive(active)
+      setControlsOpen(false)
+      if (active) showFullscreenExit()
     }
     document.addEventListener('fullscreenchange', handleFullscreenChange)
     handleFullscreenChange()
-    return () =>
+    return () => {
       document.removeEventListener('fullscreenchange', handleFullscreenChange)
-  }, [])
+      clearTimeout(fullscreenHideTimer.current)
+    }
+  }, [showFullscreenExit])
 
   useEffect(
     () => () => {
@@ -385,9 +414,18 @@ export const ScreenShareStage = ({
   }
 
   const toggleFullscreen = async () => {
+    setControlsOpen(false)
     try {
       if (document.fullscreenElement) await document.exitFullscreen()
-      else await stageRef.current?.requestFullscreen()
+      else if (fullscreenRef.current?.requestFullscreen)
+        await fullscreenRef.current.requestFullscreen({ navigationUI: 'hide' })
+      else {
+        const video = videoRef.current as HTMLVideoElement & {
+          webkitEnterFullscreen?: () => void
+        }
+        if (!video?.webkitEnterFullscreen) throw Error('Fullscreen unavailable')
+        video.webkitEnterFullscreen()
+      }
       setStageError('')
     } catch {
       setStageError('O navegador não conseguiu alterar o modo de tela cheia.')
@@ -396,7 +434,7 @@ export const ScreenShareStage = ({
 
   const togglePopout = () => {
     if (!selectedLive?.videoTrack) return
-    if (popoutWindowRef.current && !popoutWindowRef.current.closed) {
+    if (popoutRef.current && !popoutRef.current.window.closed) {
       closePopout()
       return
     }
@@ -413,43 +451,16 @@ export const ScreenShareStage = ({
       return
     }
 
-    const style = popup.document.createElement('style')
-    style.textContent = `
-      :root { color-scheme: dark; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; background: #030403; }
-      * { box-sizing: border-box; }
-      html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: #030403; }
-      body { display: grid; grid-template-rows: 42px minmax(0, 1fr); }
-      .bar { display: flex; align-items: center; gap: 9px; padding: 0 14px; border-bottom: 1px solid #252b26; background: #0d100e; color: #dce2dc; font-size: 12px; }
-      .bar i { width: 7px; height: 7px; border-radius: 50%; background: #ff5a5f; box-shadow: 0 0 8px rgba(255,90,95,.72); }
-      video { display: block; width: 100%; height: 100%; object-fit: contain; background: #000; }
-    `
-    const bar = popup.document.createElement('div')
-    bar.className = 'bar'
-    const dot = popup.document.createElement('i')
-    const title = popup.document.createElement('span')
-    title.textContent = `${selectedLive.participantName} · transmissão`
-    bar.append(dot, title)
-
-    // Creating the video in the opener keeps it in the same JS realm expected
-    // by the LiveKit track, then the popup adopts it when appended.
-    const popupVideo = document.createElement('video')
-    popupVideo.autoplay = true
-    popupVideo.muted = true
-    popupVideo.playsInline = true
-
-    popup.document.title = `${selectedLive.participantName} · Ford Kall`
-    popup.document.head.replaceChildren(style)
-    popup.document.body.replaceChildren(bar, popupVideo)
-
-    popoutWindowRef.current = popup
-    popoutVideoRef.current = popupVideo
-    popoutTrackRef.current = selectedLive.videoTrack
-
     try {
-      selectedLive.videoTrack.attach(popupVideo)
-      popup.addEventListener('pagehide', () => closePopout(false), {
-        once: true,
-      })
+      const popout = new StreamPopout(
+        popup,
+        document,
+        selectedLive.participantName,
+        selectedLive.videoPublication,
+        () => closePopout(false),
+      )
+      popoutRef.current = popout
+      popout.setTrack(selectedLive.videoTrack)
       popup.focus()
       setPopoutActive(true)
       setStageError('')
@@ -480,8 +491,8 @@ export const ScreenShareStage = ({
           pipSupported={pipSupported}
           popoutActive={popoutActive}
           portalTarget={
-            fullscreenActive && stageRef.current
-              ? stageRef.current
+            fullscreenActive && fullscreenRef.current
+              ? fullscreenRef.current
               : document.body
           }
           screenOutputId={screenOutputId}
@@ -575,7 +586,7 @@ export const ScreenShareStage = ({
   return (
     <>
       {audioLayers}
-      <section className="stream-stage" ref={stageRef}>
+      <section className="stream-stage">
         <div className="stream-stage__topbar">
           <button
             className="media-gallery__back"
@@ -671,11 +682,22 @@ export const ScreenShareStage = ({
         <div className="stream-stage__content">
           <div
             className="stream-stage__video"
+            ref={fullscreenRef}
+            onPointerMove={showFullscreenExit}
+            onPointerDown={showFullscreenExit}
+            onDoubleClick={(event) => {
+              if (event.target === videoRef.current) void toggleFullscreen()
+            }}
             onContextMenu={(event) => {
               event.preventDefault()
+              if (fullscreenActive) return
               openControlsAt(event.clientX, event.clientY)
             }}
-            title="Botão direito para controles da transmissão"
+            title={
+              fullscreenActive
+                ? undefined
+                : 'Botão direito para controles da transmissão'
+            }
           >
             {watchingSelectedLive && selectedLive.videoTrack ? (
               <VideoRenderer
@@ -703,6 +725,16 @@ export const ScreenShareStage = ({
                 </button>
               </div>
             )}
+            <div className="stream-fullscreen-exit" ref={fullscreenExitRef}>
+              <button
+                aria-label="Sair da tela cheia"
+                title="Sair da tela cheia · Esc"
+                onClick={() => void toggleFullscreen()}
+                type="button"
+              >
+                <Icon name="collapse" />
+              </button>
+            </div>
           </div>
 
           <ParticipantGallery

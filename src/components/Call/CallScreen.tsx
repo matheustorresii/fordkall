@@ -64,6 +64,8 @@ import { BrandMark } from '../ui/BrandMark'
 import { Icon, type IconName } from '../ui/Icon'
 import { GameRecoveryStatus } from '../Games/GameRecoveryStatus'
 import { setMediaSubscription } from '../../services/videoSuspension'
+import { externalVideos, EXTERNAL_VIDEO_EVENT } from '../../services/externalVideo'
+import { useDeafenControl } from '../../hooks/useDeafenControl'
 
 const GarticStage = lazy(() =>
   import('../Games/GarticStage').then((m) => ({ default: m.GarticStage })),
@@ -222,7 +224,7 @@ export const CallScreen = ({
   )
   const impostorGame = useRoomPartyGame(room, 'impostor', gameParticipation)
   const music = useRoomMusic(room)
-  const [deafened, setDeafened] = useState(false)
+  const { deafened, toggleDeafen } = useDeafenControl()
   const [callSoundsEnabled, setCallSoundsEnabled] =
     useState(getCallSoundsEnabled)
   const [gameOverlayEnabled, setGameOverlayEnabled] = useState(
@@ -234,6 +236,7 @@ export const CallScreen = ({
   const [layoutMenuPoint, setLayoutMenuPoint] =
     useState<ContextMenuPoint | null>(null)
   const [micBusy, setMicBusy] = useState(false)
+  const micBusyRef = useRef(false)
   const [cameraBusy, setCameraBusy] = useState(false)
   const [cameraError, setCameraError] = useState('')
   const [copyState, setCopyState] = useState('Copiar link')
@@ -302,13 +305,19 @@ export const CallScreen = ({
 
   useEffect(() => {
     if (!gamesOpen) return
-    for (const live of snapshot.lives) {
-      if (live.isLocal) continue
-      if (live.videoPublication?.isDesired)
-        setMediaSubscription(live.videoPublication, false)
-      if (live.audioPublication?.isDesired)
-        setMediaSubscription(live.audioPublication, false)
+    const sync = () => {
+      for (const live of snapshot.lives) {
+        if (live.isLocal) continue
+        if (live.videoPublication && externalVideos.active(live.videoPublication)) continue
+        if (live.videoPublication?.isDesired)
+          setMediaSubscription(live.videoPublication, false)
+        if (live.audioPublication?.isDesired)
+          setMediaSubscription(live.audioPublication, false)
+      }
     }
+    sync()
+    window.addEventListener(EXTERNAL_VIDEO_EVENT, sync)
+    return () => window.removeEventListener(EXTERNAL_VIDEO_EVENT, sync)
   }, [gamesOpen, snapshot.lives])
 
   useEffect(() => {
@@ -508,7 +517,8 @@ export const CallScreen = ({
   }, [room])
 
   const toggleMicrophone = useCallback(async () => {
-    if (micBusy || status === 'reconnecting') return
+    if (micBusyRef.current || status === 'reconnecting') return
+    micBusyRef.current = true
     setMicBusy(true)
     try {
       const enabling = !room.localParticipant.isMicrophoneEnabled
@@ -531,9 +541,10 @@ export const CallScreen = ({
         )
       }
     } finally {
+      micBusyRef.current = false
       setMicBusy(false)
     }
-  }, [micBusy, onMicrophoneErrorChange, room, status])
+  }, [onMicrophoneErrorChange, room, status])
 
   const toggleCamera = useCallback(async () => {
     if (cameraBusy || status === 'reconnecting') return
@@ -580,14 +591,6 @@ export const CallScreen = ({
     saveGameOverlayEnabled(enabled)
     setGameOverlayEnabled(enabled)
   }
-
-  const toggleDeafen = useCallback(() => {
-    setDeafened((current) => {
-      const next = !current
-      playCallSound(next ? 'deafen' : 'undeafen')
-      return next
-    })
-  }, [])
 
   const copyRoomCode = async () => {
     try {
@@ -1075,7 +1078,8 @@ export const CallScreen = ({
                 participants={snapshot.participantMedia}
               />
             )
-          ) : (
+          ) : null}
+          <div className="call-media-layer" hidden={gamesOpen}>
             <ScreenShareStage
               activeSpeakerIds={snapshot.activeSpeakerIds}
               deafened={deafened}
@@ -1085,7 +1089,7 @@ export const CallScreen = ({
               participants={snapshot.participantMedia}
               screenOutputId={devices.preferences.screenOutputId}
             />
-          )}
+          </div>
         </Suspense></div>
 
         {gamesOpen &&

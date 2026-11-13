@@ -12,7 +12,9 @@ startPwa()
 loadDisplayFonts()
 
 const root = createRoot(document.getElementById('root')!)
-if (
+if (import.meta.env.DEV && new URLSearchParams(window.location.search).has('media-preview')) {
+  void import('./dev/MediaPreview').then(({ MediaPreview }) => root.render(<StrictMode><MediaPreview /></StrictMode>))
+} else if (
   import.meta.env.DEV &&
   new URLSearchParams(window.location.search).has('party-preview')
 ) {

@@ -1,5 +1,6 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 import type { RemoteAudioTrack } from 'livekit-client'
+import { RemoteAudioOutput } from '../../services/remoteAudioOutput'
 
 interface RemoteAudioRendererProps {
   track?: RemoteAudioTrack
@@ -17,17 +18,20 @@ export const RemoteAudioRenderer = ({
   outputDeviceId,
 }: RemoteAudioRendererProps) => {
   const audioRef = useRef<HTMLAudioElement>(null)
+  const outputRef = useRef<RemoteAudioOutput | null>(null)
+  const levelRef = useRef(volume)
+  levelRef.current = volume
+  const silent = deafened || muted || volume <= 0
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const element = audioRef.current
     if (!track || !element) return
-
-    track.attach(element)
+    const output = new RemoteAudioOutput(track, element)
+    outputRef.current = output
+    output.setLevel(levelRef.current, silent)
 
     const resumePlayback = () => {
-      if (document.visibilityState === 'visible') {
-        void element.play().catch(() => undefined)
-      }
+      if (document.visibilityState === 'visible') output.resume()
     }
 
     document.addEventListener('visibilitychange', resumePlayback)
@@ -35,23 +39,14 @@ export const RemoteAudioRenderer = ({
     return () => {
       document.removeEventListener('visibilitychange', resumePlayback)
       window.removeEventListener('focus', resumePlayback)
-      track.detach(element)
-      element.pause()
-      element.srcObject = null
-      element.removeAttribute('src')
-      element.load()
+      output.dispose()
+      if (outputRef.current === output) outputRef.current = null
     }
   }, [track])
 
-  useEffect(() => {
-    const element = audioRef.current
-    if (!track || !element) return
-
-    const shouldMute = deafened || muted
-    const effectiveVolume = shouldMute ? 0 : volume
-    track.setVolume(effectiveVolume)
-    if (!shouldMute) void element.play().catch(() => undefined)
-  }, [deafened, muted, track, volume])
+  useLayoutEffect(() => {
+    outputRef.current?.setLevel(volume, silent)
+  }, [silent, track, volume])
 
   useEffect(() => {
     if (!track) return
